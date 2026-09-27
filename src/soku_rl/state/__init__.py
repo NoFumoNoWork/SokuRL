@@ -1,0 +1,1 @@
+"""Structured game-state models."""

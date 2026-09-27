@@ -1,0 +1,34 @@
+# Local game installation and community tools
+th123_jp/
+extracted/
+
+# Runtime output
+logs/*
+!logs/.gitkeep
+experiments/results/*
+!experiments/results/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+
+# Editors and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+th123_jp/
+th123_jp_bak/
+
+AGENT.md
+HISTORY.md
+PROGRESS.md
+STRUCTURES.md

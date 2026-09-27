@@ -1,0 +1,11 @@
+game:
+  executable: "th123_jp/th123.exe"
+  architecture: "x86"
+  pointer_size_bytes: 4
+
+version:
+  name: "Touhou Hisoutensoku 1.10a"
+  md5: "DF35D1FBC7B583317ADABE8CD9F53B2E"
+
+window:
+  title: null
