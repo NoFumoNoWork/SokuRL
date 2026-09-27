@@ -1,44 +1,65 @@
 # SokuRLBridge
 
-`SokuRLBridge.dll` is a Win32/x86 SWRSToys module that injects primitive P1
-logical inputs through `SokuLib::KeyInput`. It does not synthesize Windows
-keyboard events.
+Each th123 process publishes a PID-qualified shared-memory mapping:
 
-## Hook
+```text
+Local\SokuRLBridge_<pid>
+```
 
-The module follows TrialMode's `KeymapManager::SetInputs` hook at `0x40A45D`.
-It calls the original function first and only overrides the P1 manager at
-`0x008989A0` while the game is in local Practice battle.
+This keeps commands and state isolated when MemoryPatch allows multiple game
+instances. `MenuConfirm` injects one frame of the game's logical A/confirm
+input while the local character-select scene is active; it does not synthesize
+an OS key event or write a scene ID.
+
+`SokuRLBridge.dll` is a Win32/x86 SWRSToys module for Practice-mode logical
+input injection, raw frame capture, simulation pause/step, and validated
+checkpoint reconstruction. It does not synthesize Windows keyboard events or
+write game state back into arbitrary memory.
+
+## Simulation boundary
+
+The canonical frame boundary is `SokuLib::VTable_BattleManager.onProcess`, the
+same battle-manager process function used by ReplayInputView+ for pause and
+frame step. A SokuRL frame increments only after one call to the original
+battle process. Rendering, Python polling, and paused process calls do not
+increment it.
+
+The existing `KeymapManager::SetInputs` hook at `0x40A45D` remains the logical
+input boundary. The hook records the effective P1 and P2 `KeyInput` values and
+can replace both values while reconstructing. Normal bridge actions still
+control only P1.
+
+## Checkpoint model
+
+Checkpoint restoration and GOTO are currently disabled with
+`CHECKPOINT_RESTORE_UNSUPPORTED`. Runtime testing proved that returning
+`SCENE_LOADING` directly from an active Practice battle is unsafe and crashes
+th123 1.10a. No battle heap or arbitrary process memory is copied or restored,
+and the bridge will not claim checkpoint support until a proven Practice reset
+entry point is identified.
+
+The implemented but inactive reconstruction validator compares FNV-1a-64 state
+hashes after every simulation update and stops on the first mismatch. SokuLib
+exposes the match-start seed but not a proven live RNG state.
 
 ## Shared memory ABI
 
-The mapping is named `Local\SokuRLBridge`. The control block is version 1,
-packed to 4-byte alignment, and exactly 80 bytes:
+The mapping is named `Local\SokuRLBridge`. ABI version 2 uses 4-byte packing:
 
-```text
-offset  type      field
-0       uint32    magic (0x554B4F53)
-4       uint32    version (1)
-8       uint32    structSize (80)
-12      uint32    commandSeq
-16      uint32    ackSeq
-20      uint32    commandType (1=input, 2=release)
-24      int32     horizontalAxis
-28      int32     verticalAxis
-32      uint32    a
-36      uint32    b
-40      uint32    c
-44      uint32    d
-48      uint32    durationFrames
-52      uint32    framesRemaining
-56      uint64    gameFrame
-64      uint32    connected
-68      uint32    inGameplay
-72      uint32    resultCode
-76      uint32    reserved
-```
+- 500-byte `ControlBlock` with sequenced commands and a seqlock-protected live
+  `RawFrameState`.
+- 340-byte fixed-dimensional frame records.
+- A 4096-record single-producer/single-consumer ring.
+- A native 65536-frame checkpoint history for input reconstruction.
 
-The client writes command payload fields first and changes `commandSeq` last.
-The DLL acknowledges consumption through `ackSeq`. One frame is consumed per
-P1 `SetInputs` call during Practice battle. After the final active frame, the
-next P1 input call explicitly injects neutral input.
+The producer never performs file I/O. `tools/debug_panel.py` drains the ring
+and writes `data/raw/<session_id>/metadata.json`, `frames_000.csv`,
+`inputs_000.csv`, and `manifest.json`. A lossless recording requires
+`dropped_frames == 0`.
+
+## Safety and invalidation
+
+Commands are accepted only in local Practice battle. Leaving Practice or
+changing selected characters, stage, start seed, or tracked Practice settings
+invalidates the checkpoint. History capacity exhaustion also invalidates it
+instead of silently wrapping.

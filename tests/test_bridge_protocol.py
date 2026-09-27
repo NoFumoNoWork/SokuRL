@@ -1,41 +1,142 @@
 from __future__ import annotations
 
 import ctypes
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
-TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
+ROOT = Path(__file__).resolve().parents[1]
+TOOLS_DIR = ROOT / "tools"
 sys.path.insert(0, str(TOOLS_DIR))
 
 import bridge_shared
+from frame_runtime import (
+    CheckpointFingerprint,
+    RingAccounting,
+    SimulationAccounting,
+    first_hash_divergence,
+    goto_plan,
+    step_back_target,
+)
+from raw_recorder import FRAME_FIELDS, INPUT_FIELDS, RawSessionWriter, frame_row, input_row
 
 
 class BridgeProtocolTests(unittest.TestCase):
-    def test_control_block_layout(self) -> None:
-        self.assertEqual(ctypes.sizeof(bridge_shared.ControlBlock), 80)
-        self.assertEqual(bridge_shared.ControlBlock.commandSeq.offset, 12)
-        self.assertEqual(bridge_shared.ControlBlock.horizontalAxis.offset, 24)
-        self.assertEqual(bridge_shared.ControlBlock.durationFrames.offset, 48)
-        self.assertEqual(bridge_shared.ControlBlock.gameFrame.offset, 56)
-        self.assertEqual(bridge_shared.ControlBlock.resultCode.offset, 72)
+    def test_cpp_python_layout_agreement(self) -> None:
+        self.assertEqual(ctypes.sizeof(bridge_shared.LogicalInput), 32)
+        self.assertEqual(ctypes.sizeof(bridge_shared.PlayerState), 140)
+        self.assertEqual(ctypes.sizeof(bridge_shared.RawFrameState), 340)
+        self.assertEqual(ctypes.sizeof(bridge_shared.ControlBlock), 500)
+        self.assertEqual(bridge_shared.ControlBlock.commandSeq.offset, 16)
+        self.assertEqual(bridge_shared.ControlBlock.commandInput.offset, 32)
+        self.assertEqual(bridge_shared.ControlBlock.currentFrame.offset, 112)
+        self.assertEqual(bridge_shared.ControlBlock.latest.offset, 160)
+        header = (ROOT / "native" / "SokuRLBridge" / "ControlBlock.hpp").read_text(encoding="utf-8")
+        for assertion in (
+            "sizeof(LogicalInput) == 32", "sizeof(PlayerState) == 140",
+            "sizeof(RawFrameState) == 340", "sizeof(ControlBlock) == 500",
+            "offsetof(ControlBlock, currentFrame) == 112",
+        ):
+            self.assertIn(assertion, header)
 
-    def test_required_actions(self) -> None:
-        expected = {
-            "NEUTRAL", "LEFT", "RIGHT", "UP", "DOWN",
-            "UP_LEFT", "UP_RIGHT", "DOWN_LEFT", "DOWN_RIGHT",
-            "A", "B", "C", "D",
-            "LEFT_A", "RIGHT_A", "DOWN_A", "UP_A",
-            "LEFT_B", "RIGHT_B", "DOWN_B", "UP_B",
-            "LEFT_C", "RIGHT_C", "DOWN_C", "UP_C",
-        }
-        self.assertEqual(set(bridge_shared.ACTION_INPUTS), expected)
+    def test_command_protocol_values(self) -> None:
+        self.assertEqual(bridge_shared.COMMAND_RUN, 3)
+        self.assertEqual(bridge_shared.COMMAND_PAUSE, 4)
+        self.assertEqual(bridge_shared.COMMAND_STEP_FRAMES, 5)
+        self.assertEqual(bridge_shared.COMMAND_ESTABLISH_CHECKPOINT, 6)
+        self.assertEqual(bridge_shared.COMMAND_GOTO_FRAME, 7)
+        self.assertEqual(bridge_shared.COMMAND_MENU_CONFIRM, 8)
+        self.assertEqual(bridge_shared.RESULT_NAMES[12], "CHECKPOINT_RESTORE_UNSUPPORTED")
 
-    def test_axis_convention_matches_sokulib(self) -> None:
+    def test_required_actions_and_axis_convention(self) -> None:
         self.assertEqual(bridge_shared.ACTION_INPUTS["LEFT"][:2], (-1, 0))
         self.assertEqual(bridge_shared.ACTION_INPUTS["RIGHT"][:2], (1, 0))
         self.assertEqual(bridge_shared.ACTION_INPUTS["UP"][:2], (0, -1))
         self.assertEqual(bridge_shared.ACTION_INPUTS["DOWN"][:2], (0, 1))
+        self.assertTrue(all(len(value) == 8 for value in bridge_shared.ACTION_INPUTS.values()))
+
+    def test_pause_and_step_accounting(self) -> None:
+        runtime = SimulationAccounting(frame=20, paused=True)
+        self.assertEqual(runtime.run_update(), 20)
+        self.assertEqual(runtime.step(1), 21)
+        self.assertEqual(runtime.step(10), 31)
+        runtime.paused = False
+        self.assertEqual(runtime.run_update(), 32)
+
+    def test_monotonic_frame_ids(self) -> None:
+        runtime = SimulationAccounting(paused=False)
+        values = [runtime.run_update() for _ in range(20)]
+        self.assertEqual(values, list(range(1, 21)))
+
+    def test_goto_and_step_back_calculations(self) -> None:
+        self.assertEqual(goto_plan(100, 50, 301, True), "restart-and-resimulate")
+        self.assertEqual(goto_plan(100, 100, 301, True), "already-there")
+        self.assertEqual(step_back_target(100), 99)
+        with self.assertRaises(ValueError):
+            goto_plan(100, 400, 301, True)
+        with self.assertRaises(ValueError):
+            step_back_target(0)
+
+    def test_checkpoint_invalidation(self) -> None:
+        baseline = CheckpointFingerprint(1, 2, 3, 42, (0, 1, 2, 3, 4, 5))
+        self.assertTrue(baseline.remains_valid(baseline))
+        changed = CheckpointFingerprint(1, 2, 4, 42, (0, 1, 2, 3, 4, 5))
+        self.assertFalse(baseline.remains_valid(changed))
+
+    def test_state_hash_is_stable_and_sensitive(self) -> None:
+        state = bridge_shared.RawFrameState()
+        state.frameId = 7
+        state.p1.x = 123.5
+        first = bridge_shared.calculate_state_hash(state)
+        self.assertEqual(first, bridge_shared.calculate_state_hash(state))
+        state.p1.hp = 9999
+        self.assertNotEqual(first, bridge_shared.calculate_state_hash(state))
+
+    def test_divergence_harness_reports_first_mismatch(self) -> None:
+        self.assertIsNone(first_hash_divergence([10, 20, 30], [10, 20, 30]))
+        self.assertEqual(first_hash_divergence([10, 20, 30], [10, 99, 30]), 1)
+        self.assertEqual(first_hash_divergence([10, 20, 30], [10, 20]), 2)
+
+    def test_input_log_serialization_has_both_players(self) -> None:
+        state = bridge_shared.RawFrameState()
+        state.frameId = 12
+        state.p1.input.horizontalAxis = 1
+        state.p2.input.b = 1
+        row = input_row(state)
+        self.assertEqual(row["p1_horizontalAxis"], 1)
+        self.assertEqual(row["p2_b"], 1)
+        self.assertEqual(set(row), set(INPUT_FIELDS))
+
+    def test_csv_schema_is_fixed(self) -> None:
+        state = bridge_shared.RawFrameState()
+        self.assertEqual(set(frame_row(state)), set(FRAME_FIELDS))
+        self.assertEqual(set(input_row(state)), set(INPUT_FIELDS))
+        self.assertIn("p1_frameFlags", FRAME_FIELDS)
+        self.assertIn("p2_hand_4", FRAME_FIELDS)
+
+    def test_writer_outputs_manifest_and_zero_drop_validity(self) -> None:
+        with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:
+            writer = RawSessionWriter(Path(directory))
+            state = bridge_shared.RawFrameState()
+            state.frameId = 0
+            writer.write([state])
+            writer.close(dropped_frames=0, validation="UNKNOWN")
+            manifest = json.loads((writer.path / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(manifest["frames"], 1)
+            self.assertTrue(manifest["valid_lossless_recording"])
+            self.assertTrue((writer.path / "frames_000.csv").exists())
+            self.assertTrue((writer.path / "inputs_000.csv").exists())
+
+    def test_ring_overflow_detection(self) -> None:
+        ring = RingAccounting(capacity=2)
+        self.assertTrue(ring.push())
+        self.assertTrue(ring.push())
+        self.assertFalse(ring.push())
+        self.assertEqual(ring.dropped, 1)
+        self.assertEqual(ring.drain(1), 1)
+        self.assertTrue(ring.push())
 
 
 if __name__ == "__main__":

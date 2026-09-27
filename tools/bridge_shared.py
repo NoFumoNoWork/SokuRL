@@ -6,84 +6,133 @@ import time
 from ctypes import wintypes
 from dataclasses import dataclass
 
-MAPPING_NAME = r"Local\SokuRLBridge"
+MAPPING_NAME_FORMAT = r"Local\SokuRLBridge_{}"
 CONTROL_MAGIC = 0x554B4F53
-CONTROL_VERSION = 1
+CONTROL_VERSION = 2
 MAX_DURATION_FRAMES = 10_000
+FRAME_RING_CAPACITY = 4096
+NO_FRAME = (1 << 64) - 1
 
 COMMAND_INPUT = 1
 COMMAND_RELEASE = 2
+COMMAND_RUN = 3
+COMMAND_PAUSE = 4
+COMMAND_STEP_FRAMES = 5
+COMMAND_ESTABLISH_CHECKPOINT = 6
+COMMAND_GOTO_FRAME = 7
+COMMAND_MENU_CONFIRM = 8
 
 RESULT_NAMES = {
-    0: "IDLE",
-    1: "ACCEPTED",
-    2: "COMPLETE",
-    3: "RELEASED",
-    4: "NOT_IN_GAMEPLAY",
-    5: "INVALID_COMMAND",
+    0: "IDLE", 1: "ACCEPTED", 2: "COMPLETE", 3: "RELEASED",
+    4: "NOT_IN_GAMEPLAY", 5: "INVALID_COMMAND", 6: "NO_CHECKPOINT",
+    7: "TARGET_UNAVAILABLE", 8: "RESTARTING", 9: "DIVERGED",
+    10: "CHECKPOINT_INVALIDATED", 11: "HISTORY_FULL",
+    12: "CHECKPOINT_RESTORE_UNSUPPORTED",
 }
+RUN_STATE_NAMES = {0: "RUNNING", 1: "PAUSED", 2: "STEPPING", 3: "RECONSTRUCTING"}
+VALIDATION_NAMES = {0: "UNKNOWN", 1: "YES", 2: "NO"}
 
 ACTION_INPUTS = {
-    "NEUTRAL": (0, 0, 0, 0, 0, 0),
-    "LEFT": (-1, 0, 0, 0, 0, 0),
-    "RIGHT": (1, 0, 0, 0, 0, 0),
-    "UP": (0, -1, 0, 0, 0, 0),
-    "DOWN": (0, 1, 0, 0, 0, 0),
-    "UP_LEFT": (-1, -1, 0, 0, 0, 0),
-    "UP_RIGHT": (1, -1, 0, 0, 0, 0),
-    "DOWN_LEFT": (-1, 1, 0, 0, 0, 0),
-    "DOWN_RIGHT": (1, 1, 0, 0, 0, 0),
-    "A": (0, 0, 1, 0, 0, 0),
-    "B": (0, 0, 0, 1, 0, 0),
-    "C": (0, 0, 0, 0, 1, 0),
-    "D": (0, 0, 0, 0, 0, 1),
-    "LEFT_A": (-1, 0, 1, 0, 0, 0),
-    "RIGHT_A": (1, 0, 1, 0, 0, 0),
-    "DOWN_A": (0, 1, 1, 0, 0, 0),
-    "UP_A": (0, -1, 1, 0, 0, 0),
-    "LEFT_B": (-1, 0, 0, 1, 0, 0),
-    "RIGHT_B": (1, 0, 0, 1, 0, 0),
-    "DOWN_B": (0, 1, 0, 1, 0, 0),
-    "UP_B": (0, -1, 0, 1, 0, 0),
-    "LEFT_C": (-1, 0, 0, 0, 1, 0),
-    "RIGHT_C": (1, 0, 0, 0, 1, 0),
-    "DOWN_C": (0, 1, 0, 0, 1, 0),
-    "UP_C": (0, -1, 0, 0, 1, 0),
+    "NEUTRAL": (0, 0, 0, 0, 0, 0, 0, 0),
+    "LEFT": (-1, 0, 0, 0, 0, 0, 0, 0),
+    "RIGHT": (1, 0, 0, 0, 0, 0, 0, 0),
+    "UP": (0, -1, 0, 0, 0, 0, 0, 0),
+    "DOWN": (0, 1, 0, 0, 0, 0, 0, 0),
+    "UP_LEFT": (-1, -1, 0, 0, 0, 0, 0, 0),
+    "UP_RIGHT": (1, -1, 0, 0, 0, 0, 0, 0),
+    "DOWN_LEFT": (-1, 1, 0, 0, 0, 0, 0, 0),
+    "DOWN_RIGHT": (1, 1, 0, 0, 0, 0, 0, 0),
+    "A": (0, 0, 1, 0, 0, 0, 0, 0),
+    "B": (0, 0, 0, 1, 0, 0, 0, 0),
+    "C": (0, 0, 0, 0, 1, 0, 0, 0),
+    "D": (0, 0, 0, 0, 0, 1, 0, 0),
+    "LEFT_A": (-1, 0, 1, 0, 0, 0, 0, 0),
+    "RIGHT_A": (1, 0, 1, 0, 0, 0, 0, 0),
+    "DOWN_A": (0, 1, 1, 0, 0, 0, 0, 0),
+    "UP_A": (0, -1, 1, 0, 0, 0, 0, 0),
+    "LEFT_B": (-1, 0, 0, 1, 0, 0, 0, 0),
+    "RIGHT_B": (1, 0, 0, 1, 0, 0, 0, 0),
+    "DOWN_B": (0, 1, 0, 1, 0, 0, 0, 0),
+    "UP_B": (0, -1, 0, 1, 0, 0, 0, 0),
+    "LEFT_C": (-1, 0, 0, 0, 1, 0, 0, 0),
+    "RIGHT_C": (1, 0, 0, 0, 1, 0, 0, 0),
+    "DOWN_C": (0, 1, 0, 0, 1, 0, 0, 0),
+    "UP_C": (0, -1, 0, 0, 1, 0, 0, 0),
 }
+
+
+class LogicalInput(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [(name, ctypes.c_int32) for name in (
+        "horizontalAxis", "verticalAxis", "a", "b", "c", "d", "changeCard", "spellcard")]
+
+
+class PlayerState(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [
+        ("characterId", ctypes.c_uint32),
+        ("x", ctypes.c_float), ("y", ctypes.c_float),
+        ("speedX", ctypes.c_float), ("speedY", ctypes.c_float),
+        ("facing", ctypes.c_int32), ("hp", ctypes.c_int32),
+        ("spirit", ctypes.c_uint32), ("maxSpirit", ctypes.c_uint32),
+        ("cardGauge", ctypes.c_uint32), ("cardCount", ctypes.c_uint32),
+        ("handIds", ctypes.c_int32 * 5),
+        ("actionId", ctypes.c_uint32), ("sequenceId", ctypes.c_uint32),
+        ("subsequenceId", ctypes.c_uint32), ("animationFrame", ctypes.c_uint32),
+        ("elapsedInSubsequence", ctypes.c_uint32), ("hitstop", ctypes.c_uint32),
+        ("untech", ctypes.c_uint32), ("airborne", ctypes.c_uint32),
+        ("frameFlags", ctypes.c_uint32), ("attackFlags", ctypes.c_uint32),
+        ("objectCount", ctypes.c_uint32), ("input", LogicalInput),
+    ]
+
+
+class RawFrameState(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [
+        ("frameId", ctypes.c_uint64), ("segmentId", ctypes.c_uint32),
+        ("sceneId", ctypes.c_uint32), ("battleMode", ctypes.c_uint32),
+        ("battleSubMode", ctypes.c_uint32), ("stageId", ctypes.c_uint32),
+        ("roundId", ctypes.c_uint32), ("timeElapsedRaw", ctypes.c_uint32),
+        ("activeWeather", ctypes.c_uint32), ("displayedWeather", ctypes.c_uint32),
+        ("weatherCounter", ctypes.c_uint32), ("randomSeed", ctypes.c_uint32),
+        ("p1", PlayerState), ("p2", PlayerState), ("stateHash", ctypes.c_uint64),
+    ]
 
 
 class ControlBlock(ctypes.Structure):
     _pack_ = 4
     _fields_ = [
-        ("magic", ctypes.c_uint32),
-        ("version", ctypes.c_uint32),
-        ("structSize", ctypes.c_uint32),
-        ("commandSeq", ctypes.c_uint32),
-        ("ackSeq", ctypes.c_uint32),
-        ("commandType", ctypes.c_uint32),
-        ("horizontalAxis", ctypes.c_int32),
-        ("verticalAxis", ctypes.c_int32),
-        ("a", ctypes.c_uint32),
-        ("b", ctypes.c_uint32),
-        ("c", ctypes.c_uint32),
-        ("d", ctypes.c_uint32),
-        ("durationFrames", ctypes.c_uint32),
-        ("framesRemaining", ctypes.c_uint32),
-        ("gameFrame", ctypes.c_uint64),
-        ("connected", ctypes.c_uint32),
-        ("inGameplay", ctypes.c_uint32),
-        ("resultCode", ctypes.c_uint32),
-        ("reserved", ctypes.c_uint32),
+        ("magic", ctypes.c_uint32), ("version", ctypes.c_uint32),
+        ("structSize", ctypes.c_uint32), ("mappingSize", ctypes.c_uint32),
+        ("commandSeq", ctypes.c_uint32), ("ackSeq", ctypes.c_uint32),
+        ("commandType", ctypes.c_uint32), ("resultCode", ctypes.c_uint32),
+        ("commandInput", LogicalInput), ("durationFrames", ctypes.c_uint32),
+        ("inputFramesRemaining", ctypes.c_uint32), ("commandArgument", ctypes.c_uint64),
+        ("statusSeq", ctypes.c_uint32), ("connected", ctypes.c_uint32),
+        ("inGameplay", ctypes.c_uint32), ("runState", ctypes.c_uint32),
+        ("checkpointValid", ctypes.c_uint32), ("validationState", ctypes.c_uint32),
+        ("reconstructing", ctypes.c_uint32), ("stepsRemaining", ctypes.c_uint32),
+        ("currentFrame", ctypes.c_uint64), ("recordedFrames", ctypes.c_uint64),
+        ("lastVerifiedFrame", ctypes.c_uint64), ("firstDivergentFrame", ctypes.c_uint64),
+        ("droppedFrames", ctypes.c_uint32), ("ringWriteSeq", ctypes.c_uint32),
+        ("ringReadSeq", ctypes.c_uint32), ("ringCapacity", ctypes.c_uint32),
+        ("latest", RawFrameState),
     ]
 
 
+class BridgeMapping(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [("control", ControlBlock), ("frames", RawFrameState * FRAME_RING_CAPACITY)]
+
+
 CONTROL_BLOCK_SIZE = ctypes.sizeof(ControlBlock)
-assert CONTROL_BLOCK_SIZE == 80
-assert ControlBlock.commandSeq.offset == 12
-assert ControlBlock.horizontalAxis.offset == 24
-assert ControlBlock.durationFrames.offset == 48
-assert ControlBlock.gameFrame.offset == 56
-assert ControlBlock.resultCode.offset == 72
+MAPPING_SIZE = ctypes.sizeof(BridgeMapping)
+assert ctypes.sizeof(LogicalInput) == 32
+assert ctypes.sizeof(PlayerState) == 140
+assert ctypes.sizeof(RawFrameState) == 340
+assert CONTROL_BLOCK_SIZE == 500
+assert ControlBlock.currentFrame.offset == 112
+assert ControlBlock.latest.offset == 160
 
 
 class BridgeUnavailable(RuntimeError):
@@ -99,10 +148,28 @@ class BridgeSnapshot:
     connected: bool
     in_gameplay: bool
     result_code: int
+    run_state: int
+    checkpoint_valid: bool
+    validation_state: int
+    reconstructing: bool
+    steps_remaining: int
+    recorded_frames: int
+    dropped_frames: int
+    last_verified_frame: int | None
+    first_divergent_frame: int | None
+    latest: RawFrameState
 
     @property
     def result_name(self) -> str:
         return RESULT_NAMES.get(self.result_code, f"UNKNOWN_{self.result_code}")
+
+    @property
+    def run_state_name(self) -> str:
+        return RUN_STATE_NAMES.get(self.run_state, f"UNKNOWN_{self.run_state}")
+
+    @property
+    def deterministic_name(self) -> str:
+        return VALIDATION_NAMES.get(self.validation_state, "UNKNOWN")
 
 
 if os.name == "nt":
@@ -112,41 +179,46 @@ if os.name == "nt":
     _kernel32.MapViewOfFile.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.c_size_t]
     _kernel32.MapViewOfFile.restype = ctypes.c_void_p
     _kernel32.UnmapViewOfFile.argtypes = [ctypes.c_void_p]
-    _kernel32.UnmapViewOfFile.restype = wintypes.BOOL
     _kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-    _kernel32.CloseHandle.restype = wintypes.BOOL
+
+
+def _copy_struct(value: ctypes.Structure, kind: type[ctypes.Structure]):
+    result = kind()
+    ctypes.memmove(ctypes.addressof(result), ctypes.addressof(value), ctypes.sizeof(kind))
+    return result
 
 
 class BridgeClient:
     _FILE_MAP_WRITE = 0x0002
     _FILE_MAP_READ = 0x0004
 
-    def __init__(self) -> None:
+    def __init__(self, pid: int | None = None) -> None:
         if os.name != "nt":
             raise BridgeUnavailable("SokuRLBridge is only available on Windows")
-
+        if pid is None:
+            try:
+                import psutil
+                pids = [process.pid for process in psutil.process_iter(["name"])
+                        if (process.info["name"] or "").casefold() == "th123.exe"]
+            except Exception as error:
+                raise BridgeUnavailable("a th123 PID is required") from error
+            if len(pids) != 1:
+                raise BridgeUnavailable(f"a th123 PID is required; found {len(pids)} instances")
+            pid = pids[0]
+        self.pid = pid
+        mapping_name = MAPPING_NAME_FORMAT.format(pid)
         self._handle = _kernel32.OpenFileMappingW(
-            self._FILE_MAP_READ | self._FILE_MAP_WRITE,
-            False,
-            MAPPING_NAME,
-        )
+            self._FILE_MAP_READ | self._FILE_MAP_WRITE, False, mapping_name)
         if not self._handle:
-            raise BridgeUnavailable("Local\\SokuRLBridge is not available; start th123 with the module loaded")
-
+            raise BridgeUnavailable(f"{mapping_name} is not available")
         self._view = _kernel32.MapViewOfFile(
-            self._handle,
-            self._FILE_MAP_READ | self._FILE_MAP_WRITE,
-            0,
-            0,
-            CONTROL_BLOCK_SIZE,
-        )
+            self._handle, self._FILE_MAP_READ | self._FILE_MAP_WRITE, 0, 0, MAPPING_SIZE)
         if not self._view:
             error = ctypes.get_last_error()
             _kernel32.CloseHandle(self._handle)
             self._handle = None
             raise BridgeUnavailable(f"MapViewOfFile failed with Windows error {error}")
-
-        self._block_pointer = ctypes.cast(self._view, ctypes.POINTER(ControlBlock))
+        self._mapping_pointer = ctypes.cast(self._view, ctypes.POINTER(BridgeMapping))
         try:
             self._validate_abi()
         except Exception:
@@ -154,25 +226,24 @@ class BridgeClient:
             raise
 
     @property
-    def block(self) -> ControlBlock:
-        if self._block_pointer is None:
+    def mapping(self) -> BridgeMapping:
+        if self._mapping_pointer is None:
             raise BridgeUnavailable("bridge mapping is closed")
-        return self._block_pointer.contents
+        return self._mapping_pointer.contents
+
+    @property
+    def block(self) -> ControlBlock:
+        return self.mapping.control
 
     def _validate_abi(self) -> None:
         block = self.block
-        if block.magic != CONTROL_MAGIC:
-            raise BridgeUnavailable(f"bridge magic mismatch: 0x{block.magic:08X}")
-        if block.version != CONTROL_VERSION:
-            raise BridgeUnavailable(f"bridge version mismatch: {block.version}")
-        if block.structSize != CONTROL_BLOCK_SIZE:
-            raise BridgeUnavailable(
-                f"bridge size mismatch: DLL={block.structSize}, Python={CONTROL_BLOCK_SIZE}"
-            )
+        expected = (CONTROL_MAGIC, CONTROL_VERSION, CONTROL_BLOCK_SIZE, MAPPING_SIZE)
+        actual = (block.magic, block.version, block.structSize, block.mappingSize)
+        if actual != expected:
+            raise BridgeUnavailable(f"bridge ABI mismatch: DLL={actual}, Python={expected}")
 
     def close(self) -> None:
-        if getattr(self, "_block_pointer", None) is not None:
-            self._block_pointer = None
+        self._mapping_pointer = None
         if getattr(self, "_view", None):
             _kernel32.UnmapViewOfFile(self._view)
             self._view = None
@@ -188,21 +259,37 @@ class BridgeClient:
 
     def snapshot(self) -> BridgeSnapshot:
         block = self.block
-        game_frame = block.gameFrame
-        for _ in range(2):
-            repeated = block.gameFrame
-            if repeated == game_frame:
+        for _ in range(20):
+            before = block.statusSeq
+            if before & 1:
+                continue
+            latest = _copy_struct(block.latest, RawFrameState)
+            values = (
+                block.currentFrame, block.recordedFrames, block.lastVerifiedFrame,
+                block.firstDivergentFrame, block.stepsRemaining,
+            )
+            after = block.statusSeq
+            if before == after and not after & 1:
                 break
-            game_frame = repeated
+        else:
+            raise BridgeUnavailable("could not read a stable bridge snapshot")
+        last_verified = None if values[2] == NO_FRAME else values[2]
+        first_divergent = None if values[3] == NO_FRAME else values[3]
         return BridgeSnapshot(
-            command_seq=block.commandSeq,
-            ack_seq=block.ackSeq,
-            frames_remaining=block.framesRemaining,
-            game_frame=game_frame,
-            connected=bool(block.connected),
-            in_gameplay=bool(block.inGameplay),
-            result_code=block.resultCode,
+            block.commandSeq, block.ackSeq, block.inputFramesRemaining, values[0],
+            bool(block.connected), bool(block.inGameplay), block.resultCode, block.runState,
+            bool(block.checkpointValid), block.validationState, bool(block.reconstructing),
+            values[4], values[1], block.droppedFrames, last_verified, first_divergent, latest,
         )
+
+    def _send(self, command: int, *, duration: int = 0, argument: int = 0) -> int:
+        block = self.block
+        block.durationFrames = duration
+        block.commandArgument = argument
+        block.commandType = command
+        sequence = (block.commandSeq + 1) & 0xFFFFFFFF or 1
+        block.commandSeq = sequence
+        return sequence
 
     def send_action(self, action: str, frames: int) -> int:
         normalized = action.upper()
@@ -210,38 +297,64 @@ class BridgeClient:
             raise ValueError(f"unknown action: {action}")
         if not isinstance(frames, int) or not 1 <= frames <= MAX_DURATION_FRAMES:
             raise ValueError(f"frames must be an integer from 1 to {MAX_DURATION_FRAMES}")
-
-        block = self.block
-        horizontal, vertical, a, b, c, d = ACTION_INPUTS[normalized]
-        block.horizontalAxis = horizontal
-        block.verticalAxis = vertical
-        block.a = a
-        block.b = b
-        block.c = c
-        block.d = d
-        block.durationFrames = frames
-        block.commandType = COMMAND_INPUT
-        sequence = (block.commandSeq + 1) & 0xFFFFFFFF
-        if sequence == 0:
-            sequence = 1
-        block.commandSeq = sequence
-        return sequence
+        for name, value in zip(
+            ("horizontalAxis", "verticalAxis", "a", "b", "c", "d", "changeCard", "spellcard"),
+            ACTION_INPUTS[normalized], strict=True,
+        ):
+            setattr(self.block.commandInput, name, value)
+        return self._send(COMMAND_INPUT, duration=frames)
 
     def release(self) -> int:
+        self.block.commandInput = LogicalInput()
+        return self._send(COMMAND_RELEASE)
+
+    def run(self) -> int:
+        return self._send(COMMAND_RUN)
+
+    def pause(self) -> int:
+        return self._send(COMMAND_PAUSE)
+
+    def step(self, frames: int) -> int:
+        if not isinstance(frames, int) or not 1 <= frames <= MAX_DURATION_FRAMES:
+            raise ValueError(f"frames must be an integer from 1 to {MAX_DURATION_FRAMES}")
+        return self._send(COMMAND_STEP_FRAMES, duration=frames)
+
+    def establish_checkpoint(self) -> int:
+        return self._send(COMMAND_ESTABLISH_CHECKPOINT)
+
+    def goto_frame(self, frame: int) -> int:
+        if not isinstance(frame, int) or frame < 0:
+            raise ValueError("frame must be a non-negative integer")
+        return self._send(COMMAND_GOTO_FRAME, argument=frame)
+
+    def menu_confirm(self) -> int:
+        return self._send(COMMAND_MENU_CONFIRM)
+
+    def step_back(self) -> int:
+        current = self.snapshot().game_frame
+        if current == 0:
+            raise ValueError("already at frame 0")
+        return self.goto_frame(current - 1)
+
+    def reset_ring(self) -> None:
         block = self.block
-        block.horizontalAxis = 0
-        block.verticalAxis = 0
-        block.a = 0
-        block.b = 0
-        block.c = 0
-        block.d = 0
-        block.durationFrames = 0
-        block.commandType = COMMAND_RELEASE
-        sequence = (block.commandSeq + 1) & 0xFFFFFFFF
-        if sequence == 0:
-            sequence = 1
-        block.commandSeq = sequence
-        return sequence
+        block.ringReadSeq = block.ringWriteSeq
+        block.droppedFrames = 0
+
+    def drain_frames(self, limit: int | None = None) -> list[RawFrameState]:
+        block = self.block
+        write = block.ringWriteSeq
+        read = block.ringReadSeq
+        available = (write - read) & 0xFFFFFFFF
+        if available > FRAME_RING_CAPACITY:
+            raise BridgeUnavailable("ring sequence accounting is invalid")
+        count = available if limit is None else min(available, limit)
+        result = [
+            _copy_struct(self.mapping.frames[(read + index) % FRAME_RING_CAPACITY], RawFrameState)
+            for index in range(count)
+        ]
+        block.ringReadSeq = (read + count) & 0xFFFFFFFF
+        return result
 
     def wait_for_ack(self, sequence: int, timeout: float = 2.0) -> BridgeSnapshot:
         deadline = time.monotonic() + timeout
@@ -251,3 +364,21 @@ class BridgeClient:
                 return snapshot
             time.sleep(0.01)
         return self.snapshot()
+
+
+def calculate_state_hash(state: RawFrameState) -> int:
+    fields = (
+        "frameId", "sceneId", "battleMode", "battleSubMode", "stageId", "roundId",
+        "activeWeather", "displayedWeather", "weatherCounter", "randomSeed",
+    )
+    data = bytearray()
+    for name in fields:
+        field_type = dict(RawFrameState._fields_)[name]
+        offset = getattr(RawFrameState, name).offset
+        data.extend(ctypes.string_at(ctypes.addressof(state) + offset, ctypes.sizeof(field_type)))
+    data.extend(ctypes.string_at(ctypes.addressof(state.p1), ctypes.sizeof(PlayerState)))
+    data.extend(ctypes.string_at(ctypes.addressof(state.p2), ctypes.sizeof(PlayerState)))
+    value = 14695981039346656037
+    for byte in data:
+        value = ((value ^ byte) * 1099511628211) & 0xFFFFFFFFFFFFFFFF
+    return value
