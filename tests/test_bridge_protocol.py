@@ -27,17 +27,21 @@ class BridgeProtocolTests(unittest.TestCase):
     def test_cpp_python_layout_agreement(self) -> None:
         self.assertEqual(ctypes.sizeof(bridge_shared.LogicalInput), 32)
         self.assertEqual(ctypes.sizeof(bridge_shared.PlayerState), 140)
-        self.assertEqual(ctypes.sizeof(bridge_shared.RawFrameState), 340)
-        self.assertEqual(ctypes.sizeof(bridge_shared.ControlBlock), 500)
+        self.assertEqual(ctypes.sizeof(bridge_shared.ObjectState), 80)
+        self.assertEqual(ctypes.sizeof(bridge_shared.SimplePlayerState), 40)
+        self.assertEqual(ctypes.sizeof(bridge_shared.SimpleStatePatch), 96)
+        self.assertEqual(ctypes.sizeof(bridge_shared.RawFrameState), 10596)
+        self.assertEqual(ctypes.sizeof(bridge_shared.ControlBlock), 10884)
         self.assertEqual(bridge_shared.ControlBlock.commandSeq.offset, 16)
         self.assertEqual(bridge_shared.ControlBlock.commandInput.offset, 32)
-        self.assertEqual(bridge_shared.ControlBlock.currentFrame.offset, 112)
-        self.assertEqual(bridge_shared.ControlBlock.latest.offset, 160)
+        self.assertEqual(bridge_shared.ControlBlock.currentFrame.offset, 144)
+        self.assertEqual(bridge_shared.ControlBlock.latest.offset, 288)
         header = (ROOT / "native" / "SokuRLBridge" / "ControlBlock.hpp").read_text(encoding="utf-8")
         for assertion in (
             "sizeof(LogicalInput) == 32", "sizeof(PlayerState) == 140",
-            "sizeof(RawFrameState) == 340", "sizeof(ControlBlock) == 500",
-            "offsetof(ControlBlock, currentFrame) == 112",
+            "sizeof(ObjectState) == 80", "sizeof(SimpleStatePatch) == 96",
+            "sizeof(RawFrameState) == 10596", "sizeof(ControlBlock) == 10884",
+            "offsetof(ControlBlock, currentFrame) == 144",
         ):
             self.assertIn(assertion, header)
 
@@ -48,6 +52,8 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(bridge_shared.COMMAND_ESTABLISH_CHECKPOINT, 6)
         self.assertEqual(bridge_shared.COMMAND_GOTO_FRAME, 7)
         self.assertEqual(bridge_shared.COMMAND_MENU_CONFIRM, 8)
+        self.assertEqual(bridge_shared.COMMAND_STEP_WITH_INPUTS, 9)
+        self.assertEqual(bridge_shared.COMMAND_APPLY_SIMPLE_STATE, 10)
         self.assertEqual(bridge_shared.RESULT_NAMES[12], "CHECKPOINT_RESTORE_UNSUPPORTED")
 
     def test_required_actions_and_axis_convention(self) -> None:
@@ -93,6 +99,26 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(first, bridge_shared.calculate_state_hash(state))
         state.p1.hp = 9999
         self.assertNotEqual(first, bridge_shared.calculate_state_hash(state))
+
+    def test_state_hash_includes_projectile_state(self) -> None:
+        state = bridge_shared.RawFrameState()
+        first = bridge_shared.calculate_state_hash(state)
+        state.p1ObjectCount = 1
+        state.p1Objects[0].typeId = 0x12345678
+        state.p1Objects[0].x = 42.5
+        self.assertNotEqual(first, bridge_shared.calculate_state_hash(state))
+
+    def test_simple_patch_layout_covers_only_documented_scalars(self) -> None:
+        fields = {name for name, _ in bridge_shared.SimpleStatePatch._fields_}
+        self.assertEqual(fields, {
+            "timeElapsedRaw", "activeWeather", "displayedWeather", "weatherCounter",
+            "p1", "p2",
+        })
+        player_fields = {name for name, _ in bridge_shared.SimplePlayerState._fields_}
+        self.assertNotIn("actionId", player_fields)
+        self.assertNotIn("objectCount", player_fields)
+        self.assertIn("hp", player_fields)
+        self.assertIn("spirit", player_fields)
 
     def test_divergence_harness_reports_first_mismatch(self) -> None:
         self.assertIsNone(first_hash_divergence([10, 20, 30], [10, 20, 30]))

@@ -15,6 +15,7 @@
 
 #include <Windows.h>
 #include <algorithm>
+#include <cwchar>
 #include <cstring>
 #include <vector>
 
@@ -23,6 +24,7 @@ namespace
 using SetInputsMethod = void (SokuLib::KeymapManager::*)();
 using BattleProcessMethod = int (SokuLib::Battle::*)();
 using BattleManagerProcessMethod = int (SokuLib::BattleManager::*)();
+using SelectProcessMethod = int (SokuLib::Select::*)();
 
 constexpr DWORD KEYMAP_SET_INPUTS_HOOK = 0x0040A45D;
 constexpr std::uint32_t LOCAL_BATTLE_SCENE = 5;
@@ -35,6 +37,7 @@ SokuRLBridge::ControlBlock *g_control = nullptr;
 SetInputsMethod g_originalSetInputs = nullptr;
 BattleProcessMethod g_originalBattleProcess = nullptr;
 BattleManagerProcessMethod g_originalBattleManagerProcess = nullptr;
+SelectProcessMethod g_originalSelectProcess = nullptr;
 
 std::uint32_t g_lastCommandSeq = 0;
 std::uint32_t g_segmentId = 0;
@@ -43,6 +46,10 @@ std::uint32_t g_stepsRemaining = 0;
 bool g_paused = false;
 bool g_inSimulationUpdate = false;
 bool g_reconstructing = false;
+bool g_battleActive = false;
+bool g_checkpointArmed = false;
+bool g_checkpointSeedRequested = false;
+std::uint32_t g_requestedCheckpointSeed = 0;
 bool g_restartRequested = false;
 bool g_awaitingRestart = false;
 bool g_establishAfterRestart = false;
@@ -50,7 +57,8 @@ std::uint64_t g_reconstructionTarget = 0;
 std::uint64_t g_replayInputFrame = 0;
 
 SokuRLBridge::LogicalInput g_effectiveInputs[2]{};
-SokuLib::KeyInput g_activeInput{};
+SokuLib::KeyInput g_activeInputs[2]{};
+std::uint32_t g_activeInputMask = 0;
 std::uint32_t g_activeInputFrames = 0;
 bool g_activeInputEnabled = false;
 bool g_neutralPending = false;
@@ -98,6 +106,17 @@ bool isPracticeGameplay()
 {
     return *reinterpret_cast<const int *>(SokuLib::ADDR_SCENE_ID) == LOCAL_BATTLE_SCENE &&
         SokuLib::mainMode == SokuLib::BATTLE_MODE_PRACTICE;
+}
+
+bool isReplayGameplay()
+{
+    return *reinterpret_cast<const int *>(SokuLib::ADDR_SCENE_ID) == LOCAL_BATTLE_SCENE &&
+        SokuLib::subMode == SokuLib::BATTLE_SUBMODE_REPLAY;
+}
+
+bool isSupportedGameplay()
+{
+    return isPracticeGameplay() || isReplayGameplay();
 }
 
 SokuRLBridge::LogicalInput toLogicalInput(const SokuLib::KeyInput &input)
@@ -194,12 +213,69 @@ std::uint64_t stateHash(const SokuRLBridge::RawFrameState &state)
     hash = hashBytes(hash, &state.battleSubMode, sizeof(state.battleSubMode));
     hash = hashBytes(hash, &state.stageId, sizeof(state.stageId));
     hash = hashBytes(hash, &state.roundId, sizeof(state.roundId));
+    hash = hashBytes(hash, &state.timeElapsedRaw, sizeof(state.timeElapsedRaw));
     hash = hashBytes(hash, &state.activeWeather, sizeof(state.activeWeather));
     hash = hashBytes(hash, &state.displayedWeather, sizeof(state.displayedWeather));
     hash = hashBytes(hash, &state.weatherCounter, sizeof(state.weatherCounter));
     hash = hashBytes(hash, &state.randomSeed, sizeof(state.randomSeed));
     hash = hashBytes(hash, &state.p1, sizeof(state.p1));
-    return hashBytes(hash, &state.p2, sizeof(state.p2));
+    hash = hashBytes(hash, &state.p2, sizeof(state.p2));
+    hash = hashBytes(hash, &state.p1ObjectCount, sizeof(state.p1ObjectCount));
+    hash = hashBytes(hash, &state.p2ObjectCount, sizeof(state.p2ObjectCount));
+    hash = hashBytes(hash, &state.p1ObjectOverflow, sizeof(state.p1ObjectOverflow));
+    hash = hashBytes(hash, &state.p2ObjectOverflow, sizeof(state.p2ObjectOverflow));
+    hash = hashBytes(hash, state.p1Objects, sizeof(state.p1Objects));
+    return hashBytes(hash, state.p2Objects, sizeof(state.p2Objects));
+}
+
+void captureObject(const SokuLib::ObjectManager &object, std::uint32_t owner,
+    std::uint32_t index, SokuRLBridge::ObjectState &state)
+{
+    const auto &projectile = reinterpret_cast<const SokuLib::ProjectileManager &>(object);
+    state.ownerIndex = owner;
+    state.listIndex = index;
+    state.typeId = reinterpret_cast<std::uint32_t>(object.vtable);
+    state.actionId = static_cast<std::uint32_t>(object.action);
+    state.actionBlockId = object.actionBlockId;
+    state.animationCounter = object.animationCounter;
+    state.animationSubFrame = object.animationSubFrame;
+    state.frameCount = object.frameCount;
+    state.x = object.position.x;
+    state.y = object.position.y;
+    state.speedX = object.speed.x;
+    state.speedY = object.speed.y;
+    // Several projectile classes leave this inherited slot uninitialized.
+    // Position and speed are stable; expose a canonical value instead of heap noise.
+    state.gravity = 0.0f;
+    state.direction = object.direction;
+    state.hp = object.hp;
+    state.hitstop = object.hitstop;
+    state.hitBoxCount = object.hitBoxCount;
+    state.hurtBoxCount = object.hurtBoxCount;
+    state.characterIndex = projectile.characterIndex;
+    state.isActive = projectile.isActive;
+}
+
+void captureObjects(const SokuLib::CharacterManager &manager, std::uint32_t owner,
+    SokuRLBridge::ObjectState (&states)[SokuRLBridge::MAX_OBJECTS_PER_PLAYER],
+    std::uint32_t &count, std::uint32_t &overflow)
+{
+    const auto &list = manager.objects.list;
+    overflow = list.size > SokuRLBridge::MAX_OBJECTS_PER_PLAYER ? 1U : 0U;
+    if (!list.head || !list.size)
+        return;
+
+    auto *node = list.head->next;
+    while (node && node != list.head && count < SokuRLBridge::MAX_OBJECTS_PER_PLAYER) {
+        if (node->val)
+            captureObject(*node->val, owner, count, states[count]);
+        else
+            overflow = 1;
+        ++count;
+        node = node->next;
+    }
+    if (count < std::min<std::uint32_t>(list.size, SokuRLBridge::MAX_OBJECTS_PER_PLAYER))
+        overflow = 1;
 }
 
 void captureHand(const SokuLib::CharacterManager &manager, SokuRLBridge::PlayerState &state)
@@ -266,8 +342,40 @@ SokuRLBridge::RawFrameState captureState(SokuLib::BattleManager *manager, std::u
     state.randomSeed = SokuLib::gameParams.randomSeed;
     capturePlayer(manager->leftCharacterManager, g_effectiveInputs[0], state.p1);
     capturePlayer(manager->rightCharacterManager, g_effectiveInputs[1], state.p2);
+    state.p1.characterId = static_cast<std::uint32_t>(SokuLib::gameParams.leftPlayerInfo.character);
+    state.p2.characterId = static_cast<std::uint32_t>(SokuLib::gameParams.rightPlayerInfo.character);
+    captureObjects(manager->leftCharacterManager, 0, state.p1Objects,
+        state.p1ObjectCount, state.p1ObjectOverflow);
+    captureObjects(manager->rightCharacterManager, 1, state.p2Objects,
+        state.p2ObjectCount, state.p2ObjectOverflow);
     state.stateHash = stateHash(state);
     return state;
+}
+
+void applySimplePlayerState(SokuLib::CharacterManager &manager,
+    const SokuRLBridge::SimplePlayerState &state)
+{
+    manager.objectBase.position.x = state.x;
+    manager.objectBase.position.y = state.y;
+    manager.objectBase.speed.x = state.speedX;
+    manager.objectBase.speed.y = state.speedY;
+    manager.objectBase.direction = static_cast<SokuLib::Direction>(state.facing);
+    manager.objectBase.hp = static_cast<short>(state.hp);
+    manager.currentSpirit = static_cast<unsigned short>(state.spirit);
+    manager.maxSpirit = static_cast<unsigned short>(state.maxSpirit);
+    manager.cardGauge = static_cast<unsigned short>(state.cardGauge);
+    manager.cardCount = static_cast<unsigned char>(state.cardCount);
+}
+
+void applySimpleState(SokuLib::BattleManager &manager,
+    const SokuRLBridge::SimpleStatePatch &state)
+{
+    *reinterpret_cast<std::uint32_t *>(SokuLib::ADDR_TIME_ELAPSED) = state.timeElapsedRaw;
+    SokuLib::activeWeather = static_cast<SokuLib::Weather>(state.activeWeather);
+    SokuLib::displayedWeather = static_cast<SokuLib::Weather>(state.displayedWeather);
+    SokuLib::weatherCounter = static_cast<unsigned short>(state.weatherCounter);
+    applySimplePlayerState(manager.leftCharacterManager, state.p1);
+    applySimplePlayerState(manager.rightCharacterManager, state.p2);
 }
 
 void publishLatest(const SokuRLBridge::RawFrameState &state)
@@ -310,7 +418,9 @@ void appendRecordedFrame(const SokuRLBridge::RawFrameState &state)
 
 void clearControlledInput(SokuRLBridge::ResultCode result, bool neutral)
 {
-    g_activeInput = {};
+    g_activeInputs[0] = {};
+    g_activeInputs[1] = {};
+    g_activeInputMask = 0;
     g_activeInputFrames = 0;
     g_activeInputEnabled = false;
     g_neutralPending = neutral;
@@ -326,6 +436,7 @@ void consumeCommand(bool gameplay)
     MemoryBarrier();
     const auto type = static_cast<SokuRLBridge::CommandType>(load32(&g_control->commandType));
     const auto input = g_control->commandInput;
+    const auto inputP2 = g_control->commandInputP2;
     const auto duration = g_control->durationFrames;
     const auto argument = g_control->commandArgument;
     g_lastCommandSeq = sequence;
@@ -335,7 +446,8 @@ void consumeCommand(bool gameplay)
     } else if (!gameplay) {
         publishResult(SokuRLBridge::ResultCode::NotInGameplay);
     } else if (type == SokuRLBridge::CommandType::Input && isValidInput(input, duration)) {
-        g_activeInput = toKeyInput(input);
+        g_activeInputs[0] = toKeyInput(input);
+        g_activeInputMask = 1;
         g_activeInputFrames = duration;
         g_activeInputEnabled = true;
         g_neutralPending = false;
@@ -353,10 +465,31 @@ void consumeCommand(bool gameplay)
         g_paused = true;
         g_stepsRemaining = duration;
         publishResult(SokuRLBridge::ResultCode::Accepted);
+    } else if (type == SokuRLBridge::CommandType::StepWithInputs &&
+        isValidInput(input, 1) && isValidInput(inputP2, 1)) {
+        g_activeInputs[0] = toKeyInput(input);
+        g_activeInputs[1] = toKeyInput(inputP2);
+        g_activeInputMask = 3;
+        g_activeInputFrames = 1;
+        g_activeInputEnabled = true;
+        g_neutralPending = false;
+        g_paused = true;
+        g_stepsRemaining = 1;
+        store32(&g_control->inputFramesRemaining, 1);
+        publishResult(SokuRLBridge::ResultCode::Accepted);
+    } else if (type == SokuRLBridge::CommandType::ApplySimpleState && g_paused &&
+        !g_stepsRemaining) {
+        auto &manager = SokuLib::getBattleMgr();
+        applySimpleState(manager, g_control->commandPatch);
+        const auto patched = captureState(&manager, g_currentFrame);
+        publishLatest(patched);
+        pushRing(patched);
+        publishResult(SokuRLBridge::ResultCode::Complete);
+    } else if (type == SokuRLBridge::CommandType::EstablishCheckpoint && !g_battleActive) {
+        g_checkpointArmed = true;
+        g_paused = true;
+        publishResult(SokuRLBridge::ResultCode::Accepted);
     } else if (type == SokuRLBridge::CommandType::EstablishCheckpoint) {
-        // Returning SCENE_LOADING from an active Practice battle crashes th123
-        // 1.10a. Keep checkpoint restore unavailable until a proven reset entry
-        // point is identified.
         publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
     } else if (type == SokuRLBridge::CommandType::GotoFrame) {
         (void)argument;
@@ -369,7 +502,7 @@ void consumeCommand(bool gameplay)
 
 int playerIndexFor(SokuLib::KeymapManager *self)
 {
-    if (!isPracticeGameplay())
+    if (!isSupportedGameplay())
         return -1;
     auto &manager = SokuLib::getBattleMgr();
     const auto left = manager.leftCharacterManager.keyManager;
@@ -396,6 +529,18 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
                 g_lastCommandSeq = sequence;
                 publishResult(SokuRLBridge::ResultCode::Complete);
                 acknowledge(sequence);
+            } else if (type == SokuRLBridge::CommandType::EstablishCheckpoint) {
+                const auto seed = g_control->commandArgument;
+                g_checkpointSeedRequested = seed != SokuRLBridge::NO_FRAME;
+                if (g_checkpointSeedRequested) {
+                    g_requestedCheckpointSeed = static_cast<std::uint32_t>(seed);
+                    SokuLib::gameParams.randomSeed = g_requestedCheckpointSeed;
+                }
+                g_checkpointArmed = true;
+                g_paused = true;
+                g_lastCommandSeq = sequence;
+                publishResult(SokuRLBridge::ResultCode::Accepted);
+                acknowledge(sequence);
             }
         }
         return;
@@ -411,12 +556,13 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
         const auto &recorded = player == 0 ? g_history[replayIndex].p1.input :
             g_history[replayIndex].p2.input;
         self->input = toKeyInput(recorded);
+    } else if (g_activeInputEnabled && (g_activeInputMask & (1U << player)) &&
+        g_activeInputFrames) {
+        self->input = g_activeInputs[player];
     } else if (player == 0) {
         if (g_neutralPending) {
             self->input = {};
             g_neutralPending = false;
-        } else if (g_activeInputEnabled && g_activeInputFrames) {
-            self->input = g_activeInput;
         }
     }
     g_effectiveInputs[player] = toLogicalInput(self->input);
@@ -434,6 +580,7 @@ int callSimulationUpdate(SokuLib::BattleManager *manager)
         store32(&g_control->inputFramesRemaining, g_activeInputFrames);
         if (!g_activeInputFrames) {
             g_activeInputEnabled = false;
+            g_activeInputMask = 0;
             g_neutralPending = true;
             publishResult(SokuRLBridge::ResultCode::Complete);
         }
@@ -515,12 +662,44 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
 {
     if (!g_control)
         return (manager->*g_originalBattleManagerProcess)();
-    const bool gameplay = isPracticeGameplay();
+    const bool gameplay = isSupportedGameplay();
     store32(&g_control->inGameplay, gameplay ? 1U : 0U);
     consumeCommand(gameplay);
     if (!gameplay) {
+        g_battleActive = false;
         invalidateCheckpoint(SokuRLBridge::ResultCode::CheckpointInvalidated);
         return (manager->*g_originalBattleManagerProcess)();
+    }
+    if (!g_battleActive) {
+        g_battleActive = true;
+        g_currentFrame = 0;
+        g_stepsRemaining = 0;
+        g_effectiveInputs[0] = {};
+        g_effectiveInputs[1] = {};
+        if (g_checkpointArmed && g_checkpointSeedRequested)
+            SokuLib::gameParams.randomSeed = g_requestedCheckpointSeed;
+        const auto initial = captureState(manager, 0);
+        if (g_checkpointArmed) {
+            g_checkpointArmed = false;
+            g_checkpointSeedRequested = false;
+            g_checkpoint = readIdentity();
+            g_history.clear();
+            g_history.push_back(initial);
+            setCheckpointValid(true);
+            g_paused = true;
+            store32(&g_control->validationState,
+                static_cast<std::uint32_t>(SokuRLBridge::ValidationState::Unknown));
+            g_control->lastVerifiedFrame = SokuRLBridge::NO_FRAME;
+            g_control->firstDivergentFrame = SokuRLBridge::NO_FRAME;
+            publishLatest(initial);
+            pushRing(initial);
+            publishResult(SokuRLBridge::ResultCode::Complete);
+            store32(&g_control->runState,
+                static_cast<std::uint32_t>(SokuRLBridge::RunState::Paused));
+            return 0;
+        }
+        publishLatest(initial);
+        pushRing(initial);
     }
     if (initializeRestartedBattle(manager) || g_restartRequested) {
         store32(&g_control->runState, static_cast<std::uint32_t>(SokuRLBridge::RunState::Paused));
@@ -557,6 +736,14 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
         store32(&g_control->runState, static_cast<std::uint32_t>(SokuRLBridge::RunState::Paused));
         publishResult(SokuRLBridge::ResultCode::Complete);
     }
+    return result;
+}
+
+int __fastcall selectOnProcess(SokuLib::Select *select)
+{
+    const auto result = (select->*g_originalSelectProcess)();
+    if (g_checkpointArmed && g_checkpointSeedRequested)
+        SokuLib::gameParams.randomSeed = g_requestedCheckpointSeed;
     return result;
 }
 
@@ -631,10 +818,12 @@ bool installHooks()
         return false;
     g_originalBattleManagerProcess = SokuLib::TamperDword(
         &SokuLib::VTable_BattleManager.onProcess, battleManagerOnProcess);
+    g_originalSelectProcess = SokuLib::TamperDword(
+        &SokuLib::VTable_Select.onProcess, selectOnProcess);
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
-    return g_originalSetInputs && g_originalBattleManagerProcess;
+    return g_originalSetInputs && g_originalBattleManagerProcess && g_originalSelectProcess;
 }
 }
 
@@ -649,6 +838,11 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     g_history.reserve(SokuRLBridge::INPUT_HISTORY_CAPACITY);
     if (!createMapping())
         return false;
+    const auto *commandLine = GetCommandLineW();
+    if (commandLine && wcsstr(commandLine, L".rep")) {
+        g_checkpointArmed = true;
+        g_paused = true;
+    }
     if (!installHooks()) {
         closeMapping();
         return false;

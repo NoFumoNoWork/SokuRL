@@ -8,9 +8,10 @@ from dataclasses import dataclass
 
 MAPPING_NAME_FORMAT = r"Local\SokuRLBridge_{}"
 CONTROL_MAGIC = 0x554B4F53
-CONTROL_VERSION = 2
+CONTROL_VERSION = 5
 MAX_DURATION_FRAMES = 10_000
-FRAME_RING_CAPACITY = 4096
+FRAME_RING_CAPACITY = 512
+MAX_OBJECTS_PER_PLAYER = 64
 NO_FRAME = (1 << 64) - 1
 
 COMMAND_INPUT = 1
@@ -21,6 +22,8 @@ COMMAND_STEP_FRAMES = 5
 COMMAND_ESTABLISH_CHECKPOINT = 6
 COMMAND_GOTO_FRAME = 7
 COMMAND_MENU_CONFIRM = 8
+COMMAND_STEP_WITH_INPUTS = 9
+COMMAND_APPLY_SIMPLE_STATE = 10
 
 RESULT_NAMES = {
     0: "IDLE", 1: "ACCEPTED", 2: "COMPLETE", 3: "RELEASED",
@@ -86,6 +89,44 @@ class PlayerState(ctypes.Structure):
     ]
 
 
+class ObjectState(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [
+        ("ownerIndex", ctypes.c_uint32), ("listIndex", ctypes.c_uint32),
+        ("typeId", ctypes.c_uint32), ("actionId", ctypes.c_uint32),
+        ("actionBlockId", ctypes.c_uint32), ("animationCounter", ctypes.c_uint32),
+        ("animationSubFrame", ctypes.c_uint32), ("frameCount", ctypes.c_uint32),
+        ("x", ctypes.c_float), ("y", ctypes.c_float),
+        ("speedX", ctypes.c_float), ("speedY", ctypes.c_float),
+        ("gravity", ctypes.c_float), ("direction", ctypes.c_int32),
+        ("hp", ctypes.c_int32), ("hitstop", ctypes.c_uint32),
+        ("hitBoxCount", ctypes.c_uint32), ("hurtBoxCount", ctypes.c_uint32),
+        ("characterIndex", ctypes.c_uint32), ("isActive", ctypes.c_uint32),
+    ]
+
+
+class SimplePlayerState(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [
+        ("x", ctypes.c_float), ("y", ctypes.c_float),
+        ("speedX", ctypes.c_float), ("speedY", ctypes.c_float),
+        ("facing", ctypes.c_int32), ("hp", ctypes.c_int32),
+        ("spirit", ctypes.c_uint32), ("maxSpirit", ctypes.c_uint32),
+        ("cardGauge", ctypes.c_uint32), ("cardCount", ctypes.c_uint32),
+    ]
+
+
+class SimpleStatePatch(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [
+        ("timeElapsedRaw", ctypes.c_uint32),
+        ("activeWeather", ctypes.c_uint32),
+        ("displayedWeather", ctypes.c_uint32),
+        ("weatherCounter", ctypes.c_uint32),
+        ("p1", SimplePlayerState), ("p2", SimplePlayerState),
+    ]
+
+
 class RawFrameState(ctypes.Structure):
     _pack_ = 4
     _fields_ = [
@@ -95,7 +136,12 @@ class RawFrameState(ctypes.Structure):
         ("roundId", ctypes.c_uint32), ("timeElapsedRaw", ctypes.c_uint32),
         ("activeWeather", ctypes.c_uint32), ("displayedWeather", ctypes.c_uint32),
         ("weatherCounter", ctypes.c_uint32), ("randomSeed", ctypes.c_uint32),
-        ("p1", PlayerState), ("p2", PlayerState), ("stateHash", ctypes.c_uint64),
+        ("p1", PlayerState), ("p2", PlayerState),
+        ("p1ObjectCount", ctypes.c_uint32), ("p2ObjectCount", ctypes.c_uint32),
+        ("p1ObjectOverflow", ctypes.c_uint32), ("p2ObjectOverflow", ctypes.c_uint32),
+        ("p1Objects", ObjectState * MAX_OBJECTS_PER_PLAYER),
+        ("p2Objects", ObjectState * MAX_OBJECTS_PER_PLAYER),
+        ("stateHash", ctypes.c_uint64),
     ]
 
 
@@ -106,7 +152,8 @@ class ControlBlock(ctypes.Structure):
         ("structSize", ctypes.c_uint32), ("mappingSize", ctypes.c_uint32),
         ("commandSeq", ctypes.c_uint32), ("ackSeq", ctypes.c_uint32),
         ("commandType", ctypes.c_uint32), ("resultCode", ctypes.c_uint32),
-        ("commandInput", LogicalInput), ("durationFrames", ctypes.c_uint32),
+        ("commandInput", LogicalInput), ("commandInputP2", LogicalInput),
+        ("durationFrames", ctypes.c_uint32),
         ("inputFramesRemaining", ctypes.c_uint32), ("commandArgument", ctypes.c_uint64),
         ("statusSeq", ctypes.c_uint32), ("connected", ctypes.c_uint32),
         ("inGameplay", ctypes.c_uint32), ("runState", ctypes.c_uint32),
@@ -116,6 +163,7 @@ class ControlBlock(ctypes.Structure):
         ("lastVerifiedFrame", ctypes.c_uint64), ("firstDivergentFrame", ctypes.c_uint64),
         ("droppedFrames", ctypes.c_uint32), ("ringWriteSeq", ctypes.c_uint32),
         ("ringReadSeq", ctypes.c_uint32), ("ringCapacity", ctypes.c_uint32),
+        ("commandPatch", SimpleStatePatch),
         ("latest", RawFrameState),
     ]
 
@@ -129,10 +177,13 @@ CONTROL_BLOCK_SIZE = ctypes.sizeof(ControlBlock)
 MAPPING_SIZE = ctypes.sizeof(BridgeMapping)
 assert ctypes.sizeof(LogicalInput) == 32
 assert ctypes.sizeof(PlayerState) == 140
-assert ctypes.sizeof(RawFrameState) == 340
-assert CONTROL_BLOCK_SIZE == 500
-assert ControlBlock.currentFrame.offset == 112
-assert ControlBlock.latest.offset == 160
+assert ctypes.sizeof(ObjectState) == 80
+assert ctypes.sizeof(SimplePlayerState) == 40
+assert ctypes.sizeof(SimpleStatePatch) == 96
+assert ctypes.sizeof(RawFrameState) == 10596
+assert CONTROL_BLOCK_SIZE == 10884
+assert ControlBlock.currentFrame.offset == 144
+assert ControlBlock.latest.offset == 288
 
 
 class BridgeUnavailable(RuntimeError):
@@ -259,9 +310,11 @@ class BridgeClient:
 
     def snapshot(self) -> BridgeSnapshot:
         block = self.block
-        for _ in range(20):
+        deadline = time.monotonic() + 0.25
+        while time.monotonic() < deadline:
             before = block.statusSeq
             if before & 1:
+                time.sleep(0.001)
                 continue
             latest = _copy_struct(block.latest, RawFrameState)
             values = (
@@ -271,6 +324,7 @@ class BridgeClient:
             after = block.statusSeq
             if before == after and not after & 1:
                 break
+            time.sleep(0.001)
         else:
             raise BridgeUnavailable("could not read a stable bridge snapshot")
         last_verified = None if values[2] == NO_FRAME else values[2]
@@ -291,17 +345,23 @@ class BridgeClient:
         block.commandSeq = sequence
         return sequence
 
+    @staticmethod
+    def _write_input(target: LogicalInput, values: tuple[int, ...] | LogicalInput) -> None:
+        names = ("horizontalAxis", "verticalAxis", "a", "b", "c", "d", "changeCard", "spellcard")
+        if isinstance(values, LogicalInput):
+            values = tuple(getattr(values, name) for name in names)
+        if len(values) != len(names):
+            raise ValueError("logical input must contain eight values")
+        for name, value in zip(names, values, strict=True):
+            setattr(target, name, value)
+
     def send_action(self, action: str, frames: int) -> int:
         normalized = action.upper()
         if normalized not in ACTION_INPUTS:
             raise ValueError(f"unknown action: {action}")
         if not isinstance(frames, int) or not 1 <= frames <= MAX_DURATION_FRAMES:
             raise ValueError(f"frames must be an integer from 1 to {MAX_DURATION_FRAMES}")
-        for name, value in zip(
-            ("horizontalAxis", "verticalAxis", "a", "b", "c", "d", "changeCard", "spellcard"),
-            ACTION_INPUTS[normalized], strict=True,
-        ):
-            setattr(self.block.commandInput, name, value)
+        self._write_input(self.block.commandInput, ACTION_INPUTS[normalized])
         return self._send(COMMAND_INPUT, duration=frames)
 
     def release(self) -> int:
@@ -319,8 +379,36 @@ class BridgeClient:
             raise ValueError(f"frames must be an integer from 1 to {MAX_DURATION_FRAMES}")
         return self._send(COMMAND_STEP_FRAMES, duration=frames)
 
-    def establish_checkpoint(self) -> int:
-        return self._send(COMMAND_ESTABLISH_CHECKPOINT)
+    def establish_checkpoint(self, seed: int | None = None) -> int:
+        if seed is not None and not 0 <= seed <= 0xFFFFFFFF:
+            raise ValueError("seed must be a 32-bit unsigned integer")
+        return self._send(
+            COMMAND_ESTABLISH_CHECKPOINT,
+            argument=NO_FRAME if seed is None else seed,
+        )
+
+    def step_with_inputs(
+        self,
+        p1: tuple[int, ...] | LogicalInput,
+        p2: tuple[int, ...] | LogicalInput,
+    ) -> int:
+        self._write_input(self.block.commandInput, p1)
+        self._write_input(self.block.commandInputP2, p2)
+        return self._send(COMMAND_STEP_WITH_INPUTS, duration=1)
+
+    def apply_simple_state(self, state: RawFrameState) -> int:
+        patch = self.block.commandPatch
+        patch.timeElapsedRaw = state.timeElapsedRaw
+        patch.activeWeather = state.activeWeather
+        patch.displayedWeather = state.displayedWeather
+        patch.weatherCounter = state.weatherCounter
+        for target, source in ((patch.p1, state.p1), (patch.p2, state.p2)):
+            for name in (
+                "x", "y", "speedX", "speedY", "facing", "hp", "spirit",
+                "maxSpirit", "cardGauge", "cardCount",
+            ):
+                setattr(target, name, getattr(source, name))
+        return self._send(COMMAND_APPLY_SIMPLE_STATE)
 
     def goto_frame(self, frame: int) -> int:
         if not isinstance(frame, int) or frame < 0:
@@ -369,7 +457,7 @@ class BridgeClient:
 def calculate_state_hash(state: RawFrameState) -> int:
     fields = (
         "frameId", "sceneId", "battleMode", "battleSubMode", "stageId", "roundId",
-        "activeWeather", "displayedWeather", "weatherCounter", "randomSeed",
+        "timeElapsedRaw", "activeWeather", "displayedWeather", "weatherCounter", "randomSeed",
     )
     data = bytearray()
     for name in fields:
@@ -378,6 +466,11 @@ def calculate_state_hash(state: RawFrameState) -> int:
         data.extend(ctypes.string_at(ctypes.addressof(state) + offset, ctypes.sizeof(field_type)))
     data.extend(ctypes.string_at(ctypes.addressof(state.p1), ctypes.sizeof(PlayerState)))
     data.extend(ctypes.string_at(ctypes.addressof(state.p2), ctypes.sizeof(PlayerState)))
+    metadata_start = RawFrameState.p1ObjectCount.offset
+    metadata_size = RawFrameState.p1Objects.offset - metadata_start
+    data.extend(ctypes.string_at(ctypes.addressof(state) + metadata_start, metadata_size))
+    data.extend(ctypes.string_at(ctypes.addressof(state.p1Objects), ctypes.sizeof(state.p1Objects)))
+    data.extend(ctypes.string_at(ctypes.addressof(state.p2Objects), ctypes.sizeof(state.p2Objects)))
     value = 14695981039346656037
     for byte in data:
         value = ((value ^ byte) * 1099511628211) & 0xFFFFFFFFFFFFFFFF

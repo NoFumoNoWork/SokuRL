@@ -36,6 +36,7 @@ RIGHT_SELECTION_STAGE_OFFSET = 0x22C1
 SCENE_SELECT = 3
 SCENE_BATTLE = 5
 BATTLE_MODE_PRACTICE = 8
+BATTLE_SUBMODE_REPLAY = 2
 
 PROCESS_QUERY_INFORMATION = 0x0400
 PROCESS_VM_READ = 0x0010
@@ -118,7 +119,7 @@ def _read_bridge(pid: int) -> BridgeState | None:
         if version == 1 and struct_size == 80:
             frame = struct.unpack_from("<Q", raw, 56)[0]
             connected, in_gameplay = struct.unpack_from("<II", raw, 64)
-        elif version == 2 and struct_size >= 160:
+        elif version in (2, 3) and struct_size >= 160:
             kernel32.UnmapViewOfFile(view)
             view = kernel32.MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 160)
             if not view:
@@ -126,6 +127,14 @@ def _read_bridge(pid: int) -> BridgeState | None:
             raw = ctypes.string_at(view, 160)
             frame = struct.unpack_from("<Q", raw, 112)[0]
             connected, in_gameplay = struct.unpack_from("<II", raw, 84)
+        elif version in (4, 5) and struct_size >= 192:
+            kernel32.UnmapViewOfFile(view)
+            view = kernel32.MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 192)
+            if not view:
+                return None
+            raw = ctypes.string_at(view, 192)
+            frame = struct.unpack_from("<Q", raw, 144)[0]
+            connected, in_gameplay = struct.unpack_from("<II", raw, 116)
         else:
             return None
         return BridgeState(version, bool(connected), bool(in_gameplay), frame)
@@ -256,6 +265,96 @@ def practice(timeout: float, pid: int | None) -> int:
     raise RuntimeError(f"timed out after {timeout:.1f}s waiting for PRACTICE_READY")
 
 
+def replay(path: Path, frame: int | None, timeout: float) -> int:
+    _validate_game()
+    path = path.resolve()
+    if not path.is_file() or path.suffix.casefold() != ".rep":
+        raise RuntimeError(f"not a replay file: {path}")
+    if frame is not None and frame < 0:
+        raise RuntimeError("--frame must be non-negative")
+
+    process = psutil.Process(subprocess.Popen([str(GAME_EXE), str(path)], cwd=GAME_DIR).pid)
+    client = None
+    try:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if not process.is_running():
+                raise RuntimeError(f"th123 exited before replay readiness (PID {process.pid})")
+            try:
+                client = BridgeClient(process.pid)
+                break
+            except BridgeUnavailable:
+                time.sleep(0.05)
+        else:
+            raise RuntimeError(f"bridge timeout for replay PID {process.pid}")
+
+        while time.monotonic() < deadline:
+            snapshot = client.snapshot()
+            if (
+                snapshot.in_gameplay
+                and snapshot.latest.sceneId == SCENE_BATTLE
+                and snapshot.latest.battleSubMode == BATTLE_SUBMODE_REPLAY
+                and snapshot.game_frame == 0
+                and snapshot.run_state_name == "PAUSED"
+            ):
+                break
+            time.sleep(0.01)
+        else:
+            raise RuntimeError(f"replay frame-zero timeout for PID {process.pid}")
+
+        if frame is None:
+            sequence = client.run()
+            acknowledged = client.wait_for_ack(sequence)
+            if acknowledged.ack_seq != sequence:
+                raise RuntimeError("replay run command was not acknowledged")
+            print(f"REPLAY_PLAYING pid={process.pid} file={path}")
+            return 0
+
+        remaining = frame
+        while remaining:
+            count = min(remaining, 10_000)
+            before = client.snapshot().game_frame
+            sequence = client.step(count)
+            acknowledged = client.wait_for_ack(sequence, timeout=max(2.0, count / 1000))
+            if acknowledged.ack_seq != sequence:
+                raise RuntimeError(f"replay step was not acknowledged at frame {before}")
+            expected = before + count
+            step_deadline = time.monotonic() + max(5.0, count / 500)
+            while time.monotonic() < step_deadline:
+                snapshot = client.snapshot()
+                if snapshot.game_frame == expected and snapshot.run_state_name == "PAUSED":
+                    break
+                time.sleep(0.005)
+            else:
+                raise RuntimeError(
+                    f"replay seek stopped at {client.snapshot().game_frame}, expected {expected}"
+                )
+            remaining -= count
+
+        snapshot = client.snapshot()
+        payload = {
+            "pid": process.pid,
+            "file": str(path),
+            "frame": snapshot.game_frame,
+            "state": snapshot.run_state_name,
+            "hash": f"{snapshot.latest.stateHash:016X}",
+            "p1_character": snapshot.latest.p1.characterId,
+            "p2_character": snapshot.latest.p2.characterId,
+            "p1_objects": snapshot.latest.p1ObjectCount,
+            "p2_objects": snapshot.latest.p2ObjectCount,
+        }
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        print("REPLAY_FRAME_READY")
+        return 0
+    except Exception:
+        if process.is_running():
+            _post_close(process.pid)
+        raise
+    finally:
+        if client is not None:
+            client.close()
+
+
 def _select_process(pid: int | None) -> psutil.Process:
     processes = _game_processes()
     if not processes:
@@ -327,6 +426,10 @@ def build_parser() -> argparse.ArgumentParser:
     practice_parser = subparsers.add_parser("practice", help="launch the SkipIntro Practice preset")
     practice_parser.add_argument("--timeout", type=float, default=30.0)
     practice_parser.add_argument("--pid", type=int)
+    replay_parser = subparsers.add_parser("replay", help="launch a replay through ReplayDnD")
+    replay_parser.add_argument("path", type=Path)
+    replay_parser.add_argument("--frame", type=int)
+    replay_parser.add_argument("--timeout", type=float, default=35.0)
     subparsers.add_parser("list", help="list all th123 instances")
     status_parser = subparsers.add_parser("status", help="show process and Practice status")
     status_parser.add_argument("--pid", type=int)
@@ -341,6 +444,8 @@ def main() -> int:
     try:
         if args.command == "practice":
             return practice(args.timeout, args.pid)
+        if args.command == "replay":
+            return replay(args.path, args.frame, args.timeout)
         if args.command == "list":
             return list_instances()
         if args.command == "status":

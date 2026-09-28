@@ -6,17 +6,18 @@
 namespace SokuRLBridge
 {
 constexpr std::uint32_t CONTROL_MAGIC = 0x554B4F53;
-constexpr std::uint32_t CONTROL_VERSION = 2;
+constexpr std::uint32_t CONTROL_VERSION = 5;
 constexpr wchar_t MAPPING_NAME_FORMAT[] = L"Local\\SokuRLBridge_%lu";
 constexpr std::uint32_t MAX_DURATION_FRAMES = 10000;
-constexpr std::uint32_t FRAME_RING_CAPACITY = 4096;
-constexpr std::uint32_t INPUT_HISTORY_CAPACITY = 65536;
+constexpr std::uint32_t FRAME_RING_CAPACITY = 512;
+constexpr std::uint32_t INPUT_HISTORY_CAPACITY = 4096;
+constexpr std::uint32_t MAX_OBJECTS_PER_PLAYER = 64;
 constexpr std::uint64_t NO_FRAME = UINT64_MAX;
 
 enum class CommandType : std::uint32_t {
     None = 0, Input = 1, Release = 2, Run = 3, Pause = 4,
     StepFrames = 5, EstablishCheckpoint = 6, GotoFrame = 7,
-    MenuConfirm = 8,
+    MenuConfirm = 8, StepWithInputs = 9, ApplySimpleState = 10,
 };
 
 enum class ResultCode : std::uint32_t {
@@ -74,6 +75,51 @@ struct PlayerState {
     LogicalInput input;
 };
 
+struct ObjectState {
+    std::uint32_t ownerIndex;
+    std::uint32_t listIndex;
+    std::uint32_t typeId;
+    std::uint32_t actionId;
+    std::uint32_t actionBlockId;
+    std::uint32_t animationCounter;
+    std::uint32_t animationSubFrame;
+    std::uint32_t frameCount;
+    float x;
+    float y;
+    float speedX;
+    float speedY;
+    float gravity;
+    std::int32_t direction;
+    std::int32_t hp;
+    std::uint32_t hitstop;
+    std::uint32_t hitBoxCount;
+    std::uint32_t hurtBoxCount;
+    std::uint32_t characterIndex;
+    std::uint32_t isActive;
+};
+
+struct SimplePlayerState {
+    float x;
+    float y;
+    float speedX;
+    float speedY;
+    std::int32_t facing;
+    std::int32_t hp;
+    std::uint32_t spirit;
+    std::uint32_t maxSpirit;
+    std::uint32_t cardGauge;
+    std::uint32_t cardCount;
+};
+
+struct SimpleStatePatch {
+    std::uint32_t timeElapsedRaw;
+    std::uint32_t activeWeather;
+    std::uint32_t displayedWeather;
+    std::uint32_t weatherCounter;
+    SimplePlayerState p1;
+    SimplePlayerState p2;
+};
+
 struct RawFrameState {
     std::uint64_t frameId;
     std::uint32_t segmentId;
@@ -89,6 +135,12 @@ struct RawFrameState {
     std::uint32_t randomSeed;
     PlayerState p1;
     PlayerState p2;
+    std::uint32_t p1ObjectCount;
+    std::uint32_t p2ObjectCount;
+    std::uint32_t p1ObjectOverflow;
+    std::uint32_t p2ObjectOverflow;
+    ObjectState p1Objects[MAX_OBJECTS_PER_PLAYER];
+    ObjectState p2Objects[MAX_OBJECTS_PER_PLAYER];
     std::uint64_t stateHash;
 };
 
@@ -102,6 +154,7 @@ struct ControlBlock {
     std::uint32_t commandType;
     std::uint32_t resultCode;
     LogicalInput commandInput;
+    LogicalInput commandInputP2;
     std::uint32_t durationFrames;
     std::uint32_t inputFramesRemaining;
     std::uint64_t commandArgument;
@@ -121,6 +174,7 @@ struct ControlBlock {
     std::uint32_t ringWriteSeq;
     std::uint32_t ringReadSeq;
     std::uint32_t ringCapacity;
+    SimpleStatePatch commandPatch;
     RawFrameState latest;
 };
 
@@ -132,11 +186,14 @@ struct BridgeMapping {
 
 static_assert(sizeof(LogicalInput) == 32, "LogicalInput ABI size changed");
 static_assert(sizeof(PlayerState) == 140, "PlayerState ABI size changed");
-static_assert(sizeof(RawFrameState) == 340, "RawFrameState ABI size changed");
-static_assert(sizeof(ControlBlock) == 500, "ControlBlock ABI size changed");
+static_assert(sizeof(ObjectState) == 80, "ObjectState ABI size changed");
+static_assert(sizeof(SimplePlayerState) == 40, "SimplePlayerState ABI size changed");
+static_assert(sizeof(SimpleStatePatch) == 96, "SimpleStatePatch ABI size changed");
+static_assert(sizeof(RawFrameState) == 10596, "RawFrameState ABI size changed");
+static_assert(sizeof(ControlBlock) == 10884, "ControlBlock ABI size changed");
 static_assert(offsetof(ControlBlock, commandSeq) == 16, "commandSeq ABI offset changed");
 static_assert(offsetof(ControlBlock, commandInput) == 32, "commandInput ABI offset changed");
-static_assert(offsetof(ControlBlock, currentFrame) == 112, "currentFrame ABI offset changed");
-static_assert(offsetof(ControlBlock, latest) == 160, "latest ABI offset changed");
+static_assert(offsetof(ControlBlock, currentFrame) == 144, "currentFrame ABI offset changed");
+static_assert(offsetof(ControlBlock, latest) == 288, "latest ABI offset changed");
 static_assert(offsetof(BridgeMapping, frames) == sizeof(ControlBlock), "ring ABI offset changed");
 }

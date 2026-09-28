@@ -14,7 +14,7 @@ an OS key event or write a scene ID.
 `SokuRLBridge.dll` is a Win32/x86 SWRSToys module for Practice-mode logical
 input injection, raw frame capture, simulation pause/step, and validated
 checkpoint reconstruction. It does not synthesize Windows keyboard events or
-write game state back into arbitrary memory.
+write scene IDs or partial battle-manager objects.
 
 ## Simulation boundary
 
@@ -26,31 +26,34 @@ increment it.
 
 The existing `KeymapManager::SetInputs` hook at `0x40A45D` remains the logical
 input boundary. The hook records the effective P1 and P2 `KeyInput` values and
-can replace both values while reconstructing. Normal bridge actions still
-control only P1.
+can replace both values with one atomic `StepWithInputs` command while paused.
+Normal bridge actions still control only P1.
 
 ## Checkpoint model
 
-Checkpoint restoration and GOTO are currently disabled with
-`CHECKPOINT_RESTORE_UNSUPPORTED`. Runtime testing proved that returning
-`SCENE_LOADING` directly from an active Practice battle is unsafe and crashes
-th123 1.10a. No battle heap or arbitrary process memory is copied or restored,
-and the bridge will not claim checkpoint support until a proven Practice reset
-entry point is identified.
+`EstablishCheckpoint` is armed in the normal character-select scene. The bridge
+fixes the requested match seed after `Select::onProcess`, captures frame zero
+before the first battle-manager simulation update, and freezes there. GOTO is
+implemented by `tools/frame_validation.py` as a fresh SkipIntro Practice
+process followed by recorded P1/P2 logical-input replay. The proven-crashing
+active-battle `SCENE_LOADING` route remains disabled.
 
-The implemented but inactive reconstruction validator compares FNV-1a-64 state
-hashes after every simulation update and stops on the first mismatch. SokuLib
-exposes the match-start seed but not a proven live RNG state.
+Reconstruction is hybrid. Action machines and projectile/object lists are
+rebuilt only through simulation. After every replayed frame, `ApplySimpleState`
+may restore only documented scalar state: timer, weather, player position and
+speed, facing, HP, spirit, and card counters. It cannot write actions,
+animation state, hitstop, flags, hands, or objects. The validator compares a
+canonical FNV-1a-64 hash and a field-by-field diff after each frame.
 
 ## Shared memory ABI
 
-The mapping is named `Local\SokuRLBridge`. ABI version 2 uses 4-byte packing:
+ABI version 5 uses 4-byte packing:
 
-- 500-byte `ControlBlock` with sequenced commands and a seqlock-protected live
+- 10884-byte `ControlBlock` with sequenced commands and a seqlock-protected live
   `RawFrameState`.
-- 340-byte fixed-dimensional frame records.
-- A 4096-record single-producer/single-consumer ring.
-- A native 65536-frame checkpoint history for input reconstruction.
+- 10596-byte fixed-dimensional frame records with 64 object slots per player.
+- A 512-record single-producer/single-consumer ring.
+- A native 4096-frame short-range checkpoint history.
 
 The producer never performs file I/O. `tools/debug_panel.py` drains the ring
 and writes `data/raw/<session_id>/metadata.json`, `frames_000.csv`,
@@ -59,7 +62,24 @@ and writes `data/raw/<session_id>/metadata.json`, `frames_000.csv`,
 
 ## Safety and invalidation
 
-Commands are accepted only in local Practice battle. Leaving Practice or
-changing selected characters, stage, start seed, or tracked Practice settings
-invalidates the checkpoint. History capacity exhaustion also invalidates it
-instead of silently wrapping.
+Battle commands are accepted only in local Practice or replay battle.
+Checkpoint arming uses the legitimate local character-select path for Practice
+and the ReplayDnD command-line path for replay. Leaving battle or changing
+selected characters, stage, start seed, or tracked Practice settings invalidates
+the checkpoint. History capacity exhaustion also invalidates it instead of
+silently wrapping.
+
+## Replay mode
+
+ReplayDnD owns command-line `.rep` loading. For a replay launch the bridge
+automatically freezes the first replay BattleManager state at frame zero. Replay
+mode uses the same state capture, dual-input stepping, simple-state patch, and
+hash comparison path as Practice; it does not parse or replace ReplayDnD.
+
+```powershell
+.\.venv\python.exe tools\sokurl.py replay path\match.rep
+.\.venv\python.exe tools\sokurl.py replay path\match.rep --frame 5000
+```
+
+The first form starts normal playback. The second fast-simulates from replay
+frame zero to the requested frame and leaves the process frozen there.
