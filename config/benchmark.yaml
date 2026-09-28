@@ -1,5 +1,6 @@
 defaults:
   - train
+  - evaluation: validation
   - _self_
 candidate:
   name: learned
@@ -7,9 +8,7 @@ candidate:
   player_1: ???
 benchmark:
   opponents: ${rules.roster}
-  # NumPy default_rng(682946157).integers(0, 0xFFFFFFFF, size=32).
-  # Held out from fitting; confidence bounds assume independent seed blocks.
-  world_seeds: [918042743, 1897077702, 244381756, 3884668474, 1067982671, 3435502516, 2494848888, 749036788, 150129190, 628494812, 2983632534, 3783740191, 2148812439, 1585906333, 3274860351, 2647200270, 889907591, 2486091745, 1181721508, 2513183960, 3518875467, 497418082, 3862796479, 1348204026, 826421485, 1322176320, 2353223400, 2550907955, 2832734442, 856064562, 3711048237, 399247819]
-  policy_seed: 728341
+  world_seeds: ${evaluation.world_seeds}
+  policy_seed: ${evaluation.policy_seed}
   alpha: 0.05
-output: logs/benchmark/${candidate.name}-${track}-${now:%Y%m%d-%H%M%S}
+output: logs/benchmark/${candidate.name}-${track}-${evaluation.name}-${now:%Y%m%d-%H%M%S}
