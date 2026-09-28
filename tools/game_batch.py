@@ -53,8 +53,8 @@ class SokuGameBatch:
     def _observe(self, slot, raw, dropped):
         step = _time_step(raw, dropped)
         if self.observation_mode == "image":
-            image = self.image_clients[slot].read(int(raw.frameId), 10.0)
-            return replace(step, observations=(image, image))
+            scene = self.image_clients[slot].read(int(raw.frameId), 10.0)
+            return replace(step, observations=(scene.image, scene.image))
         return step
 
     def reset(self, seeds):

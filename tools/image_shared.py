@@ -4,13 +4,15 @@ import struct
 import time
 
 from soku_rl.pixels import RGBFrame
+from soku_rl.render_state import CapturedScene, RenderSnapshot, RENDER_STATE_SIZE
 
 from bridge_shared import _kernel32
 
 
 HEADER = struct.Struct("<IIiiQIIII")
 WIDTH, HEIGHT = 320, 240
-MAPPING_SIZE = HEADER.size + WIDTH * HEIGHT * 3
+PIXEL_OFFSET = HEADER.size + RENDER_STATE_SIZE
+MAPPING_SIZE = PIXEL_OFFSET + WIDTH * HEIGHT * 3
 
 
 class ImageClient:
@@ -36,14 +38,16 @@ class ImageClient:
                 last = ctypes.c_int32.from_address(self.view + 8).value
                 magic, version, sequence, result, captured, width, height, _, _ = HEADER.unpack_from(data)
                 if first == last == sequence:
-                    if magic != 0x474D4953 or version != 1 or (width, height) != (WIDTH, HEIGHT):
+                    if magic != 0x474D4953 or version != 2 or (width, height) != (WIDTH, HEIGHT):
                         raise RuntimeError("unsupported native image mapping")
                     if captured > frame:
                         raise RuntimeError("image advanced beyond the requested simulation frame")
                     if captured == frame:
                         if result < 0:
                             raise RuntimeError(f"native image capture failed: HRESULT {result & 0xFFFFFFFF:08X}")
-                        return RGBFrame(int(captured), width, height, data[HEADER.size:])
+                        rgb = RGBFrame(int(captured), width, height, data[PIXEL_OFFSET:])
+                        render = RenderSnapshot.decode(data[HEADER.size:PIXEL_OFFSET])
+                        return CapturedScene(rgb, render)
             time.sleep(0.001)
         raise TimeoutError(f"no rendered image for simulation frame {frame}")
 
