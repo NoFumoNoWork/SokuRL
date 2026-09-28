@@ -57,6 +57,7 @@ SetInputsMethod g_originalSetInputs = nullptr;
 BattleProcessMethod g_originalBattleProcess = nullptr;
 BattleRenderMethod g_originalBattleRender = nullptr;
 bool g_captureImages = false;
+bool g_renderPending = true;
 BattleManagerProcessMethod g_originalBattleManagerProcess = nullptr;
 SelectProcessMethod g_originalSelectProcess = nullptr;
 TitleProcessMethod g_originalTitleProcess = nullptr;
@@ -215,9 +216,13 @@ void __declspec(naked) renderBranchDispatch()
     __asm {
         // Preserve the original JNE first. The injected JMP does not alter EFLAGS.
         jne originalSkip
-        cmp byte ptr [g_headlessRender], 0
-        je originalRender
         cmp dword ptr ds:[008A0044h], 5
+        jne originalRender
+        cmp byte ptr [g_headlessRender], 0
+        jne originalSkip
+        cmp byte ptr [g_captureImages], 0
+        je originalRender
+        cmp byte ptr [g_renderPending], 0
         je originalSkip
     originalRender:
         push 00407FB4h
@@ -230,7 +235,7 @@ void __declspec(naked) renderBranchDispatch()
 
 bool installHeadlessRenderHook()
 {
-    if (!g_headlessRender)
+    if (!g_headlessRender && !g_captureImages)
         return true;
 
     auto *branch = reinterpret_cast<unsigned char *>(RENDER_BRANCH);
@@ -965,6 +970,7 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
         result = callSimulationUpdate(manager);
         ++g_currentFrame;
         appendRecordedFrame(captureState(manager, g_currentFrame));
+        g_renderPending = true;
         if (g_stepsRemaining)
             --g_stepsRemaining;
         if (result > 0 && result < 4)
@@ -1030,8 +1036,10 @@ int __fastcall battleOnProcess(SokuLib::Battle *battle)
 int __fastcall battleOnRender(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleRender)();
-    if (g_battleActive && g_control && isSupportedGameplay())
+    if (g_battleActive && g_control && isSupportedGameplay()) {
         SokuRLBridge::captureImage(g_currentFrame);
+        g_renderPending = false;
+    }
     return result;
 }
 
