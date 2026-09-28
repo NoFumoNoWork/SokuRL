@@ -87,6 +87,20 @@ def main(cfg):
                 save(f"fresh-{seed}", reference[seed])
         with closing(backend("persistent")) as worker:
             pid, segment = None, None
+            peer_seed = seeds[-1]
+            peer = worker.reset_slots({1: peer_seed})[1]
+            peer_pid = peer.diagnostics["pid"]
+            peer_frames = 0
+
+            def check_peer(state):
+                expected = reference[peer_seed]
+                digest = hashlib.sha256(pickle.dumps(state.observations, protocol=5)).hexdigest()
+                if (state.diagnostics["pid"] != peer_pid or state.diagnostics["segment"] != 0 or
+                        state.diagnostics["hash"] != expected["hashes"][peer_frames] or
+                        digest != expected["observations"][peer_frames]):
+                    raise RuntimeError(f"reset changed the unselected slot at frame {peer_frames}")
+
+            check_peer(peer)
             for cycle in range(validation["cycles"]):
                 for seed in seeds:
                     actual = record(worker, seed, actions)
@@ -95,6 +109,16 @@ def main(cfg):
                     if pid is not None and (actual["pid"] != pid or actual["segment"] != segment + 1):
                         raise RuntimeError("reset changed PID or failed to advance episode segment")
                     pid, segment = actual["pid"], actual["segment"]
+                    if not peer.ended and peer_frames < len(actions):
+                        peer = worker.step({1: actions[peer_frames]})[1]
+                        peer_frames += 1
+                        check_peer(peer)
+            while not peer.ended and peer_frames < len(actions):
+                peer = worker.step({1: actions[peer_frames]})[1]
+                peer_frames += 1
+                check_peer(peer)
+            report["unselected_slot"] = {"pid": peer_pid, "frames": peer_frames,
+                                         "outcome": peer.outcome.value, "matched": True}
         report["success"] = True
     except BaseException as error:
         report["error"] = repr(error)
