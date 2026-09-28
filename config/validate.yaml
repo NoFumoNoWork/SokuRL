@@ -1,0 +1,8 @@
+defaults:
+  - train
+  - _self_
+
+num_envs: 2
+validation:
+  episodes_per_slot: 2
+output: logs/validation/environment-${now:%Y%m%d-%H%M%S}
