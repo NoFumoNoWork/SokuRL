@@ -28,10 +28,12 @@ class OpponentMixtureVecEnv(VecEnv):
         self.rng = np.random.default_rng(seed)
         self.render_mode = None
         self.actors = {}
+        self.episode_context = {}
         self.observations = {}
         self.pending = None
         self.closed = False
         self.returns = np.zeros(env.num_envs)
+        self.base_returns = np.zeros(env.num_envs)
         self.lengths = np.zeros(env.num_envs, dtype=np.int64)
         super().__init__(env.num_envs, env.single_observation_space, env.single_action_space)
 
@@ -39,8 +41,11 @@ class OpponentMixtureVecEnv(VecEnv):
         observations, infos = self.env.reset(seeds)
         for slot in seeds:
             opponent = self.opponents[int(self.rng.choice(len(self.opponents), p=self.probabilities))]
-            self.actors[slot] = opponent.spawn(int(self.rng.integers(0, 0xFFFFFFFF)))
-            self.returns[slot] = self.lengths[slot] = 0
+            policy_seed = int(self.rng.integers(0, 0xFFFFFFFF))
+            self.actors[slot] = opponent.spawn(policy_seed)
+            self.episode_context[slot] = {"world_seed": seeds[slot], "opponent_seed": policy_seed,
+                "player": self.player, "opponent": opponent.name, "opponent_fingerprint": opponent.fingerprint}
+            self.returns[slot] = self.base_returns[slot] = self.lengths[slot] = 0
             self.reset_infos[slot] = infos[slot][AGENTS[self.player]]
         self.observations.update(observations)
 
@@ -82,6 +87,7 @@ class OpponentMixtureVecEnv(VecEnv):
         dones = np.asarray([terms[i][AGENTS[self.player]] or truncs[i][AGENTS[self.player]]
                             for i in range(self.num_envs)])
         self.returns += values
+        self.base_returns += [infos[i][AGENTS[self.player]]["base_reward"] for i in range(self.num_envs)]
         self.lengths += 1
         output_infos, seeds = [], {}
         for i in range(self.num_envs):
@@ -96,6 +102,7 @@ class OpponentMixtureVecEnv(VecEnv):
                 info["terminal_observation"] = ({k: v.copy() for k, v in terminal.items()}
                     if isinstance(self.observation_space, spaces.Dict) else terminal.copy())
                 info["episode"] = {"r": float(self.returns[i]), "l": int(self.lengths[i])}
+                info["training_context"] = self.episode_context[i] | {"base_return": float(self.base_returns[i])}
                 seeds[i] = int(self.rng.integers(0, 0xFFFFFFFF))
             output_infos.append(info)
         self.observations = obs

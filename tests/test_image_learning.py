@@ -127,6 +127,9 @@ def test_sb3_image_view_keeps_terminal_observation_before_reset(tmp_path):
         assert terminal["commands"].any() and not obs["commands"].any()
         assert not infos[0]["TimeLimit.truncated"]
         assert infos[0]["source_truncated"]
+        assert infos[0]["training_context"]["opponent"] == "random"
+        assert infos[0]["training_context"]["base_return"] == 0.
+        assert set(obs) == {"image", "commands"}
     finally:
         view.close()
         env.close()

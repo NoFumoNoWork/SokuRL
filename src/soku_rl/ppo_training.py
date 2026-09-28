@@ -31,7 +31,7 @@ class EpisodeRecords(BaseCallback):
         for done, info in zip(self.locals["dones"], self.locals["infos"], strict=True):
             if done:
                 self.records.append({key: info[key] for key in (
-                    "episode", "frame", "outcome", "decision_frames", "latency_frames")})
+                    "episode", "frame", "outcome", "decision_frames", "latency_frames", "training_context")})
         return True
 
     def _on_rollout_end(self):
