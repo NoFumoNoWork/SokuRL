@@ -8,6 +8,7 @@ from soku_rl.baselines import Fighter, Observation
 from soku_rl.env import EpisodeConfig, HisoutenParallelEnv, TwoPlayerVectorEnv
 from soku_rl.env.encoding import AGENTS, decode_action
 from soku_rl.pomg import Outcome, TimeStep
+from soku_rl.pixels import RGBFrame
 
 
 class RecordingBackend:
@@ -40,7 +41,7 @@ class EnvTimingTests(unittest.TestCase):
         class ImageBackend(RecordingBackend):
             def _state(self, slot):
                 state = super()._state(slot)
-                image = np.full((240, 320, 3), state.frame % 256, np.uint8)
+                image = RGBFrame(state.frame, 320, 240, bytes([state.frame % 256]) * (320 * 240 * 3))
                 return replace(state, observations=(image, image))
 
         env = HisoutenParallelEnv(ImageBackend(), EpisodeConfig(60, 4, 3, 12, "image"))

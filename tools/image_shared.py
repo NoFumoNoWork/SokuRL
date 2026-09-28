@@ -3,7 +3,7 @@ import ctypes
 import struct
 import time
 
-import numpy as np
+from soku_rl.pixels import RGBFrame
 
 from bridge_shared import _kernel32
 
@@ -43,7 +43,7 @@ class ImageClient:
                     if captured == frame:
                         if result < 0:
                             raise RuntimeError(f"native image capture failed: HRESULT {result & 0xFFFFFFFF:08X}")
-                        return np.frombuffer(data, np.uint8, offset=HEADER.size).reshape(HEIGHT, WIDTH, 3).copy()
+                        return RGBFrame(int(captured), width, height, data[HEADER.size:])
             time.sleep(0.001)
         raise TimeoutError(f"no rendered image for simulation frame {frame}")
 

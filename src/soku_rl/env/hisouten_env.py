@@ -5,6 +5,7 @@ import numpy as np
 from gymnasium import spaces
 from gymnasium.utils import seeding
 from pettingzoo import ParallelEnv
+from soku_rl.pixels import RGBFrame
 from .encoding import AGENTS, NUM_ACTIONS, decode_action, encode_observation, observation_space
 from .control import ControlConfig, DelayedControls
 
@@ -32,9 +33,9 @@ class EpisodeConfig:
 
     def encode(self, observation):
         if self.observation_mode == "image":
-            if not isinstance(observation, np.ndarray) or observation.shape != (240, 320, 3) or observation.dtype != np.uint8:
-                raise ValueError("expected a native uint8 RGB image")
-            return observation.transpose(2, 0, 1).copy()
+            if not isinstance(observation, RGBFrame) or (observation.width, observation.height) != (320, 240):
+                raise ValueError("expected a native 320x240 RGB frame")
+            return np.frombuffer(observation.pixels, np.uint8).reshape(240, 320, 3).transpose(2, 0, 1).copy()
         return encode_observation(observation, self.max_frames)
 
 
@@ -59,6 +60,8 @@ class Episode:
         self.ready, self.ended = True, False
         for history, observation in zip(self.history, time_step.observations, strict=True):
             history.clear()
+            if isinstance(observation, RGBFrame) and observation.frame != time_step.frame:
+                raise RuntimeError("image and simulation frame do not match")
             encoded = self.config.encode(observation)
             history.extend(encoded.copy() for _ in range(self.config.history_frames))
         return self._observations(), self._infos(time_step, "ongoing")
@@ -87,6 +90,8 @@ class Episode:
             raise RuntimeError("backend must advance exactly one frame")
         self.frame = time_step.frame
         for history, observation in zip(self.history, time_step.observations, strict=True):
+            if isinstance(observation, RGBFrame) and observation.frame != time_step.frame:
+                raise RuntimeError("image and simulation frame do not match")
             history.append(self.config.encode(observation))
         terminated = time_step.terminated
         truncated = not terminated and (time_step.truncated or self.frame >= self.config.max_frames)
