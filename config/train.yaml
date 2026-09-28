@@ -16,6 +16,11 @@ episode:
     minimum_alpha: 0.5
     hp_quantum: 0.02
     spirit_quantum: 0.1
+    # Approximate dimensions in game coordinates at camera scale 1.
+    player_width: 48.0
+    player_height: 96.0
+    object_diameter: 16.0
+    minimum_visible_fraction: 0.25
 runtime:
   # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
   command: ???

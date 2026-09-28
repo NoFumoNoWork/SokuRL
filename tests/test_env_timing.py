@@ -11,7 +11,7 @@ from soku_rl.pomg import Outcome, TimeStep
 from soku_rl.pixels import RGBFrame
 from soku_rl.visibility import VisibilityConfig
 
-VISIBILITY = VisibilityConfig(8, .5, .02, .1)
+VISIBILITY = VisibilityConfig(8, .5, .02, .1, 48., 96., 16., .25)
 
 
 class RecordingBackend:

@@ -1,10 +1,10 @@
 """Project private renderer metadata into quantized screen-space observations.
 
-This module handles viewport, alpha and weather restrictions. Final pixel
-occlusion is a separate evidence requirement; drawable is not visibility proof.
+Contours and mutual overlap are approximations, not pixel segmentation.
 """
 from dataclasses import dataclass
 from math import floor, isfinite
+from .contours import Contour, visible_fraction
 
 
 @dataclass(frozen=True)
@@ -13,13 +13,21 @@ class VisibilityConfig:
     minimum_alpha: float
     hp_quantum: float
     spirit_quantum: float
+    player_width: float
+    player_height: float
+    object_diameter: float
+    minimum_visible_fraction: float
 
     def __post_init__(self):
         if type(self.pixel_quantum) is not int or not 1 <= self.pixel_quantum <= 64:
             raise ValueError("pixel_quantum must be an integer in [1,64]")
-        for value in (self.minimum_alpha, self.hp_quantum, self.spirit_quantum):
+        for value in (self.minimum_alpha, self.hp_quantum, self.spirit_quantum,
+                      self.minimum_visible_fraction):
             if not isfinite(value) or not 0 < value <= 1:
                 raise ValueError("visibility fractions must be finite and in (0,1]")
+        for value in (self.player_width, self.player_height, self.object_diameter):
+            if not isfinite(value) or not 0 < value <= 640:
+                raise ValueError("contour dimensions must be finite and in (0,640]")
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,11 +64,34 @@ def screen_entity(entity, scene, config):
 def visible_entities(scene, config):
     if scene.overflow:
         raise RuntimeError("renderer object metadata overflow")
-    players = tuple(screen_entity(entity, scene, config) for entity in scene.players)
+    raw = (*scene.players, *scene.objects[0], *scene.objects[1])
+    projected = tuple(screen_entity(entity, scene, config) for entity in raw)
+    contours = []
+    for index, (entity, pose) in enumerate(zip(raw, projected)):
+        if not pose.visible:
+            contours.append(None)
+            continue
+        scale = scene.camera_scale
+        width = config.player_width if index < 2 else config.object_diameter
+        height = config.player_height if index < 2 else config.object_diameter
+        x = (entity.x + scene.camera_x) * scale
+        y = (scene.camera_y - entity.y) * scale
+        # Character origins are feet; object origins use a centered disk.
+        contours.append(Contour(x, y - height * scale / 2 if index < 2 else y,
+                                width * scale / 2, height * scale / 2, entity.alpha))
+    filtered = tuple(
+        pose if contour is not None and visible_fraction(
+            contour, (other for j, other in enumerate(contours)
+                      if j != i and other is not None)) >= config.minimum_visible_fraction
+        else HIDDEN_ENTITY
+        for i, (pose, contour) in enumerate(zip(projected, contours)))
+    players = filtered[:2]
     objects = []
+    offset = 2
     for group in scene.objects:
         # Hidden list positions and counts must not survive into public features.
-        visible = [screen_entity(entity, scene, config) for entity in group]
+        visible = filtered[offset:offset + len(group)]
+        offset += len(group)
         objects.append(tuple(sorted((entity for entity in visible if entity.visible),
                                     key=lambda entity: (entity.x, entity.y, entity.facing))))
     return players, tuple(objects)
