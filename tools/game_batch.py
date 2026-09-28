@@ -11,7 +11,7 @@ from unlimited_benchmark import FRAME_SIZE, _drain_fast
 import sokurl
 
 
-def _time_step(raw, dropped_frames, observations):
+def _time_step(raw, dropped_frames, observations, pid):
     if raw.sceneId != sokurl.SCENE_BATTLE or raw.battleMode != sokurl.BATTLE_MODE_VSPLAYER:
         raise RuntimeError("game left VS battle")
     if dropped_frames:
@@ -26,6 +26,7 @@ def _time_step(raw, dropped_frames, observations):
     else:
         outcome, rewards = Outcome.ONGOING, (0.0, 0.0)
     return TimeStep(raw.frameId, observations, rewards, outcome, {
+        "pid": pid, "segment": raw.segmentId,
         "hp": hp, "characters": (raw.p1.characterId, raw.p2.characterId),
         "stage": raw.stageId, "weather": raw.activeWeather,
         "hash": f"{raw.stateHash:016X}", "dropped_frames": dropped_frames,
@@ -62,7 +63,7 @@ class SokuGameBatch:
             observations = observe_visible_states(raw, render, self.visibility)
         else:
             observations = tuple(observe(raw, p) for p in (0, 1))
-        return _time_step(raw, dropped, observations)
+        return _time_step(raw, dropped, observations, self.processes[slot].pid)
 
     def reset(self, seeds):
         if self.processes or not seeds:

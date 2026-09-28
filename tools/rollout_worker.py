@@ -15,7 +15,7 @@ def main():
     if operation != "initialize" or config["protocol"] != PROTOCOL:
         raise ValueError("unsupported rollout worker protocol")
     backend = SokuGameBatch(config["launch_timeout"])
-    send(replies, {"ok": True, "value": {"protocol": PROTOCOL, "reset": "process_restart",
+    send(replies, {"ok": True, "value": {"protocol": PROTOCOL, "reset": "native_scene_reload",
                                          "fingerprints": fingerprints()}})
     try:
         while True:

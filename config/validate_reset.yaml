@@ -1,0 +1,9 @@
+defaults:
+  - train
+  - _self_
+
+reset_validation:
+  seeds: [1732, 291038774]
+  cycles: 2
+  action_seed: 31415
+output: logs/validation/reset-${now:%Y%m%d-%H%M%S}
