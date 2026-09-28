@@ -9,15 +9,16 @@ import torch
 from torch import nn
 from omegaconf import OmegaConf
 
-from .env.encoding import NUM_ACTIONS
+from .learning_wrappers import LearningConfig
 from .population import PPOPolicy
 
 
 class NetworkPolicy:
-    def __init__(self, name, network, shape, identity, device):
+    def __init__(self, name, network, shape, num_actions, identity, device):
         self.name, self.shape, self.device = name, tuple(shape), device
         self.network = network.to(device).eval()
         self.fingerprint = identity
+        self.num_actions = num_actions
 
     def spawn(self, seed):
         return NetworkEpisode(self, np.random.default_rng(seed))
@@ -34,10 +35,10 @@ class NetworkEpisode:
             raise ValueError("observation does not match the loaded policy")
         value = torch.as_tensor(observation, dtype=torch.float32, device=self.policy.device).unsqueeze(0)
         probabilities = self.policy.network(value).softmax(-1)[0].cpu().numpy().astype(np.float64)
-        if probabilities.shape != (NUM_ACTIONS,) or not np.isfinite(probabilities).all():
+        if probabilities.shape != (self.policy.num_actions,) or not np.isfinite(probabilities).all():
             raise RuntimeError("policy produced invalid probabilities")
         probabilities /= probabilities.sum()
-        return int(self.rng.choice(NUM_ACTIONS, p=probabilities))
+        return int(self.rng.choice(self.policy.num_actions, p=probabilities))
 
 
 @dataclass(frozen=True)
@@ -63,17 +64,23 @@ def _mlp(widths, activation):
     return nn.Sequential(*layers)
 
 
-def load_policy(name, spec, episode, device):
+def load_policy(name, spec, interface, device):
+    episode = interface.episode
     training = OmegaConf.to_container(OmegaConf.load(spec["training_config"]), resolve=True)
     if training["episode"] != asdict(episode):
         raise ValueError("checkpoint and evaluation episode configurations differ")
+    # Artifacts from before the wrapper feature have the original identity contract.
+    expected = (LearningConfig(**training["wrappers"]) if "wrappers" in training else
+                LearningConfig("full", False, 0, 0.))
+    if expected != interface.config:
+        raise ValueError("checkpoint and evaluation learning wrappers differ")
     path = Path(spec["path"]).resolve(strict=True)
     identity = hashlib.sha256(path.read_bytes()).hexdigest()
-    shape = episode.space().shape
+    shape, num_actions = interface.observation_space.shape, interface.action_space.n
     if spec["kind"] == "sb3":
         from stable_baselines3 import PPO
         model = PPO.load(path, device=device)
-        if model.observation_space != episode.space() or model.action_space.n != NUM_ACTIONS:
+        if model.observation_space != interface.observation_space or model.action_space.n != num_actions:
             raise ValueError("SB3 checkpoint and evaluation spaces differ")
         return PPOPolicy(name, model, path)
     # These files are artifacts from our own training, not untrusted uploads.
@@ -84,9 +91,9 @@ def load_policy(name, spec, episode, device):
         if spec["kind"] == "nfsp_average":
             if saved["format"] != "sokurl-openspiel-nfsp-v1" or tuple(saved["observation_shape"]) != shape:
                 raise ValueError("NFSP checkpoint format or observation shape differs")
-            if saved["num_actions"] != NUM_ACTIONS or saved["player"] != spec["player"]:
+            if saved["num_actions"] != num_actions or saved["player"] != spec["player"]:
                 raise ValueError("NFSP checkpoint action space or seat differs")
-            widths = [shape[0], *saved["agent_config"]["hidden_layers_sizes"], NUM_ACTIONS]
+            widths = [shape[0], *saved["agent_config"]["hidden_layers_sizes"], num_actions]
             network = _mlp(widths, nn.ReLU)
             weights = {}
             for i in range(len(widths) - 1):
@@ -101,11 +108,11 @@ def load_policy(name, spec, episode, device):
                     or model["layer_class"] != "<class 'torch.nn.modules.linear.Linear'>"):
                 raise ValueError("unsupported BenchMARL network architecture")
             identity = hashlib.sha256((identity + config_path.read_text(encoding="utf-8") + spec["player"]).encode()).hexdigest()
-            network = _mlp([shape[0], *model["num_cells"], NUM_ACTIONS], nn.Tanh)
+            network = _mlp([shape[0], *model["num_cells"], num_actions], nn.Tanh)
             prefix = "actor_network_params.module.0.mlp.params."
             weights = {key.removeprefix(prefix): value for key, value in saved[f"loss_{spec['player']}"].items()
                        if key.startswith(prefix)}
         else:
             raise ValueError("unsupported policy checkpoint kind")
         network.load_state_dict(weights, strict=True)
-    return NetworkPolicy(name, network, shape, identity, device)
+    return NetworkPolicy(name, network, shape, num_actions, identity, device)

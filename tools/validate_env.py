@@ -12,6 +12,7 @@ from omegaconf import OmegaConf
 from soku_rl.env import EpisodeConfig, TwoPlayerVectorEnv
 from soku_rl.env.encoding import AGENTS
 from soku_rl.worker_pipe import WorkerBackend
+from soku_rl.learning_wrappers import LearningConfig, LearningVectorEnv
 
 
 @hydra.main(version_base="1.3", config_path="../config", config_name="validate")
@@ -30,7 +31,8 @@ def main(cfg):
         with closing(WorkerBackend(log_path=output / "worker.log", **config["runtime"])) as backend:
             backend.configure_observation(episode.backend_observation())
             report["runtime"] = backend.identity
-            env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
+            env = LearningVectorEnv(TwoPlayerVectorEnv(backend, config["num_envs"], episode),
+                                    LearningConfig(**config["wrappers"]))
             rng = np.random.default_rng(config["seed"])
             completed = dict.fromkeys(range(env.num_envs), 0)
             seeds = {s: int(rng.integers(0, 0xFFFFFFFF)) for s in completed}

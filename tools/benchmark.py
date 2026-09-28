@@ -14,11 +14,14 @@ def main(cfg):
     from soku_rl.checkpoint_policy import SeatPolicies, load_policy
     from soku_rl.env import EpisodeConfig, TwoPlayerVectorEnv
     from soku_rl.observed_rules import RulePolicy
+    from soku_rl.learning_wrappers import LearningConfig, LearningInterface, LearningVectorEnv, LearningRulePolicy
     from soku_rl.policy_benchmark import benchmark
     from soku_rl.worker_pipe import WorkerBackend
 
     config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     episode = EpisodeConfig(**config["episode"])
+    learning = LearningConfig(**config["wrappers"])
+    interface = LearningInterface(episode, learning)
     if config["track"] == "human" and episode.observation_mode != "state":
         raise ValueError("this rule benchmark requires the human state observation")
     if config["track"] == "superhuman" and episode.observation_mode != "diagnostic_state":
@@ -30,14 +33,14 @@ def main(cfg):
     if candidate["name"] in opponents:
         raise ValueError("candidate name collides with an opponent")
     device = torch.device(config["device"])
-    roles = tuple(load_policy(candidate["name"], candidate[a], episode, device)
+    roles = tuple(load_policy(candidate["name"], candidate[a], interface, device)
                   for a in ("player_0", "player_1"))
     strategies = {candidate["name"]: SeatPolicies(candidate["name"], roles)}
     source = Path(__file__).resolve().parents[1] / "src/soku_rl"
     implementation = hashlib.sha256(b"".join((source / name).read_bytes() for name in (
         "observed_rules.py", "baselines.py", "community_rules.py", "strategies.py"))).hexdigest()
     for name in opponents:
-        rule = RulePolicy(name, config["rules"], episode, implementation)
+        rule = LearningRulePolicy(RulePolicy(name, config["rules"], episode, implementation), interface)
         strategies[name] = SeatPolicies(name, (rule, rule))
     directory = Path(config["output"]).resolve()
     directory.mkdir(parents=True, exist_ok=False)
@@ -47,7 +50,7 @@ def main(cfg):
         with closing(WorkerBackend(log_path=directory / "worker.log", **config["runtime"])) as backend:
             backend.configure_observation(episode.backend_observation())
             report["runtime"] = backend.identity
-            env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
+            env = LearningVectorEnv(TwoPlayerVectorEnv(backend, config["num_envs"], episode), learning)
             report["result"] = benchmark(env, strategies, candidate["name"], config["benchmark"],
                 backend.identity["fingerprints"]["game_id"], directory)
         report["success"] = True

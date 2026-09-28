@@ -4,6 +4,7 @@ import unittest
 
 from test_env_timing import RecordingBackend, VISIBILITY
 from soku_rl.env import EpisodeConfig, HisoutenParallelEnv
+from soku_rl.learning_wrappers import LearningConfig, LearningParallelEnv
 
 
 @unittest.skipUnless(importlib.util.find_spec("torchrl"), "install the marl extra")
@@ -24,6 +25,18 @@ class TorchRLContractTests(unittest.TestCase):
             self.assertEqual(task.max_steps(env), 10)
             self.assertEqual(set(task.observation_spec(env).keys()), set(env.group_map))
             self.assertFalse(task.has_state())
+        finally:
+            env.close()
+
+    def test_learning_wrappers_preserve_torchrl_specs(self):
+        from torchrl.envs.utils import check_env_specs
+        from soku_rl.torchrl_env import wrap_torchrl
+
+        base = HisoutenParallelEnv(RecordingBackend(), EpisodeConfig(30, 4, 3, 12, "diagnostic_state", VISIBILITY))
+        env = wrap_torchrl(LearningParallelEnv(base, LearningConfig("combat", False, 8, 1.)), 123, "cpu")
+        try:
+            check_env_specs(env)
+            self.assertEqual(env.rollout(20, break_when_any_done=False).batch_size[0], 20)
         finally:
             env.close()
 
