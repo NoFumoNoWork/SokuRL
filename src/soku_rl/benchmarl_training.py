@@ -48,11 +48,14 @@ def train_benchmarl(config, device, directory):
                             seed=config["seed"], config=experiment_config)
     try:
         initial = _policy_hash(experiment.policy)
-        experiment.run()
-        final = _policy_hash(experiment.policy)
-        if initial == final:
-            raise RuntimeError("training ended without a change to policy parameters")
-        return {"frames": experiment.total_frames, "initial_policy_hash": initial,
-                "final_policy_hash": final, "experiment_directory": str(experiment.folder_name)}
-    finally:
+    except BaseException:
         experiment.close()
+        raise
+    # BenchMARL 1.5.1 run() closes its collector, test env and logger on both
+    # completion and failure. A second close can fail on already closed workers.
+    experiment.run()
+    final = _policy_hash(experiment.policy)
+    if initial == final:
+        raise RuntimeError("training ended without a change to policy parameters")
+    return {"frames": experiment.total_frames, "initial_policy_hash": initial,
+            "final_policy_hash": final, "experiment_directory": str(experiment.folder_name)}
