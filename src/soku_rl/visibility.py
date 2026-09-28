@@ -47,9 +47,9 @@ def screen_entity(entity, scene, config):
         raise ValueError("invalid renderer geometry")
     if not 0 <= entity.alpha <= 1 or entity.drawable not in (0, 1):
         raise ValueError("invalid renderer opacity or drawable flag")
-    # Until each weather effect is checked against pixels, it supplies no pose
-    # information. CLEAR is enum value 21 in the supported game version.
-    if scene.weather != 21 or not entity.drawable or entity.alpha < config.minimum_alpha:
+    # Weather is not an all-screen invisibility switch. Card visibility is not
+    # part of these features; pose visibility follows renderer alpha/geometry.
+    if not entity.drawable or entity.alpha < config.minimum_alpha:
         return HIDDEN_ENTITY
     x = (entity.x + scene.camera_x) * scene.camera_scale
     y = (scene.camera_y - entity.y) * scene.camera_scale

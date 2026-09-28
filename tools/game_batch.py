@@ -1,9 +1,8 @@
 """Adapt owned th123 processes to the simultaneous two-player game contract."""
 import ctypes
-from dataclasses import replace
 
 from soku_rl.observations import observe
-from soku_rl.visible_state import observe_visible_state
+from soku_rl.visible_state import observe_visible_states
 from soku_rl.visibility import VisibilityConfig
 from soku_rl.pomg import Outcome, TimeStep
 from bridge_shared import BridgeClient, FRAME_RING_CAPACITY, wait_for_steps
@@ -12,7 +11,7 @@ from unlimited_benchmark import FRAME_SIZE, _drain_fast
 import sokurl
 
 
-def _time_step(raw, dropped_frames):
+def _time_step(raw, dropped_frames, observations):
     if raw.sceneId != sokurl.SCENE_BATTLE or raw.battleMode != sokurl.BATTLE_MODE_VSPLAYER:
         raise RuntimeError("game left VS battle")
     if dropped_frames:
@@ -26,7 +25,7 @@ def _time_step(raw, dropped_frames):
         outcome, rewards = Outcome.P1_WIN, (1.0, -1.0)
     else:
         outcome, rewards = Outcome.ONGOING, (0.0, 0.0)
-    return TimeStep(raw.frameId, (observe(raw, 0), observe(raw, 1)), rewards, outcome, {
+    return TimeStep(raw.frameId, observations, rewards, outcome, {
         "hp": hp, "characters": (raw.p1.characterId, raw.p2.characterId),
         "stage": raw.stageId, "weather": raw.activeWeather,
         "hash": f"{raw.stateHash:016X}", "dropped_frames": dropped_frames,
@@ -55,15 +54,15 @@ class SokuGameBatch:
         self.visibility = VisibilityConfig(**configuration["visibility"])
 
     def _observe(self, slot, raw, dropped):
-        step = _time_step(raw, dropped)
         if self.observation_mode == "image":
             scene = self.image_clients[slot].read(int(raw.frameId), 10.0)
-            return replace(step, observations=(scene.image, scene.image))
-        if self.observation_mode == "state":
+            observations = (scene.image, scene.image)
+        elif self.observation_mode == "state":
             render = self.image_clients[slot].read_state(int(raw.frameId), 10.0)
-            return replace(step, observations=tuple(observe_visible_state(raw, render, p, self.visibility)
-                                                   for p in (0, 1)))
-        return step
+            observations = observe_visible_states(raw, render, self.visibility)
+        else:
+            observations = tuple(observe(raw, p) for p in (0, 1))
+        return _time_step(raw, dropped, observations)
 
     def reset(self, seeds):
         if self.processes or not seeds:

@@ -18,20 +18,21 @@ class StateObservation:
             raise ValueError("incorrect public state feature count")
 
 
-def observe_visible_state(raw, render, player, config):
-    if player not in (0, 1):
-        raise ValueError("player must be 0 or 1")
+def observe_visible_states(raw, render, config):
     poses, objects = visible_entities(render, config)
+    return tuple(_encode(raw, poses, objects, player, config) for player in (0, 1))
+
+
+def _encode(raw, poses, objects, player, config):
     players = (raw.p1, raw.p2)
     values = []
     for index in (player, 1 - player):
         pose, fighter = poses[index], players[index]
-        # Weather-specific HUD changes need explicit pixel validation before use.
-        hud_visible = render.weather == 21
-        hp = quantize_gauge(max(0, fighter.hp), 10000, config.hp_quantum) if hud_visible else 0.
-        spirit = quantize_gauge(fighter.spirit, fighter.maxSpirit, config.spirit_quantum) if hud_visible else 0.
+        # Health and spirit bars are public; cards and hidden weather IDs are absent.
+        hp = quantize_gauge(max(0, fighter.hp), 10000, config.hp_quantum)
+        spirit = quantize_gauge(fighter.spirit, fighter.maxSpirit, config.spirit_quantum)
         values.extend((float(pose.visible), pose.x / 640, pose.y / 480, float(pose.facing),
-                       float(hud_visible), hp, spirit, fighter.characterId / 19))
+                       1., hp, spirit, fighter.characterId / 19))
     for index in (player, 1 - player):
         visible = objects[index]
         for entity in visible:

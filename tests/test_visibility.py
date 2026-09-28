@@ -25,9 +25,10 @@ class VisibilityTests(unittest.TestCase):
         offscreen = replace(self.player, x=99999.)
         self.assertFalse(screen_entity(offscreen, self.scene, self.config).visible)
 
-    def test_unknown_weather_does_not_disclose_pose(self):
+    def test_weather_does_not_blank_all_public_pose_information(self):
         scene = replace(self.scene, weather=11)
-        self.assertFalse(screen_entity(self.player, scene, self.config).visible)
+        self.assertEqual(screen_entity(self.player, scene, self.config),
+                         screen_entity(self.player, self.scene, self.config))
 
     def test_hidden_object_slots_disappear(self):
         hidden = replace(self.player, alpha=0.)
