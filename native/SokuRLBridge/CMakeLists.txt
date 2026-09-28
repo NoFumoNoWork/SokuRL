@@ -18,6 +18,8 @@ add_subdirectory("${SOKUMODS_ROOT}/SokuLib" "${CMAKE_BINARY_DIR}/SokuLib" EXCLUD
 
 add_library(SokuRLBridge MODULE
     ControlBlock.hpp
+    ImageCapture.hpp
+    ImageCapture.cpp
     SokuRLBridge.cpp
 )
 target_link_libraries(SokuRLBridge PRIVATE SokuLib)

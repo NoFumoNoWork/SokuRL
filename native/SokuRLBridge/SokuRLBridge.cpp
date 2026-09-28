@@ -1,4 +1,5 @@
 #include "ControlBlock.hpp"
+#include "ImageCapture.hpp"
 
 #include <BattleManager.hpp>
 #include <BattleMode.hpp>
@@ -24,6 +25,7 @@ namespace
 {
 using SetInputsMethod = void (SokuLib::KeymapManager::*)();
 using BattleProcessMethod = int (SokuLib::Battle::*)();
+using BattleRenderMethod = int (SokuLib::Battle::*)();
 using BattleManagerProcessMethod = int (SokuLib::BattleManager::*)();
 using SelectProcessMethod = int (SokuLib::Select::*)();
 using TitleProcessMethod = int (SokuLib::Title::*)();
@@ -53,6 +55,8 @@ SokuRLBridge::BridgeMapping *g_mapping = nullptr;
 SokuRLBridge::ControlBlock *g_control = nullptr;
 SetInputsMethod g_originalSetInputs = nullptr;
 BattleProcessMethod g_originalBattleProcess = nullptr;
+BattleRenderMethod g_originalBattleRender = nullptr;
+bool g_captureImages = false;
 BattleManagerProcessMethod g_originalBattleManagerProcess = nullptr;
 SelectProcessMethod g_originalSelectProcess = nullptr;
 TitleProcessMethod g_originalTitleProcess = nullptr;
@@ -1023,6 +1027,14 @@ int __fastcall battleOnProcess(SokuLib::Battle *battle)
     return SokuLib::SCENE_LOADING;
 }
 
+int __fastcall battleOnRender(SokuLib::Battle *battle)
+{
+    const auto result = (battle->*g_originalBattleRender)();
+    if (g_battleActive && g_control && isSupportedGameplay())
+        SokuRLBridge::captureImage(g_currentFrame);
+    return result;
+}
+
 bool createMapping()
 {
     wchar_t mappingName[64]{};
@@ -1054,6 +1066,7 @@ bool createMapping()
 
 void closeMapping()
 {
+    SokuRLBridge::closeImageCapture();
     if (g_control)
         store32(&g_control->connected, 0);
     if (g_mapping)
@@ -1089,11 +1102,15 @@ bool installHooks()
         &SokuLib::VTable_Select.onProcess, selectOnProcess);
     g_originalTitleProcess = SokuLib::TamperDword(
         &SokuLib::VTable_Title.onProcess, titleOnProcess);
+    if (g_captureImages)
+        g_originalBattleRender = SokuLib::TamperDword(
+            &SokuLib::VTable_Battle.onRender, battleOnRender);
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
     return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
-        g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess;
+        g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess &&
+        (!g_captureImages || g_originalBattleRender);
 }
 }
 
@@ -1109,6 +1126,15 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     if (!createMapping())
         return false;
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
+    g_captureImages = environmentValue(L"SOKURL_CAPTURE_IMAGES", 0) == 1;
+    if (g_captureImages) {
+        // Images require the original renderer, even when the window is unattended.
+        g_headlessRender = false;
+        if (!SokuRLBridge::initializeImageCapture()) {
+            closeMapping();
+            return false;
+        }
+    }
     g_unlimitedPacing = environmentValue(L"SOKURL_UNLIMITED_PACING", 0) == 1;
     g_vsBootstrapArmed = environmentValue(L"SOKURL_VS_BOOTSTRAP", 0) == 1;
     if (g_vsBootstrapArmed) {
