@@ -8,9 +8,10 @@ from dataclasses import dataclass
 
 MAPPING_NAME_FORMAT = r"Local\SokuRLBridge_{}"
 CONTROL_MAGIC = 0x554B4F53
-CONTROL_VERSION = 5
+CONTROL_VERSION = 6
 MAX_DURATION_FRAMES = 10_000
 FRAME_RING_CAPACITY = 512
+INPUT_HISTORY_CAPACITY = 4096
 MAX_OBJECTS_PER_PLAYER = 64
 NO_FRAME = (1 << 64) - 1
 
@@ -127,6 +128,14 @@ class SimpleStatePatch(ctypes.Structure):
     ]
 
 
+class ReconstructionFrame(ctypes.Structure):
+    _pack_ = 4
+    _fields_ = [
+        ("p1Input", LogicalInput), ("p2Input", LogicalInput),
+        ("simple", SimpleStatePatch), ("stateHash", ctypes.c_uint64),
+    ]
+
+
 class RawFrameState(ctypes.Structure):
     _pack_ = 4
     _fields_ = [
@@ -170,7 +179,11 @@ class ControlBlock(ctypes.Structure):
 
 class BridgeMapping(ctypes.Structure):
     _pack_ = 4
-    _fields_ = [("control", ControlBlock), ("frames", RawFrameState * FRAME_RING_CAPACITY)]
+    _fields_ = [
+        ("control", ControlBlock),
+        ("frames", RawFrameState * FRAME_RING_CAPACITY),
+        ("history", ReconstructionFrame * INPUT_HISTORY_CAPACITY),
+    ]
 
 
 CONTROL_BLOCK_SIZE = ctypes.sizeof(ControlBlock)
@@ -180,6 +193,7 @@ assert ctypes.sizeof(PlayerState) == 140
 assert ctypes.sizeof(ObjectState) == 80
 assert ctypes.sizeof(SimplePlayerState) == 40
 assert ctypes.sizeof(SimpleStatePatch) == 96
+assert ctypes.sizeof(ReconstructionFrame) == 168
 assert ctypes.sizeof(RawFrameState) == 10596
 assert CONTROL_BLOCK_SIZE == 10884
 assert ControlBlock.currentFrame.offset == 144
@@ -397,7 +411,7 @@ class BridgeClient:
         return self._send(COMMAND_STEP_WITH_INPUTS, duration=1)
 
     def apply_simple_state(self, state: RawFrameState) -> int:
-        patch = self.block.commandPatch
+        patch = SimpleStatePatch()
         patch.timeElapsedRaw = state.timeElapsedRaw
         patch.activeWeather = state.activeWeather
         patch.displayedWeather = state.displayedWeather
@@ -408,7 +422,25 @@ class BridgeClient:
                 "maxSpirit", "cardGauge", "cardCount",
             ):
                 setattr(target, name, getattr(source, name))
+        return self.apply_simple_patch(patch)
+
+    def apply_simple_patch(self, patch: SimpleStatePatch) -> int:
+        ctypes.memmove(
+            ctypes.addressof(self.block.commandPatch),
+            ctypes.addressof(patch),
+            ctypes.sizeof(SimpleStatePatch),
+        )
         return self._send(COMMAND_APPLY_SIMPLE_STATE)
+
+    def reconstruction_history(self) -> list[ReconstructionFrame]:
+        snapshot = self.snapshot()
+        count = snapshot.recorded_frames
+        if count > INPUT_HISTORY_CAPACITY:
+            raise BridgeUnavailable("reconstruction history exceeds shared-memory capacity")
+        return [
+            _copy_struct(self.mapping.history[index], ReconstructionFrame)
+            for index in range(count)
+        ]
 
     def goto_frame(self, frame: int) -> int:
         if not isinstance(frame, int) or frame < 0:

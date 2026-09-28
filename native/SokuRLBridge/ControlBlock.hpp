@@ -6,7 +6,7 @@
 namespace SokuRLBridge
 {
 constexpr std::uint32_t CONTROL_MAGIC = 0x554B4F53;
-constexpr std::uint32_t CONTROL_VERSION = 5;
+constexpr std::uint32_t CONTROL_VERSION = 6;
 constexpr wchar_t MAPPING_NAME_FORMAT[] = L"Local\\SokuRLBridge_%lu";
 constexpr std::uint32_t MAX_DURATION_FRAMES = 10000;
 constexpr std::uint32_t FRAME_RING_CAPACITY = 512;
@@ -120,6 +120,13 @@ struct SimpleStatePatch {
     SimplePlayerState p2;
 };
 
+struct ReconstructionFrame {
+    LogicalInput p1Input;
+    LogicalInput p2Input;
+    SimpleStatePatch simple;
+    std::uint64_t stateHash;
+};
+
 struct RawFrameState {
     std::uint64_t frameId;
     std::uint32_t segmentId;
@@ -181,6 +188,7 @@ struct ControlBlock {
 struct BridgeMapping {
     ControlBlock control;
     RawFrameState frames[FRAME_RING_CAPACITY];
+    ReconstructionFrame history[INPUT_HISTORY_CAPACITY];
 };
 #pragma pack(pop)
 
@@ -189,6 +197,7 @@ static_assert(sizeof(PlayerState) == 140, "PlayerState ABI size changed");
 static_assert(sizeof(ObjectState) == 80, "ObjectState ABI size changed");
 static_assert(sizeof(SimplePlayerState) == 40, "SimplePlayerState ABI size changed");
 static_assert(sizeof(SimpleStatePatch) == 96, "SimpleStatePatch ABI size changed");
+static_assert(sizeof(ReconstructionFrame) == 168, "ReconstructionFrame ABI size changed");
 static_assert(sizeof(RawFrameState) == 10596, "RawFrameState ABI size changed");
 static_assert(sizeof(ControlBlock) == 10884, "ControlBlock ABI size changed");
 static_assert(offsetof(ControlBlock, commandSeq) == 16, "commandSeq ABI offset changed");

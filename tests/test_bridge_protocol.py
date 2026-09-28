@@ -21,6 +21,7 @@ from frame_runtime import (
     step_back_target,
 )
 from raw_recorder import FRAME_FIELDS, INPUT_FIELDS, RawSessionWriter, frame_row, input_row
+from scenario_runner import compile_steps, token_input
 
 
 class BridgeProtocolTests(unittest.TestCase):
@@ -30,6 +31,7 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(ctypes.sizeof(bridge_shared.ObjectState), 80)
         self.assertEqual(ctypes.sizeof(bridge_shared.SimplePlayerState), 40)
         self.assertEqual(ctypes.sizeof(bridge_shared.SimpleStatePatch), 96)
+        self.assertEqual(ctypes.sizeof(bridge_shared.ReconstructionFrame), 168)
         self.assertEqual(ctypes.sizeof(bridge_shared.RawFrameState), 10596)
         self.assertEqual(ctypes.sizeof(bridge_shared.ControlBlock), 10884)
         self.assertEqual(bridge_shared.ControlBlock.commandSeq.offset, 16)
@@ -40,6 +42,7 @@ class BridgeProtocolTests(unittest.TestCase):
         for assertion in (
             "sizeof(LogicalInput) == 32", "sizeof(PlayerState) == 140",
             "sizeof(ObjectState) == 80", "sizeof(SimpleStatePatch) == 96",
+            "sizeof(ReconstructionFrame) == 168",
             "sizeof(RawFrameState) == 10596", "sizeof(ControlBlock) == 10884",
             "offsetof(ControlBlock, currentFrame) == 144",
         ):
@@ -163,6 +166,23 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(ring.dropped, 1)
         self.assertEqual(ring.drain(1), 1)
         self.assertTrue(ring.push())
+
+    def test_scenario_inputs_are_facing_relative(self) -> None:
+        self.assertEqual(token_input("4C", 1)[:5], (-1, 0, 0, 0, 1))
+        self.assertEqual(token_input("4C", -1)[:5], (1, 0, 0, 0, 1))
+        self.assertEqual(token_input("5B", 1)[:5], (0, 0, 0, 1, 0))
+
+    def test_scenario_raw_and_repeat_compile_per_frame(self) -> None:
+        steps = [
+            {"wait": 2},
+            {"raw": [{"input": "2", "frames": 2}, "4C"]},
+            {"repeat": {"times": 2, "steps": [{"input": "5B"}]}},
+        ]
+        compiled = compile_steps(steps, 1)
+        self.assertEqual(len(compiled), 7)
+        self.assertEqual(compiled[2][:2], (0, 1))
+        self.assertEqual(compiled[4][:5], (-1, 0, 0, 0, 1))
+        self.assertEqual(compiled[5][:5], (0, 0, 0, 1, 0))
 
 
 if __name__ == "__main__":

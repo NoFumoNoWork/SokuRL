@@ -5,6 +5,8 @@ import configparser
 import ctypes
 import hashlib
 import json
+import os
+import re
 import struct
 import subprocess
 import sys
@@ -35,6 +37,7 @@ LEFT_SELECTION_STAGE_OFFSET = 0x22C0
 RIGHT_SELECTION_STAGE_OFFSET = 0x22C1
 SCENE_SELECT = 3
 SCENE_BATTLE = 5
+BATTLE_MODE_VSPLAYER = 3
 BATTLE_MODE_PRACTICE = 8
 BATTLE_SUBMODE_REPLAY = 2
 
@@ -42,6 +45,8 @@ PROCESS_QUERY_INFORMATION = 0x0400
 PROCESS_VM_READ = 0x0010
 FILE_MAP_READ = 0x0004
 WM_CLOSE = 0x0010
+WAIT_OBJECT_0 = 0
+INFINITE = 0xFFFFFFFF
 
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 user32 = ctypes.WinDLL("user32", use_last_error=True)
@@ -60,6 +65,12 @@ kernel32.MapViewOfFile.argtypes = [
 kernel32.MapViewOfFile.restype = ctypes.c_void_p
 kernel32.UnmapViewOfFile.argtypes = [ctypes.c_void_p]
 kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+kernel32.CreateMutexW.argtypes = [ctypes.c_void_p, wintypes.BOOL, wintypes.LPCWSTR]
+kernel32.CreateMutexW.restype = wintypes.HANDLE
+kernel32.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+kernel32.WaitForSingleObject.restype = wintypes.DWORD
+kernel32.ReleaseMutex.argtypes = [wintypes.HANDLE]
+kernel32.ReleaseMutex.restype = wintypes.BOOL
 WNDENUMPROC = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 user32.EnumWindows.argtypes = [WNDENUMPROC, wintypes.LPARAM]
 user32.EnumWindows.restype = wintypes.BOOL
@@ -127,7 +138,7 @@ def _read_bridge(pid: int) -> BridgeState | None:
             raw = ctypes.string_at(view, 160)
             frame = struct.unpack_from("<Q", raw, 112)[0]
             connected, in_gameplay = struct.unpack_from("<II", raw, 84)
-        elif version in (4, 5) and struct_size >= 192:
+        elif version in (4, 5, 6) and struct_size >= 192:
             kernel32.UnmapViewOfFile(view)
             view = kernel32.MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 192)
             if not view:
@@ -202,6 +213,14 @@ def _runtime_state(process: psutil.Process) -> RuntimeState:
         and bridge.in_gameplay
     ):
         health = "PRACTICE_READY"
+    elif (
+        mode == BATTLE_MODE_VSPLAYER
+        and p1 == expected_p1
+        and p2 == expected_p2
+        and scene == SCENE_BATTLE
+        and bridge.in_gameplay
+    ):
+        health = "VS_READY"
     elif mode == BATTLE_MODE_PRACTICE and p1 == expected_p1 and p2 == expected_p2 and scene == SCENE_SELECT:
         health = "PRACTICE_PRESET_READY"
     else:
@@ -263,6 +282,87 @@ def practice(timeout: float, pid: int | None) -> int:
     if last_state:
         _print_state(last_state)
     raise RuntimeError(f"timed out after {timeout:.1f}s waiting for PRACTICE_READY")
+
+
+def _launch_vs_from_title(timeout: float) -> psutil.Process:
+    config = configparser.ConfigParser()
+    if not config.read(SKIPINTRO_INI, encoding="ascii"):
+        raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
+    env = os.environ.copy()
+    env.update({
+        "SOKURL_VS_BOOTSTRAP": "1",
+        "SOKURL_VS_P1_CHARACTER": str(config.getint("P1", "character")),
+        "SOKURL_VS_P2_CHARACTER": str(config.getint("P2", "character")),
+        "SOKURL_VS_P1_PALETTE": str(config.getint("P1", "palette")),
+        "SOKURL_VS_P2_PALETTE": str(config.getint("P2", "palette")),
+        "SOKURL_VS_P1_DECK": str(config.getint("P1", "deck")),
+        "SOKURL_VS_P2_DECK": str(config.getint("P2", "deck")),
+        "SOKURL_VS_STAGE": "0",
+        "SOKURL_VS_MUSIC": "0",
+    })
+
+    mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
+    if not mutex:
+        raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
+    process = None
+    original = b""
+    try:
+        if kernel32.WaitForSingleObject(mutex, INFINITE) != WAIT_OBJECT_0:
+            raise OSError(ctypes.get_last_error(), "WaitForSingleObject failed")
+        original = SKIPINTRO_INI.read_bytes()
+        title_config, replacements = re.subn(
+            rb"(?m)^(\s*scene_id\s*=\s*)\d+(\s*)$", rb"\g<1>2\g<2>", original, count=1
+        )
+        if replacements != 1:
+            raise RuntimeError("SkipIntro scene_id setting was not found")
+        SKIPINTRO_INI.write_bytes(title_config)
+        process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=env).pid)
+        deadline = time.monotonic() + min(timeout, 10.0)
+        while time.monotonic() < deadline:
+            if not process.is_running():
+                raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
+            try:
+                _, mode, _, _, _, _ = _read_process_values(process.pid)
+                if mode == BATTLE_MODE_VSPLAYER:
+                    return process
+            except OSError:
+                pass
+            time.sleep(0.01)
+        raise RuntimeError(f"Title bootstrap timeout for PID {process.pid}")
+    finally:
+        if original:
+            SKIPINTRO_INI.write_bytes(original)
+        kernel32.ReleaseMutex(mutex)
+        kernel32.CloseHandle(mutex)
+
+
+def versus(timeout: float) -> int:
+    _validate_game()
+    process = _launch_vs_from_title(timeout)
+    print(f"launched {GAME_EXE} (PID {process.pid})")
+    client = BridgeClient(process.pid)
+    deadline = time.monotonic() + timeout
+    first_frame = None
+    last_state = None
+    while time.monotonic() < deadline:
+        if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
+            client.close()
+            raise RuntimeError(f"th123 exited before VS Player became ready (PID {process.pid})")
+        last_state = _runtime_state(process)
+        if last_state.health == "VS_READY":
+            frame = last_state.bridge.simulation_frame
+            if first_frame is None:
+                first_frame = frame
+            elif frame > first_frame:
+                _print_state(last_state)
+                print("VS_READY")
+                client.close()
+                return 0
+        time.sleep(0.05)
+    if last_state:
+        _print_state(last_state)
+    client.close()
+    raise RuntimeError(f"timed out after {timeout:.1f}s waiting for VS_READY")
 
 
 def replay(path: Path, frame: int | None, timeout: float) -> int:
@@ -379,7 +479,7 @@ def list_instances() -> int:
 def status(pid: int | None) -> int:
     state = _runtime_state(_select_process(pid))
     _print_state(state)
-    return 0 if state.health == "PRACTICE_READY" else 1
+    return 0 if state.health in {"PRACTICE_READY", "VS_READY"} else 1
 
 
 def _post_close(pid: int) -> int:
@@ -421,15 +521,30 @@ def shutdown(timeout: float, pid: int | None) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Thin SokuRL Practice launcher")
+    parser = argparse.ArgumentParser(description="Thin SokuRL game launcher")
     subparsers = parser.add_subparsers(dest="command", required=True)
     practice_parser = subparsers.add_parser("practice", help="launch the SkipIntro Practice preset")
     practice_parser.add_argument("--timeout", type=float, default=30.0)
     practice_parser.add_argument("--pid", type=int)
+    vs_parser = subparsers.add_parser("vs", help="launch local VS Player through Title")
+    vs_parser.add_argument("--timeout", type=float, default=30.0)
     replay_parser = subparsers.add_parser("replay", help="launch a replay through ReplayDnD")
     replay_parser.add_argument("path", type=Path)
     replay_parser.add_argument("--frame", type=int)
     replay_parser.add_argument("--timeout", type=float, default=35.0)
+    anchor_parser = subparsers.add_parser("anchor", help="save or load a ScenarioRunner anchor")
+    anchor_commands = anchor_parser.add_subparsers(dest="anchor_command", required=True)
+    anchor_save = anchor_commands.add_parser("save")
+    anchor_save.add_argument("name")
+    anchor_save.add_argument("--pid", type=int, required=True)
+    anchor_load = anchor_commands.add_parser("load")
+    anchor_load.add_argument("name")
+    anchor_load.add_argument("--pid", type=int)
+    script_parser = subparsers.add_parser("script", help="run a ScenarioRunner opponent script")
+    script_commands = script_parser.add_subparsers(dest="script_command", required=True)
+    script_run = script_commands.add_parser("run")
+    script_run.add_argument("path", type=Path)
+    script_run.add_argument("--pid", type=int, required=True)
     subparsers.add_parser("list", help="list all th123 instances")
     status_parser = subparsers.add_parser("status", help="show process and Practice status")
     status_parser.add_argument("--pid", type=int)
@@ -444,14 +559,47 @@ def main() -> int:
     try:
         if args.command == "practice":
             return practice(args.timeout, args.pid)
+        if args.command == "vs":
+            return versus(args.timeout)
         if args.command == "replay":
             return replay(args.path, args.frame, args.timeout)
+        if args.command == "anchor":
+            from scenario_runner import anchor_path, load_anchor, save_anchor
+            if args.anchor_command == "save":
+                document = save_anchor(args.name, args.pid)
+                print(json.dumps({
+                    "anchor": args.name,
+                    "path": str(anchor_path(args.name)),
+                    "target_frame": document["target_frame"],
+                    "target_hash": document["target_hash"],
+                }, indent=2))
+                return 0
+            if args.pid is not None:
+                shutdown(5.0, args.pid)
+            instance = load_anchor(args.name)
+            snapshot = instance.client.snapshot()
+            pid = instance.pid
+            instance.client.close()
+            print(json.dumps({
+                "anchor": args.name,
+                "pid": pid,
+                "frame": snapshot.game_frame,
+                "hash": f"{snapshot.latest.stateHash:016X}",
+                "state": snapshot.run_state_name,
+            }, indent=2))
+            print("ANCHOR_READY")
+            return 0
+        if args.command == "script":
+            from scenario_runner import parse_script, run_script
+            result = run_script(parse_script(args.path), args.pid)
+            print(json.dumps(result, indent=2))
+            return 0
         if args.command == "list":
             return list_instances()
         if args.command == "status":
             return status(args.pid)
         return shutdown(args.timeout, args.pid)
-    except (BridgeUnavailable, RuntimeError, OSError, psutil.Error) as error:
+    except (BridgeUnavailable, RuntimeError, ValueError, OSError, psutil.Error) as error:
         print(f"ERROR: {error}", file=sys.stderr)
         return 1
 

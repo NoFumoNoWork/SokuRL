@@ -1,0 +1,10 @@
+anchor: graze_test
+opponent: p1
+script:
+  - wait: 30
+  - raw: [{"input":"5B","frames":3}]
+  - wait: 45
+  # Explicit relative input frames for 24C; no named macro is assumed.
+  - raw: [{"input":"2","frames":2},{"input":"1","frames":2},{"input":"4C","frames":3}]
+  - wait: 60
+  - repeat: {"times":2,"steps":[{"wait":8},{"raw":[{"input":"5B","frames":3}]},{"wait":30}]}
