@@ -99,3 +99,5 @@ u(A,B)\in\left[\frac{W-L-T}{N},\frac{W-L+T}{N}\right].
 每批结束后原子替换报告；遇到异常写入错误结果并终止实验。计划中未运行的局仍保留为缺失，不能被隐藏。
 
 原来的 `tools/baseline_tournament.py` 仍可运行，配置格式继续有效；需要胜率和收益矩阵时使用新入口。
+
+该入口已完成[五个策略的 90 局正式评估](community-evaluation.md)。
