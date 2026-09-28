@@ -49,6 +49,8 @@ class RulePolicy:
         return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
 
     def spawn(self, seed):
+        if type(seed) is not int or not 0 <= seed < 2**32:
+            raise ValueError("policy seed must be a uint32")
         strategy = strategy_from_config(self.name, self.rules, self.implementation)
         if self.episode.observation_mode == "state":
             actor = ScreenRules(strategy, self.rules["screen"], self.episode.decision_frames)
