@@ -6,7 +6,7 @@ import time
 from soku_rl.pixels import RGBFrame
 from soku_rl.render_state import CapturedScene, RenderSnapshot, RENDER_STATE_SIZE
 
-from bridge_shared import _kernel32
+import bridge_shared
 
 
 HEADER = struct.Struct("<IIiiQIIII")
@@ -17,6 +17,7 @@ MAPPING_SIZE = PIXEL_OFFSET + WIDTH * HEIGHT * 3
 
 class ImageClient:
     def __init__(self, pid):
+        _kernel32 = bridge_shared._kernel32
         self.handle = _kernel32.OpenFileMappingW(4, False, rf"Local\SokuRLImage_{pid}")
         if not self.handle:
             raise OSError(ctypes.get_last_error(), "image mapping is unavailable")
@@ -60,6 +61,7 @@ class ImageClient:
         raise TimeoutError(f"no rendered image for simulation frame {frame}")
 
     def close(self):
+        _kernel32 = bridge_shared._kernel32
         if self.view:
             _kernel32.UnmapViewOfFile(self.view)
             self.view = None
