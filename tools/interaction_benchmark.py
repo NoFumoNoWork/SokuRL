@@ -13,6 +13,8 @@ from headless_validation import fixed_trace, wait_for_frame_zero
 from unlimited_benchmark import FRAME_SIZE, _drain_fast
 import sokurl
 
+RUN_STATE_PAUSED = 1
+
 
 def wait_group(clients, sequences, frame, polling):
     deadline = time.perf_counter() + 10.0
@@ -25,6 +27,12 @@ def wait_group(clients, sequences, frame, polling):
                 raise RuntimeError("command acknowledgement timed out")
     while pending:
         for index in tuple(pending):
+            if polling == "ready":
+                block = clients[index].block
+                if not (block.ackSeq == sequences[index]
+                        and block.currentFrame == frame
+                        and block.runState == RUN_STATE_PAUSED):
+                    continue
             snapshot = clients[index].snapshot()
             if snapshot.game_frame > frame:
                 raise RuntimeError(f"advanced past expected frame {frame}")
@@ -49,8 +57,8 @@ def benchmark(config):
     seed = config["seed"]
     if workers < 1 or episodes < 1 or not 1 <= frames <= 4096:
         raise ValueError("workers/episodes must be positive; frames must be 1..4096")
-    if polling not in {"existing", "busy"}:
-        raise ValueError("polling must be existing or busy")
+    if polling not in {"existing", "busy", "ready"}:
+        raise ValueError("polling must be existing, busy or ready")
     sokurl._validate_game()
     processes, clients, buffers = [], [], []
     launch_started = time.perf_counter()
