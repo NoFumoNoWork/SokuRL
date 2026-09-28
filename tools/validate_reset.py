@@ -11,7 +11,8 @@ import hydra
 from omegaconf import OmegaConf
 
 from soku_rl.env import EpisodeConfig
-from soku_rl.env.encoding import NUM_ACTIONS, decode_action
+from soku_rl.env.encoding import AGENTS, NUM_ACTIONS
+from soku_rl.env.control import ControlConfig, DelayedControls
 from soku_rl.worker_pipe import WorkerBackend
 
 
@@ -53,8 +54,13 @@ def main(cfg):
     if not seeds or len(set(seeds)) != len(seeds) or validation["cycles"] < 1:
         raise ValueError("distinct seeds and a positive cycle count are required")
     rng = random.Random(validation["action_seed"])
-    actions = [tuple(decode_action(rng.randrange(NUM_ACTIONS)) for _ in (0, 1))
-               for _ in range(episode.max_frames)]
+    controls = DelayedControls(ControlConfig(episode.decision_frames, episode.latency_frames))
+    controls.reset()
+    actions = []
+    for frame in range(episode.max_frames):
+        if frame % episode.decision_frames == 0:
+            controls.submit(frame, {agent: rng.randrange(NUM_ACTIONS) for agent in AGENTS})
+        actions.append(controls.inputs(frame))
     output = Path(config["output"]).resolve()
     output.mkdir(parents=True, exist_ok=False)
     (output / "config.yaml").write_text(OmegaConf.to_yaml(cfg, resolve=True), encoding="utf-8")
