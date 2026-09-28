@@ -30,7 +30,19 @@ def benchmark(env, strategies, candidate, config, game_identity, directory):
                        for s, value in obs.items()}
             for slot, joint in actions.items():
                 traces[slot].append([joint[a] for a in AGENTS])
-            obs, rewards, terms, truncs, infos = env.step(actions)
+            try:
+                obs, rewards, terms, truncs, infos = env.step(actions)
+            except Exception as error:
+                failed = []
+                for slot in actions:
+                    trial = trials[slot]
+                    name = "failed-" + trial.trial_id + ".npz"
+                    np.savez_compressed(directory / name, seed=trial.world_seed,
+                                        actions=np.asarray(traces[slot], dtype=np.int16))
+                    failed.append(asdict(trial) | {"slot": slot, "replay": name})
+                (directory / "failure.json").write_text(json.dumps({
+                    "error": repr(error), "active_trials": failed}, indent=2), encoding="utf-8")
+                raise
             for slot in list(obs):
                 returns[slot] += [rewards[slot][a] for a in AGENTS]
                 if not (terms[slot][AGENTS[0]] or truncs[slot][AGENTS[0]]):
