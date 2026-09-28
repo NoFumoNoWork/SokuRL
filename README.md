@@ -1,6 +1,6 @@
 # SokuRL
 
-中文文档：[架构与能力边界](docs/architecture.md) · [后续开发计划](docs/development-plan.md)。
+中文文档：[安装与验收](docs/installation.md) · [架构与能力边界](docs/architecture.md) · [后续开发计划](docs/development-plan.md)。
 
 使用标准 Windows 虚拟环境时，Python 路径为 `.venv\Scripts\python.exe`；
 下文的 `.venv\python.exe` 是原开发环境的路径。请使用实际存在的解释器路径。
