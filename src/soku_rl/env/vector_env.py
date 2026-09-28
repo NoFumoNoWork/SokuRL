@@ -17,7 +17,7 @@ class TwoPlayerVectorEnv:
         self.num_envs = num_envs
         self.episodes = {i: Episode(config) for i in range(num_envs)}
         self.possible_agents = AGENTS
-        self.single_observation_space = observation_space(config.history_frames)
+        self.single_observation_space = config.space()
         self.single_action_space = spaces.Discrete(NUM_ACTIONS)
         self.closed = False
 

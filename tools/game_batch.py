@@ -1,5 +1,6 @@
 """Adapt owned th123 processes to the simultaneous two-player game contract."""
 import ctypes
+from dataclasses import replace
 
 from soku_rl.observations import observe
 from soku_rl.pomg import Outcome, TimeStep
@@ -41,6 +42,20 @@ class SokuGameBatch:
         self.buffers = {}
         self.frames = {}
         self.active = set()
+        self.image_clients = {}
+        self.observation_mode = "diagnostic_state"
+
+    def configure_observation(self, mode):
+        if self.processes or mode not in {"image", "diagnostic_state"}:
+            raise ValueError("set a supported observation mode before launching games")
+        self.observation_mode = mode
+
+    def _observe(self, slot, raw, dropped):
+        step = _time_step(raw, dropped)
+        if self.observation_mode == "image":
+            image = self.image_clients[slot].read(int(raw.frameId), 10.0)
+            return replace(step, observations=(image, image))
+        return step
 
     def reset(self, seeds):
         if self.processes or not seeds:
@@ -56,6 +71,7 @@ class SokuGameBatch:
         processes = sokurl._launch_vs_group_from_title(
             len(seeds), self.launch_timeout, headless=True, unlimited=True,
             seeds=tuple(seeds.values()), pause_at_start=True,
+            capture_images=self.observation_mode == "image",
         )
         self.processes.update(zip(seeds, processes, strict=True))
         states = {}
@@ -66,7 +82,10 @@ class SokuGameBatch:
                 raw = wait_for_frame_zero(client, process.pid)
                 self.buffers[slot] = (ctypes.c_ubyte * (FRAME_RING_CAPACITY * FRAME_SIZE))()
                 self.frames[slot] = 0
-                states[slot] = _time_step(raw, 0)
+                if self.observation_mode == "image":
+                    from image_shared import ImageClient
+                    self.image_clients[slot] = ImageClient(process.pid)
+                states[slot] = self._observe(slot, raw, 0)
                 self.active.add(slot)
         except BaseException:
             self._close_slots(set(seeds))
@@ -94,7 +113,7 @@ class SokuGameBatch:
                                    [self.frames[s] for s in slots], 10.0)
         states = {}
         for slot, snapshot in zip(slots, snapshots, strict=True):
-            states[slot] = _time_step(snapshot.latest, snapshot.dropped_frames)
+            states[slot] = self._observe(slot, snapshot.latest, snapshot.dropped_frames)
             _drain_fast(self.clients[slot], self.buffers[slot])
         self.active.difference_update(s for s, state in states.items() if state.ended)
         return states
@@ -105,6 +124,8 @@ class SokuGameBatch:
     def _close_slots(self, slots):
         errors = []
         for slot in slots:
+            if slot in self.image_clients:
+                self.image_clients.pop(slot).close()
             try:
                 if slot in self.clients:
                     self.clients.pop(slot).close()

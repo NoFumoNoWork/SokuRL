@@ -34,7 +34,7 @@ class RecordingBackend:
 
 class EnvTimingTests(unittest.TestCase):
     def test_single_and_vector_have_identical_transitions(self):
-        config = EpisodeConfig(17, 4, 3, 12)
+        config = EpisodeConfig(17, 4, 3, 12, "diagnostic_state")
         single_backend, vector_backend = RecordingBackend(), RecordingBackend()
         single = HisoutenParallelEnv(single_backend, config)
         vector = TwoPlayerVectorEnv(vector_backend, 2, config)
@@ -55,7 +55,7 @@ class EnvTimingTests(unittest.TestCase):
 
     def test_partial_reset_clears_only_selected_episode(self):
         backend = RecordingBackend()
-        env = TwoPlayerVectorEnv(backend, 2, EpisodeConfig(100, 4, 3, 12))
+        env = TwoPlayerVectorEnv(backend, 2, EpisodeConfig(100, 4, 3, 12, "diagnostic_state"))
         env.reset({0: 1, 1: 2})
         for _ in range(5):
             env.step({s: dict.fromkeys(AGENTS, 0) for s in (0, 1)})

@@ -15,12 +15,27 @@ class EpisodeConfig:
     history_frames: int
     decision_frames: int
     latency_frames: int
+    observation_mode: str
 
     def __post_init__(self):
         if type(self.max_frames) is not int or self.max_frames < 1:
             raise ValueError("max_frames must be a positive integer")
         observation_space(self.history_frames)
         ControlConfig(self.decision_frames, self.latency_frames)
+        if self.observation_mode not in {"image", "diagnostic_state"}:
+            raise ValueError("unsupported observation mode; visible state is not implemented yet")
+
+    def space(self):
+        if self.observation_mode == "image":
+            return spaces.Box(0, 255, (3 * self.history_frames + 1, 240, 320), np.uint8)
+        return observation_space(self.history_frames)
+
+    def encode(self, observation):
+        if self.observation_mode == "image":
+            if not isinstance(observation, np.ndarray) or observation.shape != (240, 320, 3) or observation.dtype != np.uint8:
+                raise ValueError("expected a native uint8 RGB image")
+            return observation.transpose(2, 0, 1).copy()
+        return encode_observation(observation, self.max_frames)
 
 
 class Episode:
@@ -44,7 +59,7 @@ class Episode:
         self.ready, self.ended = True, False
         for history, observation in zip(self.history, time_step.observations, strict=True):
             history.clear()
-            encoded = encode_observation(observation, self.config.max_frames)
+            encoded = self.config.encode(observation)
             history.extend(encoded.copy() for _ in range(self.config.history_frames))
         return self._observations(), self._infos(time_step, "ongoing")
 
@@ -72,7 +87,7 @@ class Episode:
             raise RuntimeError("backend must advance exactly one frame")
         self.frame = time_step.frame
         for history, observation in zip(self.history, time_step.observations, strict=True):
-            history.append(encode_observation(observation, self.config.max_frames))
+            history.append(self.config.encode(observation))
         terminated = time_step.terminated
         truncated = not terminated and (time_step.truncated or self.frame >= self.config.max_frames)
         self.ended = terminated or truncated
@@ -82,7 +97,13 @@ class Episode:
                 self._infos(time_step, outcome))
 
     def _observations(self):
-        return {agent: np.concatenate(self.history[index]) for index, agent in enumerate(AGENTS)}
+        result = {agent: np.concatenate(self.history[index]) for index, agent in enumerate(AGENTS)}
+        if self.config.observation_mode == "image":
+            for index, agent in enumerate(AGENTS):
+                # Public seat identity allows parameter sharing between the two roles.
+                role = np.full((1, 240, 320), index * 255, dtype=np.uint8)
+                result[agent] = np.concatenate((result[agent], role))
+        return result
 
     def _infos(self, time_step, outcome):
         return {agent: {"frame": time_step.frame, "episode": self.number,
@@ -101,7 +122,7 @@ class HisoutenParallelEnv(ParallelEnv):
         self.episode = Episode(config)
         self.possible_agents = list(AGENTS)
         self.agents = []
-        self.observation_spaces = {a: observation_space(config.history_frames) for a in AGENTS}
+        self.observation_spaces = {a: config.space() for a in AGENTS}
         self.action_spaces = {a: spaces.Discrete(NUM_ACTIONS) for a in AGENTS}
         self.np_random, self.np_random_seed = seeding.np_random(None)
         self.closed = False
@@ -156,7 +177,9 @@ class HisoutenParallelEnv(ParallelEnv):
             self.agents = []
 
     def render(self):
-        raise NotImplementedError("this environment exposes numeric observations only")
+        if self.episode.config.observation_mode != "image" or not self.episode.ready:
+            raise RuntimeError("render requires a reset image environment")
+        return self.episode.history[0][-1].transpose(1, 2, 0).copy()
 
     def state(self):
         raise NotImplementedError("the bridge does not expose the full engine state")

@@ -10,6 +10,7 @@ episode:
   history_frames: 4
   decision_frames: 3
   latency_frames: 12
+  observation_mode: image
 runtime:
   # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
   command: ???
