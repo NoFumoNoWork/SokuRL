@@ -35,7 +35,7 @@ class VectorNFSP:
         self.shape = tuple(observation_shape)
         self.device = device
         self.rng = np.random.default_rng(seed)
-        self.agents = {name: NFSP(index, observation_shape[0], num_actions,
+        self.agents = {name: NFSP(index, observation_shape[0], self.num_actions,
                                  device=str(device), seed=seed + index, **agent_config)
                        for index, name in enumerate(AGENTS)}
         self.modes = {}
