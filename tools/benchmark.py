@@ -1,6 +1,5 @@
 """Evaluate a saved two-seat policy against the fixed rule roster."""
 from contextlib import closing
-import hashlib
 import json
 from pathlib import Path
 
@@ -14,6 +13,7 @@ def main(cfg):
     from soku_rl.checkpoint_policy import SeatPolicies, load_policy
     from soku_rl.env import EpisodeConfig, TwoPlayerVectorEnv
     from soku_rl.observed_rules import RulePolicy
+    from soku_rl.strategies import rule_implementation
     from soku_rl.learning_wrappers import LearningConfig, LearningInterface, LearningVectorEnv, LearningRulePolicy
     from soku_rl.policy_benchmark import benchmark
     from soku_rl.worker_pipe import WorkerBackend
@@ -36,9 +36,7 @@ def main(cfg):
     roles = tuple(load_policy(candidate["name"], candidate[a], interface, device)
                   for a in ("player_0", "player_1"))
     strategies = {candidate["name"]: SeatPolicies(candidate["name"], roles)}
-    source = Path(__file__).resolve().parents[1] / "src/soku_rl"
-    implementation = hashlib.sha256(b"".join((source / name).read_bytes() for name in (
-        "observed_rules.py", "baselines.py", "community_rules.py", "strategies.py"))).hexdigest()
+    implementation = rule_implementation()
     for name in opponents:
         rule = LearningRulePolicy(RulePolicy(name, config["rules"], episode, implementation), interface)
         strategies[name] = SeatPolicies(name, (rule, rule))

@@ -1,7 +1,7 @@
 name: ppo
 policy_type: mlp
 players: [0, 1]
-opponents: [rush, zoning, counter, community_combo, community_guard]
+opponents: ${rules.roster}
 rules: ${rules}
 timesteps_per_player: 262144
 checkpoint_every: 65536

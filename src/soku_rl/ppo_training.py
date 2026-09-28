@@ -1,7 +1,6 @@
 """Train one SB3 PPO policy per seat against a fixed rule population."""
 import hashlib
 import json
-from pathlib import Path
 
 import numpy as np
 from stable_baselines3 import PPO
@@ -9,6 +8,7 @@ from stable_baselines3.common.callbacks import BaseCallback, CallbackList, Check
 from stable_baselines3.common.logger import configure
 
 from .observed_rules import RulePolicy
+from .strategies import rule_implementation
 from .learning_wrappers import LearningRulePolicy
 from .ppo_response import OpponentMixtureVecEnv
 
@@ -56,8 +56,7 @@ def train_ppo(env, config, device, seed, directory):
     if not config["opponents"] or len(set(config["opponents"])) != len(config["opponents"]):
         raise ValueError("fixed opponent roster must be nonempty and distinct")
     episode = env.episodes[0].config
-    source = hashlib.sha256(b"".join(Path(__file__).with_name(name).read_bytes() for name in (
-        "observed_rules.py", "baselines.py", "community_rules.py", "strategies.py"))).hexdigest()
+    source = rule_implementation()
     opponents = [LearningRulePolicy(RulePolicy(name, config["rules"], episode, source), env.interface)
                  for name in config["opponents"]]
     weights = np.full(len(opponents), 1 / len(opponents))

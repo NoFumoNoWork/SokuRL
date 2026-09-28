@@ -2,10 +2,19 @@
 from dataclasses import dataclass
 import hashlib
 import json
+from pathlib import Path
 
 from .baselines import TreeConfig, TreePolicy
 from .community_rules import CommunityConfig, CommunityPolicy
 from .tactical_rules import TacticalConfig, TacticalPolicy
+
+
+def rule_implementation():
+    """Hash every rule implementation used by training and policy benchmarks."""
+    names = ("strategies.py", "baselines.py", "community_rules.py", "observed_rules.py",
+             "tactical_rules.py", "tactical_observation.py")
+    return hashlib.sha256(b"".join(Path(__file__).with_name(name).read_bytes()
+                                   for name in names)).hexdigest()
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,7 +63,9 @@ def strategy_from_config(name, config, implementation):
         movement["style"] = movement_style
         values = {"rules": dict(rules, style=name), "movement": movement}
         kind = "community"
-    else:
+    elif name in config["overrides"]:
         values = config["tree"] | config["overrides"][name] | {"style": name}
         kind = "tree"
+    else:
+        raise ValueError(f"unknown strategy: {name}")
     return Strategy(name, kind, json.dumps(values, sort_keys=True), implementation)

@@ -1,3 +1,19 @@
+roster:
+  - rush
+  - zoning
+  - counter
+  - community_combo
+  - community_guard
+  - pressure
+  - footsies
+  - anti_air
+  - air_rush
+  - bullet_wall
+  - graze_hunter
+  - hit_and_run
+  - corner_trap
+  - spirit_siege
+  - skill_cycle
 tree:
   melee_range: 85.0
   desired_min: 150.0

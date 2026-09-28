@@ -12,7 +12,7 @@ from soku_rl.env import EpisodeConfig
 from soku_rl.env.encoding import decode_action, encode_action, encode_observation
 from soku_rl.learning_wrappers import LearningConfig, LearningInterface, LearningRulePolicy
 from soku_rl.observed_rules import RulePolicy
-from soku_rl.strategies import strategy_from_config
+from soku_rl.strategies import rule_implementation, strategy_from_config
 from soku_rl.tactical_rules import TACTICAL_STYLES, TacticalConfig
 
 
@@ -251,3 +251,33 @@ def test_invalid_character_seed_and_numbers_are_rejected(mode):
     values[-1] = np.nan
     with pytest.raises(ValueError):
         spec.spawn(1).act(values)
+
+
+def test_roster_is_shared_by_training_evaluation_and_benchmark():
+    from hydra import compose, initialize_config_dir
+
+    with initialize_config_dir(config_dir=str(ROOT / "config"), version_base="1.3"):
+        evaluation = compose(config_name="evaluation")
+        training = compose(config_name="train", overrides=["algorithm=ppo"])
+        benchmark = compose(config_name="benchmark")
+    roster = RULES["roster"]
+    assert len(roster) == len(set(roster)) == 15
+    assert set(TACTICAL_STYLES) <= set(roster)
+    assert "idle" not in roster
+    assert list(evaluation.profiles) == list(training.algorithm.opponents) == list(benchmark.benchmark.opponents) == roster
+    assert len({strategy_from_config(name, RULES, "test").fingerprint for name in roster}) == 15
+    with pytest.raises(ValueError, match="unknown strategy"):
+        strategy_from_config("missing", RULES, "test")
+
+
+@pytest.mark.parametrize("filename", ("tactical_rules.py", "tactical_observation.py"))
+def test_implementation_fingerprint_includes_new_modules(monkeypatch, filename):
+    original = Path.read_bytes
+    before = rule_implementation()
+
+    def changed(path):
+        data = original(path)
+        return data + b"\n# changed\n" if path.name == filename else data
+
+    monkeypatch.setattr(Path, "read_bytes", changed)
+    assert rule_implementation() != before
