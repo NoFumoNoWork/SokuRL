@@ -155,11 +155,17 @@ def main(cfg: DictConfig):
     report = {"success": False, "config": config, "batches": [],
               "termination": "first knockout or frame limit; timeout is not a win"}
     pairs = list(itertools.permutations(config["profiles"], 2))
+    experiment_started = time.perf_counter()
     try:
         for seed in config["seeds"]:
+            batch_started = time.perf_counter()
             batch = play_batch(config, seed, pairs)
+            batch["total_seconds_including_launch_and_shutdown"] = time.perf_counter() - batch_started
             report["batches"].append(batch)
             destination.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        report["total_seconds"] = time.perf_counter() - experiment_started
+        report["simulation_steps"] = sum(b["simulation_steps"] for b in report["batches"])
+        report["end_to_end_steps_per_second"] = report["simulation_steps"] / report["total_seconds"]
         report["success"] = True
     except Exception as error:
         report["error"] = repr(error)
