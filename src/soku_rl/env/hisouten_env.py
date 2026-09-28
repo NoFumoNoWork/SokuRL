@@ -85,8 +85,10 @@ class Episode:
         return {agent: np.concatenate(self.history[index]) for index, agent in enumerate(AGENTS)}
 
     def _infos(self, time_step, outcome):
-        return {agent: {"frame": time_step.frame, "episode": self.number, "seed": self.seed,
-                        "outcome": outcome, "diagnostics": dict(time_step.diagnostics)}
+        return {agent: {"frame": time_step.frame, "episode": self.number,
+                        "outcome": outcome,
+                        "decision_frames": self.config.decision_frames,
+                        "latency_frames": self.config.latency_frames}
                 for agent in AGENTS}
 
 

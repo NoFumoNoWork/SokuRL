@@ -45,7 +45,8 @@ backend = WorkerBackend(
     timeout=300.0,
     launch_timeout=180.0,
 )
-env = HisoutenParallelEnv(backend, EpisodeConfig(max_frames=7200, history_frames=4))
+env = HisoutenParallelEnv(backend, EpisodeConfig(
+    max_frames=7200, history_frames=4, decision_frames=3, latency_frames=12))
 try:
     observations, infos = env.reset(seed=123)
     while env.agents:
@@ -70,7 +71,8 @@ finally:
 from soku_rl.env import EpisodeConfig, TwoPlayerVectorEnv
 
 env = TwoPlayerVectorEnv(backend, num_envs=16,
-                       config=EpisodeConfig(max_frames=7200, history_frames=4))
+                       config=EpisodeConfig(max_frames=7200, history_frames=4,
+                                            decision_frames=3, latency_frames=12))
 observations, infos = env.reset({i: 1000 + i for i in range(16)})
 
 actions = {
