@@ -9,7 +9,7 @@ from soku_rl.strategies import strategy_from_config
 
 
 def config():
-    return OmegaConf.to_container(OmegaConf.load(Path(__file__).parents[1] / "config/baselines.yaml"))
+    return OmegaConf.to_container(OmegaConf.load(Path(__file__).parents[1] / "config/rules/default.yaml"))
 
 
 def strategy(name):
