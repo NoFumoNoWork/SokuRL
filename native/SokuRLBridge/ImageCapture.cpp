@@ -11,6 +11,7 @@ HANDLE mapping = nullptr;
 ImageFrame *image = nullptr;
 IDirect3DSurface9 *readback = nullptr;
 D3DSURFACE_DESC previous{};
+bool capturePixels = false;
 
 HRESULT readImage()
 {
@@ -62,8 +63,9 @@ HRESULT readImage()
 }
 }
 
-bool initializeImageCapture()
+bool initializeImageCapture(bool pixels)
 {
+    capturePixels = pixels;
     wchar_t name[64]{};
     swprintf_s(name, L"Local\\SokuRLImage_%lu", GetCurrentProcessId());
     mapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0,
@@ -91,7 +93,7 @@ void captureImage(std::uint64_t frame)
     if (!image || image->frame == frame)
         return;
     InterlockedIncrement(&image->sequence);
-    image->result = readImage();
+    image->result = capturePixels ? readImage() : S_OK;
     if (SUCCEEDED(image->result))
         captureRenderState(image->renderState);
     image->frame = frame;

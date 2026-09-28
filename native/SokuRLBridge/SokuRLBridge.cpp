@@ -57,6 +57,7 @@ SetInputsMethod g_originalSetInputs = nullptr;
 BattleProcessMethod g_originalBattleProcess = nullptr;
 BattleRenderMethod g_originalBattleRender = nullptr;
 bool g_captureImages = false;
+bool g_captureStateOnly = false;
 bool g_renderPending = true;
 BattleManagerProcessMethod g_originalBattleManagerProcess = nullptr;
 SelectProcessMethod g_originalSelectProcess = nullptr;
@@ -1025,6 +1026,8 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
 int __fastcall battleOnProcess(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleProcess)();
+    if (g_captureStateOnly && g_battleActive && g_control && isSupportedGameplay())
+        SokuRLBridge::captureImage(g_currentFrame);
     if (!g_restartRequested)
         return result;
     g_restartRequested = false;
@@ -1113,12 +1116,16 @@ bool installHooks()
     if (g_captureImages)
         g_originalBattleRender = SokuLib::TamperDword(
             &SokuLib::VTable_Battle.onRender, battleOnRender);
+    if (g_captureStateOnly)
+        g_originalBattleProcess = SokuLib::TamperDword(
+            &SokuLib::VTable_Battle.onProcess, battleOnProcess);
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
     return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
         g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess &&
-        (!g_captureImages || g_originalBattleRender);
+        (!g_captureImages || g_originalBattleRender) &&
+        (!g_captureStateOnly || g_originalBattleProcess);
 }
 }
 
@@ -1134,11 +1141,13 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     if (!createMapping())
         return false;
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
-    g_captureImages = environmentValue(L"SOKURL_CAPTURE_IMAGES", 0) == 1;
+    const auto captureMode = environmentValue(L"SOKURL_CAPTURE_IMAGES", 0);
+    g_captureImages = captureMode != 0;
+    g_captureStateOnly = captureMode == 2;
     if (g_captureImages) {
         // Images require the original renderer, even when the window is unattended.
-        g_headlessRender = false;
-        if (!SokuRLBridge::initializeImageCapture()) {
+        g_headlessRender = g_captureStateOnly;
+        if (!SokuRLBridge::initializeImageCapture(captureMode == 1)) {
             closeMapping();
             return false;
         }

@@ -22,7 +22,7 @@ struct ImageFrame {
 };
 #pragma pack(pop)
 
-bool initializeImageCapture();
+bool initializeImageCapture(bool pixels);
 void captureImage(std::uint64_t frame);
 void closeImageCapture();
 }
