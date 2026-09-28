@@ -1,184 +1,123 @@
 # 双人环境、多环境采样与公开算法
 
-## 交付范围
+## 当前接口
 
-环境实现 [PettingZoo Parallel API](https://pettingzoo.farama.org/api/parallel/)，观测和动作空间使用 Gymnasium。
-一局有 `player_0`、`player_1` 两个玩家。环境不内置对手，不共享双方策略，也不把两人合成一个学习器。
+公共接口是 PettingZoo `ParallelEnv`。双方为 `player_0` 和 `player_1`，同时提交动作，同时得到新观测。环境不内置对手策略。Gymnasium 只负责定义动作和观测空间。
 
-已实现以下代码接入：
+单局在首次击倒、同时击倒或达到配置的帧数上限时结束。这是三局两胜比赛中的小局。环境对象和 Wine 工作进程可持续使用；目前每次 `reset` 仍重启指定的游戏进程，以清除引擎内部状态。
 
-- RLCard 1.2.0 的 [NFSPAgent](https://github.com/datamllab/rlcard/blob/master/rlcard/agents/nfsp_agent.py)：采样器提交双方各自的完整转移，学习、经验回放和平均策略训练由上游实现负责。
-- OpenSpiel 2.0.2 的 [PSROSolver](https://github.com/google-deepmind/open_spiel/blob/v2.0.2/open_spiel/python/algorithms/psro_v2/psro_v2.py)：复用策略选择、收益矩阵更新和混合策略求解；将游戏树递归采样替换为真实游戏的批量采样。
-- Stable-Baselines3 2.9.0 的 [PPO](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html)：作为 PSRO 的响应策略训练器。仅在训练某一方的响应策略时，提供一个内部管理对手的单智能体视图；底层仍是双人环境。
-
-这次交付不包含新的对战性能数据或训练收敛结果。原有 90 局报告属于旧评估入口，不能作为新接口或新算法接入已经通过运行验收的证据。
-
-## 进程结构
+## 分层和进程
 
 ```mermaid
-flowchart LR
-    L[Linux Python：NFSP / PSRO / PPO 与 GPU] --> V[双人多环境接口]
-    V <-->|父子进程管道| W[常驻 Windows Python：Wine 工作进程]
-    W <-->|独立共享内存| G0[游戏进程 0]
-    W <-->|独立共享内存| G1[游戏进程 1]
-    W <-->|独立共享内存| GN[游戏进程 N]
+flowchart TD
+    A[算法：BenchMARL IPPO / OpenSpiel NFSP、PSRO] --> B[算法数据格式适配]
+    B --> C[单局 PettingZoo 或双人 VectorEnv]
+    C --> D[Episode：历史、延迟、结束条件]
+    D --> E[WorkerBackend：父子进程管道]
+    E --> F[Wine Python：SokuGameBatch]
+    F --> G[每局独立的游戏进程与 RLBridge]
+    G --> H[同步状态、相机和渲染属性；可选 RGB]
+    H --> I[可见性过滤与双方视角编码]
+    I --> D
 ```
 
-Windows Python 控制游戏，Linux Python 使用原生 PyTorch。模型和 CUDA 不需要装入 Wine。
-工作进程的标准输出只传输结构化消息，诊断文字进入 `worker.log`。管道中的 Python 序列化格式仅用于自己启动的可信子进程，不提供网络监听接口。
+| 模块 | 职责 |
+| --- | --- |
+| `native/SokuRLBridge` | 执行原生按键、同步模拟帧、采集对应状态和可选图像 |
+| `tools/game_batch.py` | 启动、重置、步进和关闭本工作进程拥有的游戏 |
+| `visibility.py`、`contours.py` | 屏幕投影、量化、透明度和粗略遮挡 |
+| `visible_state.py` | 把过滤后的信息编码为双方各自的向量 |
+| `env/control.py` | 决策间隔和延迟按键队列 |
+| `env/hisouten_env.py` | 单局历史、奖励、终止及 PettingZoo 接口 |
+| `env/vector_env.py` | 复用单局逻辑，推进和重置环境子集 |
+| `torchrl_env.py`、`benchmarl_task.py` | 转换张量布局，声明 BenchMARL 任务 |
+| `spiel_nfsp.py`、`nfsp.py` | OpenSpiel NFSP 的批量决策、显式转移和训练调度 |
+| `psro.py`、`population.py`、`ppo_response.py` | 策略种群、真实对局收益、PPO 响应训练 |
 
-**Python 环境对象和 Wine 工作进程常驻；每次重置仍重开被选中的游戏子进程。**
-未实现游戏进程内部的完整快速重置，没有宣称消除了此前的启动开销。
-重置请求是同步的：同一工作进程中的其余对局保留原状态，但调用方要等重置完成后才能继续提交该组动作。它不是异步完成、持续补充样本的采样器。
+Linux 进程负责 PyTorch 与 CUDA。Wine Python 使用纯 Python 字节读取图像，不导入 NumPy 或 CUDA。模型库不进入游戏进程。
 
-## 单个双人环境
+有两种并行组织方式。自有 `TwoPlayerVectorEnv` 用一个 Wine 工作进程管理多个游戏，联合提交按键后等待所有指定实例完成；BenchMARL 用 TorchRL `ParallelEnv` 组合多个单局工厂，每个单局拥有自己的工作进程。两者复用同一 `Episode` 规则，不能把吞吐量视为相同。
+
+管道使用 Python 序列化，只连接本程序创建的可信子进程。它不是远程服务协议。工作进程标准输出只传协议消息，诊断写入独立日志。
+
+## 构造单局
+
+运行配置统一使用 Hydra，`config/train.yaml` 组合算法与赛道配置。机器上的 Wine 命令保存在忽略提交的本地配置中。
+
+以下代码中的 `cfg` 是已经解析的配置字典：
 
 ```python
-from soku_rl.env import EpisodeConfig, HisoutenParallelEnv
-from soku_rl.worker_pipe import WorkerBackend
+from soku_rl.env.factory import make_pettingzoo_env
 
-# command 是实际安装好的 Windows Python 命令，Linux 上可使用 Wine 包装脚本。
-backend = WorkerBackend(
-    command=["/absolute/path/run-python.sh", "tools/rollout_worker.py"],
-    cwd="/absolute/path/SokuRL",
-    log_path="logs/worker.log",
-    timeout=300.0,
-    launch_timeout=180.0,
-)
-env = HisoutenParallelEnv(backend, EpisodeConfig(
-    max_frames=7200, history_frames=4, decision_frames=3, latency_frames=12,
-    observation_mode="image"))
+env = make_pettingzoo_env(cfg["runtime"], cfg["episode"], "logs/workers")
 try:
     observations, infos = env.reset(seed=123)
     while env.agents:
-        actions = {agent: env.action_space(agent).sample() for agent in env.agents}
+        actions = {name: env.action_space(name).sample() for name in env.agents}
         observations, rewards, terminated, truncated, infos = env.step(actions)
 finally:
     env.close()
 ```
 
-这是双方同时行动的接口；不能只提交一方，也不能先推进一方再让另一方看结果选动作。
-到达终局后，最后一步仍返回双方的终局观测，`env.agents` 变为空列表。开始下一局必须调用 `reset`。
-关闭后的对象不能再次使用。
+双方必须在同一个 `step` 中提交动作。结束的最后一步保留双方终局观测，之后 `agents` 为空，必须 `reset` 才能开始下一局。种子取值为 0 至 4294967294；原生模块保留了 4294967295。
 
-标准 `reset(seed=None, options=None)` 的两个默认参数遵循第三方接口约定。`seed=None` 表示从该环境的随机数发生器抽取下一局种子，不表示忽略无效输入。未实现的 `options` 会报错。
-原生模块把 `0xFFFFFFFF` 用作未指定种子的标记，因此本接口接受从 0 至 4294967294 的整数种子。
+`reset(seed=None, options=None)` 的默认参数遵循 PettingZoo。未指定种子时由环境随机数发生器生成。`options` 必须是字典或 `None`；目前不从该字典修改运行配置。
 
-## 多环境接口
+## 多环境
 
-`TwoPlayerVectorEnv` 在外层增加环境编号，内层仍保持双方玩家编号：
+`TwoPlayerVectorEnv` 的外层字典键是环境编号，内层键是玩家编号。用配置先调用工作进程的 `configure_observation`，再构造向量环境。
 
 ```python
 from soku_rl.env import EpisodeConfig, TwoPlayerVectorEnv
 
-env = TwoPlayerVectorEnv(backend, num_envs=16,
-                       config=EpisodeConfig(max_frames=7200, history_frames=4,
-                                            decision_frames=3, latency_frames=12,
-                                            observation_mode="image"))
-observations, infos = env.reset({i: 1000 + i for i in range(16)})
-
-actions = {
-    i: {"player_0": policy_0[i].act(observations[i]["player_0"]),
-        "player_1": policy_1[i].act(observations[i]["player_1"])}
-    for i in observations
-}
+episode = EpisodeConfig(**cfg["episode"])
+backend.configure_observation(episode.backend_observation())
+env = TwoPlayerVectorEnv(backend, cfg["num_envs"], episode)
+observations, infos = env.reset({i: 1000 + i for i in range(env.num_envs)})
+actions = {i: {a: actors[i][a].act(value) for a, value in players.items()}
+           for i, players in observations.items()}
 observations, rewards, terminated, truncated, infos = env.step(actions)
-
-# 仅在需要开始新局的环境上调用；这里的 3 和 9 只是编号示例。
-new_observations, new_infos = env.reset({3: 2003, 9: 2009})
 ```
 
-最后一次重置仅替换 3、9 两个环境的游戏进程和观测历史。其他环境不重置。
-`step` 也可以提交环境子集；没有提交动作的环境保持暂停。
-各环境可以处于不同的帧号，分别等待自己的目标帧完成。
-出现步进错误时，受影响的环境要求重新 `reset`，不会把半完成的数据继续交给学习器。
+`reset({3: 2003, 9: 2009})` 只重置环境 3 和 9 的游戏、历史和待执行按键。`step` 也接受环境子集；其余环境保持暂停。同一工作进程的重置是同步调用，其他实例要等待它完成后才能继续获得动作。
 
-这不是 Gymnasium 的单智能体 `VectorEnv`。直接把环境维度和玩家维度展平会丢失双方联合推进、共同终止的约束，不能这样传入普通单智能体采样器。
+这不是 Gymnasium 的单智能体 VectorEnv。不能将环境维和玩家维直接展平后当作互不相关的单智能体任务。
 
-## 空间、奖励与结束条件
+## 观测、动作和结果
 
-| 项目 | 定义 |
-| --- | --- |
-| 玩家 | `player_0` 为 1P，`player_1` 为 2P |
-| 动作 | 每方 `Discrete(576)`，完整表达水平轴、垂直轴及六个按钮 |
-| 一步 | 双方动作共同推进一个模拟帧；不自动重复多帧 |
-| 观测 | 每帧 339 个 float32；默认叠加最近四帧，形状为 `(1356,)` |
-| 中间奖励 | 双方均为 0 |
-| 击倒 | 胜方 1、负方 -1，双方 `terminated=True` |
-| 同时击倒 | 双方 0，双方 `terminated=True` |
-| 达到帧数上限 | 双方 `truncated=True`，保留 `outcome=time_limit` |
+| 模式 | 每方观测，历史长度为 4 时 | 用途 |
+| --- | --- | --- |
+| `state` | `(1600,)`、float32 | 默认拟人赛道；每帧 400 个过滤后字段 |
+| `image` | `(13,240,320)`、uint8 | 4 帧 RGB，加一个玩家身份通道 |
+| `diagnostic_state` | `(1356,)`、float32 | 超人赛道；包含内部动作编号和瞬时速度 |
 
-动作编码包含全部 576 种按键组合，不限制为手工宏动作。无按键动作编号是 **256**，不是 0。
-所有组合都可提交；角色当前无法执行某个动作时，游戏可能忽略或缓存输入，这不等于接口动作非法。
+状态观测每帧包括双方各 8 个角色字段，以及双方各 64 个物体槽、每槽 3 个字段。角色字段是可见标记、量化屏幕位置、朝向、界面标记、量化血量和灵力、公开角色编号。物体槽为可见标记和量化屏幕位置。隐藏物体不保留列表位置；剩余槽填零。详情及近似误差见[可见性规范](human-aligned-env.md)。
 
-每帧观测的顺序为：已用帧数除以上限；己方九个字段；对手九个字段；64 个对手弹幕槽。
-九个角色字段是位置横纵坐标、血量、灵力比例、动作编号、腾空标志、命中停顿、角色编号、朝向。
-弹幕槽包括有效标志、位置横纵坐标、速度横纵分量，未使用槽填零。数值缩放常量见 `encoding.py`。
-重置时历史栈用本局初始观测填充，不携带上一局数据。
+历史包含最近的模拟帧，不是最近的决策帧。重置用本局初始观测填满历史。结构化状态仍是部分观测，不能作为完整引擎状态；PettingZoo `state()` 不提供伪造的集中式全局状态。
 
-这仍是内部数值观测，不是完整引擎状态或完整历史信息。`state()` 明确报不支持，不伪造供集中式价值网络使用的完整状态。
+双方动作空间均为 `Discrete(576)`，表示两个三值方向轴和六个二值按钮。无按键为 **256**。环境不提供自动连招。拟人赛道每 3 个模拟帧接收一次决策，输入延迟 12 帧；超人赛道每帧决策、无额外延迟。配置可调整。
 
-## NFSP 的多环境接入
+击倒时胜方奖励 1、负方 -1，同时击倒为 0。中间奖励为 0。达到上限返回 `truncated=True` 和 `outcome=time_limit`，不能报告为真实平局或按血量判胜。
 
-训练器只创建两个 `NFSPAgent`，每个玩家位置一个。每个学习器的网络、优化器、强化学习回放池和监督学习蓄水池在所有环境之间共用。
-每个环境、每个玩家分别在 episode 开始时抽取一次“最佳响应 / 平均策略”模式，并保持到本局结束。
-RLCard 将该模式存放在 `_mode`，适配器在调用对应玩家前恢复该局模式。这一接入按 RLCard **1.2.0** 的源码实现。
-转移显式包含本环境的旧观测、动作、奖励、下一观测和结束标志，不把不同环境的相邻调用当作同一条轨迹。
+公开 `info` 只含模拟帧、对局编号、结果、决策间隔和延迟。游戏种子、内存哈希和原始状态诊断进入运行记录，不进入策略输入。
 
-## PSRO 的接入
+## 算法适配
 
-1. 为 1P、2P 分别维护策略集合。角色随座位固定，不能声明这是对称博弈。
-2. OpenSpiel 选择要训练的响应策略及对手混合分布。
-3. PPO 在每局开始时从对手分布抽取一个策略，整局保持该策略及其独立随机数状态。
-4. 新策略完成训练后保存模型；旧策略不会继续被优化。
-5. 真实双人多环境采样估计新增收益矩阵项，由 OpenSpiel 更新混合策略。
+- **BenchMARL IPPO**：两个玩家组分别学习。TorchRL 使用官方 PettingZoo 包装器；图像从 CHW 字节转为 HWC 浮点数，供 BenchMARL 卷积模型使用。
+- **OpenSpiel NFSP 2.0.2**：复用上游网络、DQN 回放和损失、蓄水池抽样及平均策略损失。每局每方固定一次最佳响应或平均策略模式。状态转移显式按环境提交，所有模式下都推进 DQN 更新计数。当前 NFSP 网络只接收数值向量，图像输入会明确报错。
+- **OpenSpiel PSRO 2.0.2**：复用种群和混合策略求解，用真实对局采样替代游戏树遍历。Stable-Baselines3 PPO 训练响应策略。每局固定抽取的对手；旧种群策略不可被新训练覆盖。此接口不提供任意状态克隆或精确最佳响应。
 
-当前使用 OpenSpiel 的投影复制动态方法（在概率分布约束下迭代更新各策略概率）求解元策略，不宣称得到了精确纳什均衡。
-不提供任意状态克隆、完整游戏树或精确最佳响应，因此不支持直接调用依赖这些能力的 OpenSpiel 算法。
+NFSP 和 PSRO 明确把时间上限视为有限时长博弈的零后续收益。保存的 NFSP 文件包含推理权重、优化器和统计，但不含完整样本池和所有随机数状态，不能声称可以精确续训。
 
-PSRO 的收益矩阵按**固定玩家位置**定义，不等于此前交换策略座位后得到的均衡比较矩阵。
+## 运行入口和证据
 
-## 超时的训练含义
-
-环境始终保留终止和截断的区别。两个参考训练入口要求显式配置 `timeout_payoff: zero_at_horizon`：学习的是最多 7200 帧、到达上限后没有额外收益的博弈。
-
-NFSP 对这种截断不再自举未来价值。PPO 视图也不设置 SB3 的 `TimeLimit.truncated=True`，防止 SB3 自动加入超时状态的价值估计；原始截断信息保留为 `source_truncated`。
-这属于明确选择的训练目标，不是把自然比赛的超时判为平局。原来的胜率评估器仍报告超时次数和收益上下界。
-默认奖励仅在终局出现；这些接口不构成策略已经学会有效对战的证据。
-
-## 安装和配置
-
-游戏工作进程继续使用已安装游戏与模块的 Windows Python。Linux 学习器使用另一个 Python 3.11 环境，在其中安装适配 GPU 驱动的 CUDA 版 PyTorch，再安装：
-
-```bash
-python -m pip install -e '.[rl,nfsp,psro]'
+```text
+python tools/validate_env.py --config-dir config/local +machine=gpu41
+python tools/train.py --config-dir config/local +machine=gpu41 algorithm=ippo
+python tools/train.py --config-dir config/local +machine=gpu41 algorithm=nfsp
+python tools/train.py --config-dir config/local +machine=gpu41 algorithm=psro
 ```
 
-所有配置统一在 Hydra 的 `config/` 空间。`config/train.yaml` 组装环境、运行方式和算法，`config/algorithm/` 保存 NFSP、PSRO 参数。
-`runtime.command` 必须给出命令参数列表。不要使用一段需要 shell 再解释的命令字符串。
+增加 `track=superhuman` 可使用超人赛道配置；拟人赛道可用 `episode.observation_mode=image` 切换图像。
 
-把机器专用配置放在不提交到 Git 的 `config/local/machine/server.yaml`：
-
-```yaml
-# @package _global_
-runtime:
-  command: [/absolute/path/run-python.sh, tools/rollout_worker.py]
-  cwd: /absolute/path/SokuRL
-device: cuda:0
-```
-
-运行：
-
-```bash
-python tools/train.py --config-dir config/local +machine=server algorithm=nfsp
-python tools/train.py --config-dir config/local +machine=server algorithm=psro
-```
-
-配置要求 CUDA 时，无法使用 CUDA 会直接报错，不自动退回 CPU。
-输出目录包含配置、依赖版本、训练侧与工作进程侧的源码和游戏文件指纹、运行记录与模型检查点。
-已有输出目录不会被覆盖。当前提供模型保存，没有实现完整采样器与全部在途 episode 的断点恢复。
-
-## 后续验收
-
-本次未新增或运行实现测试，也未启动正式训练。下一次运行验收应覆盖完整的多环境 episode、部分重置后未选中环境的轨迹保持、终止与截断的转移处理，以及公开算法的实际学习更新。
-进程内快速重置仍是独立的原生工程任务，需要核对完整内部状态和跨 episode 隔离；没有用回血或接下一小局代替它。
+已取得的真实对局和接口检查证据见[环境验收记录](env-validation.md)。正式训练和最终交付须满足[完整验收清单](training-acceptance.md)。未完成双赛道胜率目标、可玩策略交付、回放视频和联网人机对战之前，不能宣布整个任务完成。
