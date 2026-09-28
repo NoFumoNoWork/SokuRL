@@ -407,7 +407,13 @@ class BridgeClient:
                     self.drain_frames()
                     return raw
             time.sleep(.001)
-        raise TimeoutError(f"PID {self.pid}: reset did not reach a new paused frame zero")
+        raw = snapshot.latest
+        raise TimeoutError(f"PID {self.pid}: reset did not reach a new paused frame zero; "
+                           f"command={sequence} ack={snapshot.ack_seq} result={snapshot.result_code} "
+                           f"gameplay={snapshot.in_gameplay} paused={snapshot.run_state_name} "
+                           f"frame={snapshot.game_frame} segment={raw.segmentId}/{segment} "
+                           f"seed={raw.randomSeed}/{seed} scene={raw.sceneId} "
+                           f"checkpoint={snapshot.checkpoint_valid}")
 
     @staticmethod
     def _write_input(target: LogicalInput, values: tuple[int, ...] | LogicalInput) -> None:

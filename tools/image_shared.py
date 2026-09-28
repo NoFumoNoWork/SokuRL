@@ -51,7 +51,8 @@ class ImageClient:
                 if first == last == sequence:
                     if magic != 0x474D4953 or version != 2 or (width, height) != (WIDTH, HEIGHT):
                         raise RuntimeError("unsupported native image mapping")
-                    if captured > frame:
+                    pending_reset = captured == 2**64 - 1 and result == -2147483638  # E_PENDING
+                    if captured > frame and not pending_reset:
                         raise RuntimeError("image advanced beyond the requested simulation frame")
                     if captured == frame:
                         if result < 0:
