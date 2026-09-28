@@ -189,10 +189,22 @@ def _read_process_values(pid: int) -> tuple[int, int, int, int, int | None, int 
 
 
 def _expected_characters() -> tuple[int, int]:
-    config = configparser.ConfigParser()
-    if not config.read(SKIPINTRO_INI, encoding="ascii"):
-        raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
-    return config.getint("P1", "character"), config.getint("P2", "character")
+    mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
+    if not mutex:
+        raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
+    acquired = False
+    try:
+        acquired = kernel32.WaitForSingleObject(mutex, 180000) == WAIT_OBJECT_0
+        if not acquired:
+            raise TimeoutError("timed out reading the game launch configuration")
+        config = configparser.ConfigParser()
+        if not config.read(SKIPINTRO_INI, encoding="ascii"):
+            raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
+        return config.getint("P1", "character"), config.getint("P2", "character")
+    finally:
+        if acquired:
+            kernel32.ReleaseMutex(mutex)
+        kernel32.CloseHandle(mutex)
 
 
 def _runtime_state(process: psutil.Process) -> RuntimeState:
@@ -305,18 +317,9 @@ def _launch_vs_group_from_title(
             raise ValueError("provide one seed per worker, without a common seed")
         if any(type(s) is not int or not 0 <= s < 0xFFFFFFFF for s in seeds):
             raise ValueError("native seeds must be in [0, 0xFFFFFFFF)")
-    config = configparser.ConfigParser()
-    if not config.read(SKIPINTRO_INI, encoding="ascii"):
-        raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
     env = os.environ.copy()
     env.update({
         "SOKURL_VS_BOOTSTRAP": "1",
-        "SOKURL_VS_P1_CHARACTER": str(config.getint("P1", "character")),
-        "SOKURL_VS_P2_CHARACTER": str(config.getint("P2", "character")),
-        "SOKURL_VS_P1_PALETTE": str(config.getint("P1", "palette")),
-        "SOKURL_VS_P2_PALETTE": str(config.getint("P2", "palette")),
-        "SOKURL_VS_P1_DECK": str(config.getint("P1", "deck")),
-        "SOKURL_VS_P2_DECK": str(config.getint("P2", "deck")),
         "SOKURL_VS_STAGE": "0",
         "SOKURL_VS_MUSIC": "0",
         "SOKURL_HEADLESS_RENDER": "1" if headless else "0",
@@ -340,6 +343,11 @@ def _launch_vs_group_from_title(
         if kernel32.WaitForSingleObject(mutex, INFINITE) != WAIT_OBJECT_0:
             raise OSError(ctypes.get_last_error(), "WaitForSingleObject failed")
         original = SKIPINTRO_INI.read_bytes()
+        config = configparser.ConfigParser()
+        config.read_string(original.decode("ascii"))
+        for player in ("P1", "P2"):
+            for field in ("character", "palette", "deck"):
+                env[f"SOKURL_VS_{player}_{field.upper()}"] = str(config.getint(player, field))
         title_config, replacements = re.subn(
             rb"(?m)^(\s*scene_id\s*=\s*)\d+(\s*)$", rb"\g<1>2\g<2>", original, count=1
         )
