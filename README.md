@@ -4,7 +4,9 @@
 
 实测报告：[Linux 并行采样与 RL 施工决策](docs/linux-performance.md)。
 
-当前原生模块拒绝 `GotoFrame`，不能把下文历史上的帧导航与场景重建说明当作已完成的重置接口。现有完整重置需要重启游戏。仓库提供三个状态决策树、静止对照和两个参考社区脚本实现的规则子集，以及双人部分可观测博弈接口和配对胜率评估。完整神 AI、Gymnasium 训练封装和学习算法尚未实现。
+当前原生模块拒绝 `GotoFrame`，不能把下文历史上的帧导航与场景重建说明当作已完成的任意状态恢复接口。ABI 7 新增 `ResetEpisode`，通过游戏内部场景流程重建对局，保留游戏进程；完整轨迹验证正在进行。公共接口为 PettingZoo 双人环境，默认提供经过可见性和精度过滤的状态，也支持真实图像。已接入 TorchRL、BenchMARL IPPO、OpenSpiel NFSP 和 PSRO；最终策略胜率和联网人机对战尚未验收。入口与分层见[双人环境文档](docs/multi-agent-env.md)。
+
+AI 工作进程默认静音，配置为 `runtime.mute_audio=true`。模块只在该游戏进程内把音乐和音效的音量设为零，不修改系统总音量、原始游戏文件或保存的游戏音量配置。
 
 使用标准 Windows 虚拟环境时，Python 路径为 `.venv\Scripts\python.exe`；
 下文的 `.venv\python.exe` 是原开发环境的路径。请使用实际存在的解释器路径。
@@ -16,8 +18,9 @@ automation, per-simulation-frame battle state, logical input control, replay
 seeking, reproducible scenario anchors, multi-instance isolation, and an
 experimentally validated faster-than-real-time VS worker.
 
-The project defines terminal rewards and a two-player game interface. It does
-not yet train policies. PPO and training dataset generation are not implemented.
+The public RL interface is a two-player PettingZoo environment. Training adapters
+use BenchMARL IPPO and OpenSpiel NFSP and PSRO. Policy quality and network play
+still need validation. See the current Chinese RL guide linked above.
 
 ## Supported Runtime
 
@@ -27,7 +30,7 @@ not yet train policies. PPO and training dataset generation are not implemented.
 - Game architecture: Win32/x86
 - Python environment: repository-local Python 3.11 x64 in `.venv`
 - Native compiler: MSVC Win32/x86
-- Bridge ABI: version 6
+- Bridge ABI: version 7
 
 The 64-bit Python process controls the 32-bit game out of process. All pointers
 read from th123 memory are therefore represented explicitly as 32-bit values.
