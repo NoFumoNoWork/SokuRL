@@ -66,7 +66,7 @@ class WorkerBackend:
         self.lock = threading.Lock()
         threading.Thread(target=self._read_replies, daemon=True).start()
         try:
-            self._request("initialize", {"protocol": PROTOCOL, "launch_timeout": launch_timeout})
+            self.identity = self._request("initialize", {"protocol": PROTOCOL, "launch_timeout": launch_timeout})
         except BaseException:
             self.close()
             raise

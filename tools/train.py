@@ -1,5 +1,6 @@
 """Hydra entry point for public NFSP or PSRO over the two-player vector game."""
 import hashlib
+from contextlib import closing
 from importlib.metadata import version
 import json
 from pathlib import Path
@@ -54,26 +55,21 @@ def main(cfg: DictConfig):
                 "packages": {p: version(p) for p in ["torch", "gymnasium", "pettingzoo", *dependencies]},
                 "device": str(device), "hydra_output": HydraConfig.get().runtime.output_dir}
     (destination / "identity.json").write_text(json.dumps(identity, indent=2), encoding="utf-8")
-    backend = WorkerBackend(log_path=destination / "worker.log", **config["runtime"])
-    env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
     started = time.perf_counter()
     report = {"success": False, "algorithm": algorithm}
     try:
-        report["result"] = train(env, config["algorithm"], device, config["seed"], destination)
+        with closing(WorkerBackend(log_path=destination / "worker.log", **config["runtime"])) as backend:
+            identity["runtime"] = backend.identity
+            (destination / "identity.json").write_text(json.dumps(identity, indent=2), encoding="utf-8")
+            env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
+            report["result"] = train(env, config["algorithm"], device, config["seed"], destination)
         report["success"] = True
     except BaseException as error:
         report["error"] = repr(error)
         raise
     finally:
-        try:
-            env.close()
-        except BaseException as error:
-            report["success"] = False
-            report["close_error"] = repr(error)
-            raise
-        finally:
-            report["total_seconds"] = time.perf_counter() - started
-            (destination / "result.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
+        report["total_seconds"] = time.perf_counter() - started
+        (destination / "result.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":
