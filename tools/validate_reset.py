@@ -53,6 +53,9 @@ def main(cfg):
     seeds = validation["seeds"]
     if not seeds or len(set(seeds)) != len(seeds) or validation["cycles"] < 1:
         raise ValueError("distinct seeds and a positive cycle count are required")
+    pause = validation["pause_after_episode_seconds"]
+    if not 0 <= pause <= 60:
+        raise ValueError("episode pause must be between zero and sixty seconds")
     rng = random.Random(validation["action_seed"])
     controls = DelayedControls(ControlConfig(episode.decision_frames, episode.latency_frames))
     controls.reset()
@@ -115,6 +118,7 @@ def main(cfg):
                     if pid is not None and (actual["pid"] != pid or actual["segment"] != segment + 1):
                         raise RuntimeError("reset changed PID or failed to advance episode segment")
                     pid, segment = actual["pid"], actual["segment"]
+                    time.sleep(pause)
                     if not peer.ended and peer_frames < len(actions):
                         peer = worker.step({1: actions[peer_frames]})[1]
                         peer_frames += 1

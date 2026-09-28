@@ -6,4 +6,5 @@ reset_validation:
   seeds: [1732, 291038774]
   cycles: 2
   action_seed: 31415
+  pause_after_episode_seconds: 0.0
 output: logs/validation/reset-${now:%Y%m%d-%H%M%S}
