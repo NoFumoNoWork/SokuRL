@@ -15,6 +15,30 @@ INPUT_HISTORY_CAPACITY = 4096
 MAX_OBJECTS_PER_PLAYER = 64
 NO_FRAME = (1 << 64) - 1
 
+
+def wait_for_steps(clients, sequences, frames, timeout):
+    """Wait for exact completed frames, including independently reset slots."""
+    if not (len(clients) == len(sequences) == len(frames)) or timeout <= 0:
+        raise ValueError("invalid step wait arguments")
+    pending = set(range(len(clients)))
+    snapshots = [None] * len(clients)
+    deadline = time.monotonic() + timeout
+    while pending:
+        for index in tuple(pending):
+            block = clients[index].block
+            if block.currentFrame > frames[index]:
+                raise RuntimeError("game advanced past requested frame")
+            if (block.ackSeq == sequences[index] and block.currentFrame == frames[index]
+                    and block.runState == 1):
+                snapshot = clients[index].snapshot()
+                if (snapshot.ack_seq == sequences[index] and snapshot.game_frame == frames[index]
+                        and snapshot.run_state_name == "PAUSED"):
+                    snapshots[index] = snapshot
+                    pending.remove(index)
+        if pending and time.monotonic() >= deadline:
+            raise TimeoutError(f"simulation step timed out for workers {sorted(pending)}")
+    return snapshots
+
 COMMAND_INPUT = 1
 COMMAND_RELEASE = 2
 COMMAND_RUN = 3

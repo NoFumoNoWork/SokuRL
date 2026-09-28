@@ -292,11 +292,17 @@ def _launch_vs_group_from_title(
     unlimited: bool = False,
     seed: int | None = None,
     pause_at_start: bool = False,
+    seeds: tuple[int, ...] | None = None,
 ) -> list[psutil.Process]:
     if worker_count < 1:
         raise ValueError("worker_count must be positive")
     if unlimited and not headless:
         raise ValueError("--unlimited requires --headless")
+    if seeds is not None:
+        if seed is not None or len(seeds) != worker_count:
+            raise ValueError("provide one seed per worker, without a common seed")
+        if any(type(s) is not int or not 0 <= s < 0xFFFFFFFF for s in seeds):
+            raise ValueError("native seeds must be in [0, 0xFFFFFFFF)")
     config = configparser.ConfigParser()
     if not config.read(SKIPINTRO_INI, encoding="ascii"):
         raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
@@ -337,8 +343,11 @@ def _launch_vs_group_from_title(
         if replacements != 1:
             raise RuntimeError("SkipIntro scene_id setting was not found")
         SKIPINTRO_INI.write_bytes(title_config)
-        for _ in range(worker_count):
-            process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=env).pid)
+        for index in range(worker_count):
+            process_env = env.copy()
+            if seeds is not None:
+                process_env["SOKURL_VS_SEED"] = str(seeds[index])
+            process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=process_env).pid)
             processes.append(process)
         pending = list(processes)
         deadline = time.monotonic() + timeout

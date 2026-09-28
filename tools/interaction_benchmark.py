@@ -8,7 +8,7 @@ import sys
 import time
 from pathlib import Path
 
-from bridge_shared import BridgeClient, FRAME_RING_CAPACITY
+from bridge_shared import BridgeClient, FRAME_RING_CAPACITY, wait_for_steps
 from headless_validation import fixed_trace, wait_for_frame_zero
 from unlimited_benchmark import FRAME_SIZE, _drain_fast
 import sokurl
@@ -17,6 +17,8 @@ RUN_STATE_PAUSED = 1
 
 
 def wait_group(clients, sequences, frame, polling):
+    if polling == "ready":
+        return wait_for_steps(clients, sequences, [frame] * len(clients), 10.0)
     deadline = time.perf_counter() + 10.0
     pending = set(range(len(clients)))
     snapshots = [None] * len(clients)
