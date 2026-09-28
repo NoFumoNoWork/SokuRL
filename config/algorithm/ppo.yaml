@@ -1,4 +1,5 @@
 name: ppo
+policy_type: mlp
 players: [0, 1]
 opponents: [rush, zoning, counter, community_combo, community_guard]
 rules: ${rules}

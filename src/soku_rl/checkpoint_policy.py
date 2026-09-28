@@ -77,12 +77,17 @@ def load_policy(name, spec, interface, device):
     path = Path(spec["path"]).resolve(strict=True)
     identity = hashlib.sha256(path.read_bytes()).hexdigest()
     shape, num_actions = interface.observation_space.shape, interface.action_space.n
-    if spec["kind"] == "sb3":
-        from stable_baselines3 import PPO
-        model = PPO.load(path, device=device)
+    if spec["kind"] in {"sb3", "sb3_recurrent"}:
+        if spec["kind"] == "sb3_recurrent":
+            from sb3_contrib import RecurrentPPO as Algorithm
+            from .recurrent_policy import RecurrentPPOPolicy as Policy
+        else:
+            from stable_baselines3 import PPO as Algorithm
+            Policy = PPOPolicy
+        model = Algorithm.load(path, device=device)
         if model.observation_space != interface.observation_space or model.action_space.n != num_actions:
             raise ValueError("SB3 checkpoint and evaluation spaces differ")
-        return PPOPolicy(name, model, path)
+        return Policy(name, model, path)
     # These files are artifacts from our own training, not untrusted uploads.
     saved = torch.load(path, map_location="cpu", weights_only=False)
     if len(shape) != 1:

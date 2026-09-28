@@ -35,6 +35,8 @@ def main(cfg: DictConfig):
     elif algorithm == "ppo":
         from soku_rl.ppo_training import train_ppo as train
         dependencies = ["stable-baselines3"]
+        if config["algorithm"]["policy_type"] == "lstm":
+            dependencies.append("sb3-contrib")
     else:
         raise ValueError(f"unsupported algorithm: {algorithm}")
     if type(config["seed"]) is not int or not 0 <= config["seed"] < 2**31:

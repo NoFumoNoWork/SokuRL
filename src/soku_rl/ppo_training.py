@@ -40,6 +40,13 @@ class EpisodeRecords(BaseCallback):
 
 
 def train_ppo(env, config, device, seed, directory):
+    if config["policy_type"] == "lstm":
+        from sb3_contrib import RecurrentPPO
+        algorithm, policy_type = RecurrentPPO, "MlpLstmPolicy"
+    elif config["policy_type"] == "mlp":
+        algorithm, policy_type = PPO, "MlpPolicy"
+    else:
+        raise ValueError("PPO policy_type must be mlp or lstm")
     if config["timeout_payoff"] != "zero_at_horizon":
         raise ValueError("PPO requires the declared finite-horizon payoff")
     if config["players"] != [0, 1]:
@@ -60,7 +67,7 @@ def train_ppo(env, config, device, seed, directory):
         destination.mkdir()
         view = OpponentMixtureVecEnv(env, player, opponents, weights, seed + player)
         try:
-            model = PPO("MlpPolicy", view, seed=seed + player, device=device, **config["ppo"])
+            model = algorithm(policy_type, view, seed=seed + player, device=device, **config["ppo"])
             model.set_logger(configure(str(destination / "scalars"), ["csv", "stdout"]))
             initial = parameter_hash(model.policy)
             callbacks = CallbackList([
