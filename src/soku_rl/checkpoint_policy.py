@@ -90,7 +90,7 @@ def load_policy(name, spec, interface, device):
         return Policy(name, model, path)
     # These files are artifacts from our own training, not untrusted uploads.
     saved = torch.load(path, map_location="cpu", weights_only=False)
-    if len(shape) != 1:
+    if shape is None or len(shape) != 1:
         raise ValueError("this checkpoint loader supports numeric observations")
     with torch.random.fork_rng(devices=[]):
         if spec["kind"] == "nfsp_average":

@@ -15,20 +15,26 @@ class TorchRLInputs(BaseParallelWrapper):
         super().__init__(env)
         self.observation_spaces = {}
         for agent in env.possible_agents:
-            space = env.observation_space(agent)
-            if space.dtype == np.uint8 and len(space.shape) == 3:
-                channels, height, width = space.shape
-                space = spaces.Box(0, 1, (height, width, channels), np.float32)
-            self.observation_spaces[agent] = space
+            self.observation_spaces[agent] = self.convert_space(env.observation_space(agent))
+
+    @staticmethod
+    def convert_space(space):
+        if isinstance(space, spaces.Dict):
+            return spaces.Dict({key: TorchRLInputs.convert_space(value) for key, value in space.items()})
+        if space.dtype == np.uint8 and len(space.shape) == 3:
+            channels, height, width = space.shape
+            return spaces.Box(0, 1, (height, width, channels), np.float32)
+        return space
 
     def observation_space(self, agent):
         return self.observation_spaces[agent]
 
     @staticmethod
     def observations(values):
-        return {agent: np.moveaxis(value, 0, -1).astype(np.float32) / 255
-                if value.dtype == np.uint8 and value.ndim == 3 else value
-                for agent, value in values.items()}
+        if isinstance(values, dict):
+            return {key: TorchRLInputs.observations(value) for key, value in values.items()}
+        return (np.moveaxis(values, 0, -1).astype(np.float32) / 255
+                if values.dtype == np.uint8 and values.ndim == 3 else values)
     @staticmethod
     def convert(infos):
         keys = ("frame", "episode", "decision_frames", "latency_frames")

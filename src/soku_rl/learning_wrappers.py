@@ -38,11 +38,14 @@ class LearningInterface:
         self.inverse = {value: index for index, value in enumerate(self.commands)}
         self.action_space = spaces.Discrete(len(self.commands))
         extra = RELATIVE_FEATURES * config.relative_features + 8 * config.action_history
-        if episode.observation_mode == "image" and (extra or config.health_potential_scale):
-            raise ValueError("numeric learning features and health shaping cannot read image observations")
+        if episode.observation_mode == "image" and config.health_potential_scale:
+            raise ValueError("health shaping cannot read image observations")
         if config.relative_features and episode.observation_mode != "state":
             raise ValueError("relative screen features require public state observations")
-        if extra:
+        if episode.observation_mode == "image" and config.action_history:
+            self.observation_space = spaces.Dict({"image": self.base_space,
+                "commands": spaces.Box(-1, 1, (8 * config.action_history,), np.float32)})
+        elif extra:
             low = np.concatenate((self.base_space.low, np.full(extra, -1, np.float32)))
             high = np.concatenate((self.base_space.high, np.ones(extra, np.float32)))
             self.observation_space = spaces.Box(low, high, dtype=np.float32)
@@ -62,6 +65,12 @@ class LearningInterface:
         return self.inverse[command]
 
     def base_observation(self, observation):
+        if isinstance(self.observation_space, spaces.Dict):
+            if (not isinstance(observation, dict) or set(observation) != {"image", "commands"}
+                    or observation["image"].shape != self.base_space.shape
+                    or observation["commands"].shape != self.observation_space["commands"].shape):
+                raise ValueError("learning observation does not match the image/commands layout")
+            return observation["image"]
         if observation.shape != self.observation_space.shape:
             raise ValueError("learning observation has an incorrect shape")
         if observation.ndim == 1:
@@ -102,6 +111,10 @@ class LearningEpisode:
     def _observations(self, observations, infos):
         result = {}
         for agent, observation in observations.items():
+            if isinstance(self.interface.observation_space, spaces.Dict):
+                result[agent] = {"image": observation,
+                    "commands": np.asarray(self.history[agent], np.float32).reshape(-1)}
+                continue
             parts = [observation]
             if self.interface.config.relative_features:
                 parts.append(relative_features(observation, self.interface.episode, infos[agent]["frame"]))

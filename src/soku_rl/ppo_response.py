@@ -1,6 +1,7 @@
 """Use public SB3 PPO as a response oracle over the two-player vector game."""
 from pathlib import Path
 
+from gymnasium import spaces
 import numpy as np
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import VecEnv
@@ -56,7 +57,10 @@ class OpponentMixtureVecEnv(VecEnv):
         return self._stack()
 
     def _stack(self):
-        return np.stack([self.observations[i][AGENTS[self.player]] for i in range(self.num_envs)])
+        values = [self.observations[i][AGENTS[self.player]] for i in range(self.num_envs)]
+        if isinstance(self.observation_space, spaces.Dict):
+            return {key: np.stack([value[key] for value in values]) for key in self.observation_space.spaces}
+        return np.stack(values)
 
     def step_async(self, actions):
         if self.closed or self.pending is not None or not self.observations:
@@ -88,7 +92,9 @@ class OpponentMixtureVecEnv(VecEnv):
             # Setting this true would make SB3 add an unrequested bootstrap value.
             info["TimeLimit.truncated"] = False
             if dones[i]:
-                info["terminal_observation"] = obs[i][AGENTS[self.player]].copy()
+                terminal = obs[i][AGENTS[self.player]]
+                info["terminal_observation"] = ({k: v.copy() for k, v in terminal.items()}
+                    if isinstance(self.observation_space, spaces.Dict) else terminal.copy())
                 info["episode"] = {"r": float(self.returns[i]), "l": int(self.lengths[i])}
                 seeds[i] = int(self.rng.integers(0, 0xFFFFFFFF))
             output_infos.append(info)
@@ -134,7 +140,8 @@ class PPOResponseOracle:
                 seed = int(self.rng.integers(0, 2**31))
                 view = OpponentMixtureVecEnv(self.env, player, opponents, probabilities, seed)
                 try:
-                    policy_type = "CnnPolicy" if len(view.observation_space.shape) == 3 else "MlpPolicy"
+                    policy_type = ("MultiInputPolicy" if isinstance(view.observation_space, spaces.Dict) else
+                                   "CnnPolicy" if len(view.observation_space.shape) == 3 else "MlpPolicy")
                     model = PPO(policy_type, view, device=self.device, seed=seed,
                                 **self.config["ppo"])
                     # Copy only policy parameters. New optimizer and schedule belong

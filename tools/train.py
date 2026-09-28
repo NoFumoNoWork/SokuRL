@@ -19,7 +19,7 @@ def main(cfg: DictConfig):
     import torch
     from soku_rl.env import EpisodeConfig, TwoPlayerVectorEnv
     from soku_rl.worker_pipe import WorkerBackend
-    from soku_rl.learning_wrappers import LearningConfig, LearningVectorEnv
+    from soku_rl.learning_wrappers import LearningConfig, LearningInterface, LearningVectorEnv
 
     config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     algorithm = config["algorithm"]["name"]
@@ -47,6 +47,12 @@ def main(cfg: DictConfig):
         raise ValueError("runtime.command must be an explicit argument list")
     episode = EpisodeConfig(**config["episode"])
     learning = LearningConfig(**config["wrappers"])
+    interface = LearningInterface(episode, learning)
+    if algorithm == "nfsp" and (interface.observation_space.shape is None
+                               or len(interface.observation_space.shape) != 1):
+        raise ValueError("the OpenSpiel NFSP adapter requires numeric state observations")
+    if algorithm == "ppo" and episode.observation_mode == "image":
+        raise ValueError("fixed-rule PPO requires state observations; image self-play uses IPPO or PSRO")
     if learning.health_potential_scale:
         parameters = config["algorithm"]
         discount = (parameters["agent"]["discount_factor"] if algorithm == "nfsp" else
