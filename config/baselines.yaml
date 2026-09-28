@@ -1,0 +1,36 @@
+seed: 1397705557
+seeds: [1397705557, 1397705558, 1397705559]
+max_frames: 7200
+output: logs/validation/baseline-tournament.json
+profiles: [idle, rush, zoning, counter]
+
+tree:
+  melee_range: 85.0
+  desired_min: 150.0
+  desired_max: 260.0
+  vertical_tolerance: 90.0
+  spirit_reserve: 0.2
+  attack_interval: 8
+  projectile_horizon: 12.0
+  projectile_radius: 75.0
+  arena_min: 0.0
+  arena_max: 1280.0
+  wall_margin: 100.0
+
+overrides:
+  idle: {}
+  rush: {}
+  zoning:
+    desired_min: 260.0
+    desired_max: 440.0
+    attack_interval: 24
+  counter:
+    desired_min: 160.0
+    desired_max: 260.0
+    attack_interval: 12
+
+hydra:
+  run:
+    dir: logs/hydra/${now:%Y%m%d-%H%M%S}
+  job:
+    chdir: false
