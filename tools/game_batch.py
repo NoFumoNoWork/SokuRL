@@ -104,7 +104,7 @@ class SokuGameBatch:
             for slot, process in zip(seeds, processes, strict=True):
                 client = BridgeClient(process.pid)
                 self.clients[slot] = client
-                raw = wait_for_frame_zero(client, process.pid)
+                raw = wait_for_frame_zero(client, process.pid, self.launch_timeout)
                 self.buffers[slot] = (ctypes.c_ubyte * (FRAME_RING_CAPACITY * FRAME_SIZE))()
                 self.frames[slot] = 0
                 if self.observation_mode in {"image", "state"}:

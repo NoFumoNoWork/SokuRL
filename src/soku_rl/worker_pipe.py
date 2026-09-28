@@ -123,5 +123,7 @@ class WorkerBackend:
             finally:
                 self.log.close()
             self.process.stdout.close()
-            if self.process.returncode:
+            # A failed request already reported the worker's original exception.
+            # Cleanup must not replace it with an exit-code-only exception.
+            if self.process.returncode and not self.broken:
                 raise RuntimeError(f"rollout worker exited with code {self.process.returncode}")
