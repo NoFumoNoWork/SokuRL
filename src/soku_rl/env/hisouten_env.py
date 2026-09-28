@@ -6,17 +6,21 @@ from gymnasium import spaces
 from gymnasium.utils import seeding
 from pettingzoo import ParallelEnv
 from .encoding import AGENTS, NUM_ACTIONS, decode_action, encode_observation, observation_space
+from .control import ControlConfig, DelayedControls
 
 
 @dataclass(frozen=True)
 class EpisodeConfig:
     max_frames: int
     history_frames: int
+    decision_frames: int
+    latency_frames: int
 
     def __post_init__(self):
         if type(self.max_frames) is not int or self.max_frames < 1:
             raise ValueError("max_frames must be a positive integer")
         observation_space(self.history_frames)
+        ControlConfig(self.decision_frames, self.latency_frames)
 
 
 class Episode:
@@ -28,6 +32,7 @@ class Episode:
         self.ended = True
         self.frame = 0
         self.number = 0
+        self.controls = DelayedControls(ControlConfig(config.decision_frames, config.latency_frames))
 
     def reset(self, time_step, seed):
         if time_step.frame != 0 or time_step.ended or time_step.rewards != (0, 0):
@@ -35,6 +40,7 @@ class Episode:
         self.seed = seed
         self.number += 1
         self.frame = 0
+        self.controls.reset()
         self.ready, self.ended = True, False
         for history, observation in zip(self.history, time_step.observations, strict=True):
             history.clear()
@@ -48,6 +54,13 @@ class Episode:
         if set(actions) != set(AGENTS):
             raise ValueError("both players must submit an action in the same step")
         return tuple(decode_action(actions[agent]) for agent in AGENTS)
+
+    def submit(self, actions):
+        self.actions(actions)
+        self.controls.submit(self.frame, actions)
+
+    def inputs(self):
+        return self.controls.inputs(self.frame)
 
     def invalidate(self):
         self.ready, self.ended = False, True
@@ -120,9 +133,12 @@ class HisoutenParallelEnv(ParallelEnv):
             raise RuntimeError("environment is closed")
         if not self.agents and self.episode.ready and actions == {}:
             return {}, {}, {}, {}, {}
-        joint = self.episode.actions(actions)
         try:
-            result = self.episode.step(self.backend.step({0: joint})[0])
+            self.episode.submit(actions)
+            for _ in range(self.episode.config.decision_frames):
+                result = self.episode.step(self.backend.step({0: self.episode.inputs()})[0])
+                if self.episode.ended:
+                    break
         except BaseException:
             self.episode.invalidate()
             self.agents = []

@@ -14,7 +14,7 @@ agent:
   q_replay_memory_size: 20000
   q_replay_memory_init_size: 1024
   q_update_target_estimator_every: 1000
-  q_discount_factor: 0.999
+  q_discount_factor: 1.0
   q_epsilon_start: 0.1
   q_epsilon_end: 0.01
   q_epsilon_decay_steps: 1000000

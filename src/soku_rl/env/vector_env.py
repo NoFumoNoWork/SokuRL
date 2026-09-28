@@ -41,12 +41,23 @@ class TwoPlayerVectorEnv:
 
     def step(self, actions):
         self._check_slots(actions)
-        joint = {s: self.episodes[s].actions(a) for s, a in actions.items()}
+        # Validate every joint decision before changing any episode's queue.
+        for slot, action in actions.items():
+            self.episodes[slot].actions(action)
         try:
-            states = self.backend.step(joint)
-            if set(states) != set(actions):
-                raise RuntimeError("backend returned incorrect step slots")
-            results = {s: self.episodes[s].step(states[s]) for s in actions}
+            for slot, action in actions.items():
+                self.episodes[slot].submit(action)
+            results = {}
+            active = set(actions)
+            for _ in range(next(iter(self.episodes.values())).config.decision_frames):
+                joint = {s: self.episodes[s].inputs() for s in sorted(active)}
+                states = self.backend.step(joint)
+                if set(states) != active:
+                    raise RuntimeError("backend returned incorrect step slots")
+                results.update({s: self.episodes[s].step(states[s]) for s in active})
+                active = {s for s in active if not self.episodes[s].ended}
+                if not active:
+                    break
         except BaseException:
             for slot in actions:
                 self.episodes[slot].invalidate()

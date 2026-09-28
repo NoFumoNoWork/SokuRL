@@ -8,6 +8,8 @@ num_envs: 16
 episode:
   max_frames: 7200
   history_frames: 4
+  decision_frames: 3
+  latency_frames: 12
 runtime:
   # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
   command: ???
