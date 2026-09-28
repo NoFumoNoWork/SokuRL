@@ -1,5 +1,8 @@
 """Exercise the public single and vector interfaces with a deterministic backend."""
 import unittest
+from dataclasses import replace
+import numpy as np
+from pettingzoo.test import parallel_api_test
 
 from soku_rl.baselines import Fighter, Observation
 from soku_rl.env import EpisodeConfig, HisoutenParallelEnv, TwoPlayerVectorEnv
@@ -33,6 +36,24 @@ class RecordingBackend:
 
 
 class EnvTimingTests(unittest.TestCase):
+    def test_pettingzoo_parallel_contract_for_images(self):
+        class ImageBackend(RecordingBackend):
+            def _state(self, slot):
+                state = super()._state(slot)
+                image = np.full((240, 320, 3), state.frame % 256, np.uint8)
+                return replace(state, observations=(image, image))
+
+        env = HisoutenParallelEnv(ImageBackend(), EpisodeConfig(60, 4, 3, 12, "image"))
+        parallel_api_test(env, num_cycles=1000)
+        observations, infos = env.reset(seed=123)
+        self.assertTrue(env.observation_space(AGENTS[0]).contains(observations[AGENTS[0]]))
+        self.assertEqual(observations[AGENTS[0]].shape, (13, 240, 320))
+        self.assertTrue((observations[AGENTS[0]][-1] == 0).all())
+        self.assertTrue((observations[AGENTS[1]][-1] == 255).all())
+        self.assertNotIn("seed", infos[AGENTS[0]])
+        self.assertNotIn("diagnostics", infos[AGENTS[0]])
+        env.close()
+
     def test_single_and_vector_have_identical_transitions(self):
         config = EpisodeConfig(17, 4, 3, 12, "diagnostic_state")
         single_backend, vector_backend = RecordingBackend(), RecordingBackend()
