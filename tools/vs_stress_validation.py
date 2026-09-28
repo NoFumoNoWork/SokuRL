@@ -41,10 +41,10 @@ def wait_stable(pid: int, frames: int, timeout: float = 30.0) -> dict[str, int]:
         client.close()
 
 
-def run(count: int, frames: int) -> dict[str, object]:
+def run(count: int, frames: int, headless: bool = False) -> dict[str, object]:
     results = []
     for index in range(1, count + 1):
-        process = sokurl._launch_vs_from_title(30.0)
+        process = sokurl._launch_vs_from_title(30.0, headless=headless)
         started = time.monotonic()
         try:
             stable = wait_stable(process.pid, frames)
@@ -64,6 +64,7 @@ def run(count: int, frames: int) -> dict[str, object]:
                 sokurl.shutdown(5.0, process.pid)
     return {
         "runs": count,
+        "headless": headless,
         "frames_per_run": frames,
         "successful_runs": sum(bool(item["success"]) for item in results),
         "results": results,
@@ -75,10 +76,12 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--runs", type=int, default=20)
     parser.add_argument("--frames", type=int, default=300)
+    parser.add_argument("--headless", action="store_true")
     args = parser.parse_args()
-    report = run(args.runs, args.frames)
+    report = run(args.runs, args.frames, args.headless)
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    path = REPORT_DIR / f"vs-stress-{datetime.now():%Y%m%d-%H%M%S}.json"
+    mode = "headless" if args.headless else "rendered"
+    path = REPORT_DIR / f"vs-stress-{mode}-{datetime.now():%Y%m%d-%H%M%S}.json"
     path.write_text(json.dumps(report, indent=2), encoding="ascii")
     print(json.dumps(report, indent=2))
     print(f"report={path}")

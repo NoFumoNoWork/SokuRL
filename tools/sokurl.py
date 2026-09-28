@@ -284,7 +284,16 @@ def practice(timeout: float, pid: int | None) -> int:
     raise RuntimeError(f"timed out after {timeout:.1f}s waiting for PRACTICE_READY")
 
 
-def _launch_vs_from_title(timeout: float) -> psutil.Process:
+def _launch_vs_from_title(
+    timeout: float,
+    *,
+    headless: bool = False,
+    unlimited: bool = False,
+    seed: int | None = None,
+    pause_at_start: bool = False,
+) -> psutil.Process:
+    if unlimited and not headless:
+        raise ValueError("--unlimited requires --headless")
     config = configparser.ConfigParser()
     if not config.read(SKIPINTRO_INI, encoding="ascii"):
         raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
@@ -299,7 +308,16 @@ def _launch_vs_from_title(timeout: float) -> psutil.Process:
         "SOKURL_VS_P2_DECK": str(config.getint("P2", "deck")),
         "SOKURL_VS_STAGE": "0",
         "SOKURL_VS_MUSIC": "0",
+        "SOKURL_HEADLESS_RENDER": "1" if headless else "0",
+        "SOKURL_UNLIMITED_PACING": "1" if unlimited else "0",
+        "SOKURL_VS_PAUSE_AT_START": "1" if pause_at_start else "0",
     })
+    if seed is not None:
+        if not 0 <= seed <= 0xFFFFFFFF:
+            raise ValueError("VS seed must fit in uint32")
+        env["SOKURL_VS_SEED"] = str(seed)
+    else:
+        env.pop("SOKURL_VS_SEED", None)
 
     mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
     if not mutex:
@@ -336,9 +354,9 @@ def _launch_vs_from_title(timeout: float) -> psutil.Process:
         kernel32.CloseHandle(mutex)
 
 
-def versus(timeout: float) -> int:
+def versus(timeout: float, headless: bool = False, unlimited: bool = False) -> int:
     _validate_game()
-    process = _launch_vs_from_title(timeout)
+    process = _launch_vs_from_title(timeout, headless=headless, unlimited=unlimited)
     print(f"launched {GAME_EXE} (PID {process.pid})")
     client = BridgeClient(process.pid)
     deadline = time.monotonic() + timeout
@@ -355,7 +373,10 @@ def versus(timeout: float) -> int:
                 first_frame = frame
             elif frame > first_frame:
                 _print_state(last_state)
-                print("VS_READY")
+                if unlimited:
+                    print("VS_UNLIMITED_READY")
+                else:
+                    print("VS_HEADLESS_READY" if headless else "VS_READY")
                 client.close()
                 return 0
         time.sleep(0.05)
@@ -528,6 +549,10 @@ def build_parser() -> argparse.ArgumentParser:
     practice_parser.add_argument("--pid", type=int)
     vs_parser = subparsers.add_parser("vs", help="launch local VS Player through Title")
     vs_parser.add_argument("--timeout", type=float, default=30.0)
+    vs_parser.add_argument("--headless", action="store_true", help="skip complex battle rendering")
+    vs_parser.add_argument(
+        "--unlimited", action="store_true", help="remove VS battle wall-clock pacing"
+    )
     replay_parser = subparsers.add_parser("replay", help="launch a replay through ReplayDnD")
     replay_parser.add_argument("path", type=Path)
     replay_parser.add_argument("--frame", type=int)
@@ -560,7 +585,7 @@ def main() -> int:
         if args.command == "practice":
             return practice(args.timeout, args.pid)
         if args.command == "vs":
-            return versus(args.timeout)
+            return versus(args.timeout, args.headless, args.unlimited)
         if args.command == "replay":
             return replay(args.path, args.frame, args.timeout)
         if args.command == "anchor":

@@ -28,6 +28,7 @@ using BattleManagerProcessMethod = int (SokuLib::BattleManager::*)();
 using SelectProcessMethod = int (SokuLib::Select::*)();
 using TitleProcessMethod = int (SokuLib::Title::*)();
 using ProfileInitializeMethod = void (__thiscall *)(SokuLib::Profile *, char);
+using WaitForSingleObjectFunction = DWORD (WINAPI *)(HANDLE, DWORD);
 
 constexpr DWORD KEYMAP_SET_INPUTS_HOOK = 0x0040A45D;
 constexpr DWORD P1_KEYMAP_MANAGER_PTR = 0x008989A0;
@@ -39,6 +40,11 @@ constexpr DWORD INPUT_MANAGER_CLUSTER_DEVICE = 0x0089A2BC;
 constexpr DWORD FALLBACK_KEY_MANAGER = 0x008986A8;
 constexpr DWORD PROFILE_INITIALIZE = 0x00434BF0;
 constexpr std::uint32_t LOCAL_BATTLE_SCENE = 5;
+constexpr DWORD RENDER_BRANCH = 0x00407FAE;
+constexpr DWORD RENDER_PATH = 0x00407FB4;
+constexpr DWORD SKIP_RENDER_PATH = 0x00408048;
+constexpr DWORD FRAME_WAIT_CALL_OPERAND = 0x00419689;
+constexpr DWORD WAIT_FOR_SINGLE_OBJECT_IAT = 0x008570A0;
 constexpr std::uint64_t FNV_OFFSET = 14695981039346656037ULL;
 constexpr std::uint64_t FNV_PRIME = 1099511628211ULL;
 
@@ -76,6 +82,11 @@ bool g_activeInputEnabled = false;
 bool g_neutralPending = false;
 bool g_vsBootstrapArmed = false;
 bool g_vsBootstrapComplete = false;
+bool g_headlessRender = false;
+bool g_unlimitedPacing = false;
+bool g_vsPauseAtStart = false;
+bool g_vsSeedRequested = false;
+std::uint32_t g_vsSeed = 0;
 std::uint32_t g_vsP1Character = 1;
 std::uint32_t g_vsP2Character = 0;
 std::uint32_t g_vsP1Palette = 0;
@@ -193,6 +204,67 @@ std::uint32_t environmentValue(const wchar_t *name, std::uint32_t fallback)
     wchar_t *end = nullptr;
     const auto parsed = wcstoul(value, &end, 10);
     return end && *end == L'\0' ? static_cast<std::uint32_t>(parsed) : fallback;
+}
+
+void __declspec(naked) renderBranchDispatch()
+{
+    __asm {
+        // Preserve the original JNE first. The injected JMP does not alter EFLAGS.
+        jne originalSkip
+        cmp byte ptr [g_headlessRender], 0
+        je originalRender
+        cmp dword ptr ds:[008A0044h], 5
+        je originalSkip
+    originalRender:
+        push 00407FB4h
+        ret
+    originalSkip:
+        push 00408048h
+        ret
+    }
+}
+
+bool installHeadlessRenderHook()
+{
+    if (!g_headlessRender)
+        return true;
+
+    auto *branch = reinterpret_cast<unsigned char *>(RENDER_BRANCH);
+    if (branch[0] != 0x0F || branch[1] != 0x85)
+        return false;
+    std::int32_t originalDisplacement = 0;
+    std::memcpy(&originalDisplacement, branch + 2, sizeof(originalDisplacement));
+    if (RENDER_BRANCH + 6 + originalDisplacement != SKIP_RENDER_PATH)
+        return false;
+
+    const auto displacement = static_cast<std::int32_t>(
+        reinterpret_cast<std::uintptr_t>(renderBranchDispatch) - (RENDER_BRANCH + 5));
+    branch[0] = 0xE9;
+    std::memcpy(branch + 1, &displacement, sizeof(displacement));
+    branch[5] = 0x90;
+    return true;
+}
+
+DWORD WINAPI framePacingWait(HANDLE object, DWORD timeout)
+{
+    if (g_unlimitedPacing &&
+        *reinterpret_cast<const int *>(SokuLib::ADDR_SCENE_ID) == LOCAL_BATTLE_SCENE &&
+        SokuLib::mainMode == SokuLib::BATTLE_MODE_VSPLAYER)
+        timeout = 0;
+    return WaitForSingleObject(object, timeout);
+}
+
+WaitForSingleObjectFunction g_framePacingWait = framePacingWait;
+
+bool installUnlimitedPacingHook()
+{
+    if (!g_unlimitedPacing)
+        return true;
+    auto *operand = reinterpret_cast<DWORD *>(FRAME_WAIT_CALL_OPERAND);
+    if (*operand != WAIT_FOR_SINGLE_OBJECT_IAT)
+        return false;
+    *operand = reinterpret_cast<DWORD>(&g_framePacingWait);
+    return true;
 }
 
 void configureVsPlayer(SokuLib::PlayerInfo &info, bool right, std::uint32_t character,
@@ -928,6 +1000,14 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
         g_vsP2Palette, g_vsP2Deck);
     SokuLib::gameParams.stageId = static_cast<unsigned char>(g_vsStage);
     SokuLib::gameParams.musicId = static_cast<unsigned char>(g_vsMusic);
+    if (g_vsSeedRequested)
+        SokuLib::gameParams.randomSeed = g_vsSeed;
+    if (g_vsPauseAtStart) {
+        g_checkpointArmed = true;
+        g_checkpointSeedRequested = g_vsSeedRequested;
+        g_requestedCheckpointSeed = g_vsSeed;
+        g_paused = true;
+    }
     g_vsBootstrapComplete = true;
     return SokuLib::SCENE_LOADING;
 }
@@ -993,6 +1073,8 @@ bool installHooks()
         return false;
     g_originalSetInputs = SokuLib::union_cast<SetInputsMethod>(
         SokuLib::TamperNearJmpOpr(KEYMAP_SET_INPUTS_HOOK, keymapManagerSetInputs));
+    const bool headlessHookInstalled = installHeadlessRenderHook();
+    const bool unlimitedHookInstalled = installUnlimitedPacingHook();
     DWORD ignored = 0;
     VirtualProtect(reinterpret_cast<void *>(TEXT_SECTION_OFFSET), TEXT_SECTION_SIZE,
         textProtection, &ignored);
@@ -1010,8 +1092,8 @@ bool installHooks()
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
-    return g_originalSetInputs && g_originalBattleManagerProcess && g_originalSelectProcess &&
-        g_originalTitleProcess;
+    return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
+        g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess;
 }
 }
 
@@ -1026,6 +1108,8 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     g_history.reserve(SokuRLBridge::INPUT_HISTORY_CAPACITY);
     if (!createMapping())
         return false;
+    g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
+    g_unlimitedPacing = environmentValue(L"SOKURL_UNLIMITED_PACING", 0) == 1;
     g_vsBootstrapArmed = environmentValue(L"SOKURL_VS_BOOTSTRAP", 0) == 1;
     if (g_vsBootstrapArmed) {
         g_vsP1Character = environmentValue(L"SOKURL_VS_P1_CHARACTER", 1);
@@ -1036,6 +1120,10 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
         g_vsP2Deck = environmentValue(L"SOKURL_VS_P2_DECK", 0);
         g_vsStage = environmentValue(L"SOKURL_VS_STAGE", 0);
         g_vsMusic = environmentValue(L"SOKURL_VS_MUSIC", 0);
+        g_vsPauseAtStart = environmentValue(L"SOKURL_VS_PAUSE_AT_START", 0) == 1;
+        const auto seed = environmentValue(L"SOKURL_VS_SEED", 0xFFFFFFFFU);
+        g_vsSeedRequested = seed != 0xFFFFFFFFU;
+        g_vsSeed = seed;
     }
     const auto *commandLine = GetCommandLineW();
     if (commandLine && wcsstr(commandLine, L".rep")) {
