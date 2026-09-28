@@ -37,6 +37,8 @@ def main(cfg: DictConfig):
     if not isinstance(config["runtime"]["command"], list):
         raise ValueError("runtime.command must be an explicit argument list")
     episode = EpisodeConfig(**config["episode"])
+    if episode.observation_mode == "diagnostic_state":
+        raise ValueError("privileged diagnostic state is not a training observation")
     device = torch.device(config["device"])
     if device.type == "cuda":
         if not torch.cuda.is_available():
@@ -59,6 +61,7 @@ def main(cfg: DictConfig):
     report = {"success": False, "algorithm": algorithm}
     try:
         with closing(WorkerBackend(log_path=destination / "worker.log", **config["runtime"])) as backend:
+            backend.configure_observation(episode.observation_mode)
             identity["runtime"] = backend.identity
             (destination / "identity.json").write_text(json.dumps(identity, indent=2), encoding="utf-8")
             env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)

@@ -134,7 +134,8 @@ class PPOResponseOracle:
                 seed = int(self.rng.integers(0, 2**31))
                 view = OpponentMixtureVecEnv(self.env, player, opponents, probabilities, seed)
                 try:
-                    model = PPO("MlpPolicy", view, device=self.device, seed=seed,
+                    policy_type = "CnnPolicy" if len(view.observation_space.shape) == 3 else "MlpPolicy"
+                    model = PPO(policy_type, view, device=self.device, seed=seed,
                                 **self.config["ppo"])
                     # Copy only policy parameters. New optimizer and schedule belong
                     # to this response; old population snapshots remain unchanged.

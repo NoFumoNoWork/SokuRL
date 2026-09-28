@@ -24,7 +24,10 @@ def main():
             except EOFError:
                 break
             try:
-                if operation == "reset":
+                if operation == "configure_observation":
+                    backend.configure_observation(payload)
+                    value = {"observation_mode": payload}
+                elif operation == "reset":
                     value = backend.reset_slots(payload)
                 elif operation == "step":
                     value = backend.step(payload)

@@ -97,6 +97,9 @@ class WorkerBackend:
     def reset_slots(self, seeds):
         return self._request("reset", seeds)
 
+    def configure_observation(self, mode):
+        return self._request("configure_observation", mode)
+
     def step(self, actions):
         return self._request("step", actions)
 
