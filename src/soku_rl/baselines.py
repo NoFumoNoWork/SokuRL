@@ -12,6 +12,8 @@ class Fighter:
     action_id: int
     airborne: bool
     hitstop: int
+    character_id: int
+    facing: int
 
 
 @dataclass(frozen=True, slots=True)

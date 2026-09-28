@@ -12,6 +12,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from soku_rl.baselines import Fighter, Observation, Projectile, TreeConfig, TreePolicy
+from soku_rl.strategies import strategy_from_config
 from bridge_shared import BridgeClient, FRAME_RING_CAPACITY
 from headless_validation import wait_for_frame_zero
 from interaction_benchmark import wait_group
@@ -33,7 +34,7 @@ def observe(state, player_index):
         if raw.maxSpirit == 0:
             raise RuntimeError("player maxSpirit is zero")
         return Fighter(raw.x, raw.y, raw.hp, raw.spirit / raw.maxSpirit,
-                       raw.actionId, bool(raw.airborne), raw.hitstop)
+                       raw.actionId, bool(raw.airborne), raw.hitstop, raw.characterId, raw.facing)
 
     objects, count = ((state.p2Objects, state.p2ObjectCount) if player_index == 0
                       else (state.p1Objects, state.p1ObjectCount))
@@ -60,9 +61,7 @@ def play_batch(config, seed, pairs):
             buffers.append((ctypes.c_ubyte * (FRAME_RING_CAPACITY * FRAME_SIZE))())
             policy_pair = []
             for name in pair:
-                values = dict(config["tree"])
-                values.update(config["overrides"][name])
-                policy_pair.append(TreePolicy(TreeConfig(style=name, **values)))
+                policy_pair.append(strategy_from_config(name, config, "working-tree").spawn(seed))
             policies.append(policy_pair)
             rules.append([Counter(), Counter()])
             records.append({
@@ -148,7 +147,7 @@ def main(cfg: DictConfig):
     if len(config["profiles"]) < 2 or len(set(config["profiles"])) != len(config["profiles"]):
         raise ValueError("at least two distinct profiles are required")
     for name in config["profiles"]:
-        TreeConfig(style=name, **(config["tree"] | config["overrides"][name]))
+        strategy_from_config(name, config, "working-tree")
     sokurl._validate_game()
     destination = ROOT / config["output"]
     destination.parent.mkdir(parents=True, exist_ok=True)

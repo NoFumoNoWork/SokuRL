@@ -28,6 +28,22 @@ overrides:
     desired_max: 260.0
     attack_interval: 12
 
+community:
+  community_combo:
+    movement: rush
+    guard_range: 180.0
+    special_min: 160.0
+    special_max: 420.0
+    special_cooldown: 90
+    wakeup_frames: 20
+  community_guard:
+    movement: counter
+    guard_range: 180.0
+    special_min: 180.0
+    special_max: 420.0
+    special_cooldown: 120
+    wakeup_frames: 20
+
 hydra:
   run:
     dir: logs/hydra/${now:%Y%m%d-%H%M%S}
