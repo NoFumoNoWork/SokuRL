@@ -48,6 +48,7 @@ def main(cfg):
         with closing(WorkerBackend(log_path=directory / "worker.log", **config["runtime"])) as backend:
             backend.configure_observation(episode.backend_observation())
             report["runtime"] = backend.identity
+            (directory / "runtime.json").write_text(json.dumps(backend.identity, indent=2), encoding="utf-8")
             env = LearningVectorEnv(TwoPlayerVectorEnv(backend, config["num_envs"], episode), learning)
             report["result"] = benchmark(env, strategies, candidate["name"], config["benchmark"],
                 backend.identity["fingerprints"]["game_id"], directory)
