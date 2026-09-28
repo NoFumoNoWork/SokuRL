@@ -10,6 +10,7 @@ import numpy as np
 from .baselines import Fighter, Observation, Projectile, _decision
 from .env.encoding import FRAME_FEATURES, FIGHTER_SCALES, encode_action
 from .strategies import strategy_from_config
+from .tactical_observation import screen_view
 from .visible_state import STATE_FEATURES
 
 
@@ -52,10 +53,11 @@ class RulePolicy:
         if type(seed) is not int or not 0 <= seed < 2**32:
             raise ValueError("policy seed must be a uint32")
         strategy = strategy_from_config(self.name, self.rules, self.implementation)
-        if self.episode.observation_mode == "state":
+        actor = strategy.spawn(seed)
+        if self.episode.observation_mode == "state" and strategy.kind == "tactical":
+            actor = ScreenTactics(actor, self.rules["screen"], self.episode.decision_frames)
+        elif self.episode.observation_mode == "state":
             actor = ScreenRules(strategy, self.rules["screen"], self.episode.decision_frames)
-        else:
-            actor = strategy.spawn(seed)
         return RuleEpisode(actor, self.episode)
 
 
@@ -73,6 +75,22 @@ class RuleEpisode:
         current = last if self.episode.observation_mode == "state" else decode_diagnostic(
             last, self.episode.max_frames)
         return encode_action(self.actor.act(current).inputs)
+
+
+class ScreenTactics:
+    """Advance tactical rules once per public observation, at learner cadence."""
+
+    def __init__(self, actor, screen, decision_frames):
+        if (not math.isfinite(screen["distance_scale"]) or screen["distance_scale"] <= 0
+                or type(decision_frames) is not int or decision_frames < 1):
+            raise ValueError("invalid tactical screen scale or decision duration")
+        self.actor, self.scale, self.stride = actor, screen["distance_scale"], decision_frames
+        self.frame = -decision_frames
+
+    def act(self, values):
+        self.frame += self.stride
+        return self.actor.act_view(screen_view(values, self.frame, self.stride,
+                                              self.actor.movement, self.scale))
 
 
 class ScreenRules:

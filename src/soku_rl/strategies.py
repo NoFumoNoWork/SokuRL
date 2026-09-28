@@ -5,6 +5,7 @@ import json
 
 from .baselines import TreeConfig, TreePolicy
 from .community_rules import CommunityConfig, CommunityPolicy
+from .tactical_rules import TacticalConfig, TacticalPolicy
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,11 +34,20 @@ class Strategy:
         if self.kind == "community":
             return CommunityPolicy(CommunityConfig(**values["rules"]),
                                    TreeConfig(**values["movement"]))
+        if self.kind == "tactical":
+            return TacticalPolicy(TacticalConfig(**values["rules"]),
+                                  TreeConfig(**values["movement"]))
         raise ValueError(f"unsupported strategy kind: {self.kind}")
 
 
 def strategy_from_config(name, config, implementation):
-    if name in config["community"]:
+    if "tactical" in config and name in config["tactical"]:
+        rules = config["tactical_defaults"] | config["tactical"][name]
+        movement_style = rules.pop("movement")
+        movement = config["tree"] | config["overrides"][movement_style] | {"style": movement_style}
+        values = {"rules": rules | {"style": name}, "movement": movement}
+        kind = "tactical"
+    elif name in config["community"]:
         rules = dict(config["community"][name])
         movement_style = rules.pop("movement")
         movement = dict(config["tree"], **config["overrides"][movement_style])
