@@ -12,6 +12,7 @@ class SpielNFSPTests(unittest.TestCase):
     def test_explicit_transitions_and_learning(self):
         import torch
         from soku_rl.spiel_nfsp import VectorNFSP
+        from gymnasium import spaces
 
         if not torch.cuda.is_available():
             self.skipTest("CUDA is required for this algorithm integration check")
@@ -23,7 +24,7 @@ class SpielNFSPTests(unittest.TestCase):
                       discount_factor=1., epsilon_start=.1, epsilon_end=.01,
                       epsilon_decay_duration=100, epsilon_decay_schedule_str="linear",
                       optimizer_str="adam", loss_str="huber", gradient_clipping=10.)
-        learner = VectorNFSP((4,), 90, config, torch.device("cuda:0"), 127)
+        learner = VectorNFSP((4,), spaces.Discrete(90).n, config, torch.device("cuda:0"), 127)
         learner.begin((0, 1))
         initial = {name: next(agent._avg_network.parameters()).detach().clone()
                    for name, agent in learner.agents.items()}

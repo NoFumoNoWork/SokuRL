@@ -28,10 +28,10 @@ class VectorNFSP:
         if len(observation_shape) != 1:
             raise ValueError("OpenSpiel NFSP currently requires a numeric state vector")
         self.config = dict(agent_config)
-        if type(num_actions) is not int or num_actions < 1:
+        if isinstance(num_actions, (bool, np.bool_)) or not isinstance(num_actions, (int, np.integer)) or num_actions < 1:
             raise ValueError("num_actions must be a positive integer")
-        self.num_actions = num_actions
-        self.legal_actions = list(range(num_actions))
+        self.num_actions = int(num_actions)
+        self.legal_actions = list(range(self.num_actions))
         self.shape = tuple(observation_shape)
         self.device = device
         self.rng = np.random.default_rng(seed)
