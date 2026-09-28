@@ -28,7 +28,7 @@ def main(cfg):
     started = time.perf_counter()
     try:
         with closing(WorkerBackend(log_path=output / "worker.log", **config["runtime"])) as backend:
-            backend.configure_observation(episode.observation_mode)
+            backend.configure_observation(episode.backend_observation())
             report["runtime"] = backend.identity
             env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
             rng = np.random.default_rng(config["seed"])

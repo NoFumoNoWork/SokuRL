@@ -10,7 +10,12 @@ episode:
   history_frames: 4
   decision_frames: 3
   latency_frames: 12
-  observation_mode: image
+  observation_mode: state
+  visibility:
+    pixel_quantum: 8
+    minimum_alpha: 0.5
+    hp_quantum: 0.02
+    spirit_quantum: 0.1
 runtime:
   # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
   command: ???

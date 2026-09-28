@@ -1,11 +1,13 @@
 """PettingZoo simultaneous two-player episodes over an owned game backend."""
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import numpy as np
 from gymnasium import spaces
 from gymnasium.utils import seeding
 from pettingzoo import ParallelEnv
 from soku_rl.pixels import RGBFrame
+from soku_rl.visibility import VisibilityConfig
+from soku_rl.visible_state import StateObservation, STATE_FEATURES
 from .encoding import AGENTS, NUM_ACTIONS, decode_action, encode_observation, observation_space
 from .control import ControlConfig, DelayedControls
 
@@ -17,18 +19,28 @@ class EpisodeConfig:
     decision_frames: int
     latency_frames: int
     observation_mode: str
+    visibility: VisibilityConfig
 
     def __post_init__(self):
         if type(self.max_frames) is not int or self.max_frames < 1:
             raise ValueError("max_frames must be a positive integer")
         observation_space(self.history_frames)
         ControlConfig(self.decision_frames, self.latency_frames)
-        if self.observation_mode not in {"image", "diagnostic_state"}:
-            raise ValueError("unsupported observation mode; visible state is not implemented yet")
+        if isinstance(self.visibility, dict):
+            object.__setattr__(self, "visibility", VisibilityConfig(**self.visibility))
+        if not isinstance(self.visibility, VisibilityConfig):
+            raise TypeError("visibility must be a VisibilityConfig or its configuration dictionary")
+        if self.observation_mode not in {"image", "state", "diagnostic_state"}:
+            raise ValueError("unsupported observation mode")
+
+    def backend_observation(self):
+        return {"mode": self.observation_mode, "visibility": asdict(self.visibility)}
 
     def space(self):
         if self.observation_mode == "image":
             return spaces.Box(0, 255, (3 * self.history_frames + 1, 240, 320), np.uint8)
+        if self.observation_mode == "state":
+            return spaces.Box(-1, 1, (STATE_FEATURES * self.history_frames,), np.float32)
         return observation_space(self.history_frames)
 
     def encode(self, observation):
@@ -36,6 +48,13 @@ class EpisodeConfig:
             if not isinstance(observation, RGBFrame) or (observation.width, observation.height) != (320, 240):
                 raise ValueError("expected a native 320x240 RGB frame")
             return np.frombuffer(observation.pixels, np.uint8).reshape(240, 320, 3).transpose(2, 0, 1).copy()
+        if self.observation_mode == "state":
+            if not isinstance(observation, StateObservation):
+                raise TypeError("expected a filtered public state observation")
+            values = np.asarray(observation.values, dtype=np.float32)
+            if not np.isfinite(values).all() or (values < -1).any() or (values > 1).any():
+                raise ValueError("public state observation exceeds declared bounds")
+            return values
         return encode_observation(observation, self.max_frames)
 
 
@@ -60,7 +79,7 @@ class Episode:
         self.ready, self.ended = True, False
         for history, observation in zip(self.history, time_step.observations, strict=True):
             history.clear()
-            if isinstance(observation, RGBFrame) and observation.frame != time_step.frame:
+            if isinstance(observation, (RGBFrame, StateObservation)) and observation.frame != time_step.frame:
                 raise RuntimeError("image and simulation frame do not match")
             encoded = self.config.encode(observation)
             history.extend(encoded.copy() for _ in range(self.config.history_frames))
@@ -90,7 +109,7 @@ class Episode:
             raise RuntimeError("backend must advance exactly one frame")
         self.frame = time_step.frame
         for history, observation in zip(self.history, time_step.observations, strict=True):
-            if isinstance(observation, RGBFrame) and observation.frame != time_step.frame:
+            if isinstance(observation, (RGBFrame, StateObservation)) and observation.frame != time_step.frame:
                 raise RuntimeError("image and simulation frame do not match")
             history.append(self.config.encode(observation))
         terminated = time_step.terminated

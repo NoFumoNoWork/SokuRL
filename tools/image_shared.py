@@ -28,13 +28,23 @@ class ImageClient:
             raise OSError(error, "cannot map native images")
 
     def read(self, frame, timeout):
+        data = self._read(frame, timeout, MAPPING_SIZE)
+        rgb = RGBFrame(frame, WIDTH, HEIGHT, data[PIXEL_OFFSET:])
+        render = RenderSnapshot.decode(data[HEADER.size:PIXEL_OFFSET])
+        return CapturedScene(rgb, render)
+
+    def read_state(self, frame, timeout):
+        data = self._read(frame, timeout, PIXEL_OFFSET)
+        return RenderSnapshot.decode(data[HEADER.size:PIXEL_OFFSET])
+
+    def _read(self, frame, timeout, size):
         if type(frame) is not int or frame < 0 or timeout <= 0 or not self.view:
             raise ValueError("read requires an open mapping, frame, and positive timeout")
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             first = ctypes.c_int32.from_address(self.view + 8).value
             if first > 0 and not first & 1:
-                data = ctypes.string_at(self.view, MAPPING_SIZE)
+                data = ctypes.string_at(self.view, size)
                 last = ctypes.c_int32.from_address(self.view + 8).value
                 magic, version, sequence, result, captured, width, height, _, _ = HEADER.unpack_from(data)
                 if first == last == sequence:
@@ -45,9 +55,7 @@ class ImageClient:
                     if captured == frame:
                         if result < 0:
                             raise RuntimeError(f"native image capture failed: HRESULT {result & 0xFFFFFFFF:08X}")
-                        rgb = RGBFrame(int(captured), width, height, data[PIXEL_OFFSET:])
-                        render = RenderSnapshot.decode(data[HEADER.size:PIXEL_OFFSET])
-                        return CapturedScene(rgb, render)
+                        return data
             time.sleep(0.001)
         raise TimeoutError(f"no rendered image for simulation frame {frame}")
 

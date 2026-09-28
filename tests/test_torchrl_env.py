@@ -2,7 +2,7 @@
 import importlib.util
 import unittest
 
-from test_env_timing import RecordingBackend
+from test_env_timing import RecordingBackend, VISIBILITY
 from soku_rl.env import EpisodeConfig, HisoutenParallelEnv
 
 
@@ -13,7 +13,7 @@ class TorchRLContractTests(unittest.TestCase):
         from soku_rl.torchrl_env import wrap_torchrl
         from soku_rl.benchmarl_task import SokuTask
 
-        config = EpisodeConfig(30, 4, 3, 12, "diagnostic_state")
+        config = EpisodeConfig(30, 4, 3, 12, "diagnostic_state", VISIBILITY)
         env = wrap_torchrl(HisoutenParallelEnv(RecordingBackend(), config), 123, "cpu")
         try:
             check_env_specs(env)

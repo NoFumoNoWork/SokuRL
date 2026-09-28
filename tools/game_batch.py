@@ -3,6 +3,8 @@ import ctypes
 from dataclasses import replace
 
 from soku_rl.observations import observe
+from soku_rl.visible_state import observe_visible_state
+from soku_rl.visibility import VisibilityConfig
 from soku_rl.pomg import Outcome, TimeStep
 from bridge_shared import BridgeClient, FRAME_RING_CAPACITY, wait_for_steps
 from headless_validation import wait_for_frame_zero
@@ -45,16 +47,22 @@ class SokuGameBatch:
         self.image_clients = {}
         self.observation_mode = "diagnostic_state"
 
-    def configure_observation(self, mode):
-        if self.processes or mode not in {"image", "diagnostic_state"}:
+    def configure_observation(self, configuration):
+        mode = configuration["mode"]
+        if self.processes or mode not in {"image", "state", "diagnostic_state"}:
             raise ValueError("set a supported observation mode before launching games")
         self.observation_mode = mode
+        self.visibility = VisibilityConfig(**configuration["visibility"])
 
     def _observe(self, slot, raw, dropped):
         step = _time_step(raw, dropped)
         if self.observation_mode == "image":
             scene = self.image_clients[slot].read(int(raw.frameId), 10.0)
             return replace(step, observations=(scene.image, scene.image))
+        if self.observation_mode == "state":
+            render = self.image_clients[slot].read_state(int(raw.frameId), 10.0)
+            return replace(step, observations=tuple(observe_visible_state(raw, render, p, self.visibility)
+                                                   for p in (0, 1)))
         return step
 
     def reset(self, seeds):
@@ -72,6 +80,7 @@ class SokuGameBatch:
             len(seeds), self.launch_timeout, headless=True, unlimited=True,
             seeds=tuple(seeds.values()), pause_at_start=True,
             capture_images=self.observation_mode == "image",
+            capture_state=self.observation_mode == "state",
         )
         self.processes.update(zip(seeds, processes, strict=True))
         states = {}
@@ -82,7 +91,7 @@ class SokuGameBatch:
                 raw = wait_for_frame_zero(client, process.pid)
                 self.buffers[slot] = (ctypes.c_ubyte * (FRAME_RING_CAPACITY * FRAME_SIZE))()
                 self.frames[slot] = 0
-                if self.observation_mode == "image":
+                if self.observation_mode in {"image", "state"}:
                     from image_shared import ImageClient
                     self.image_clients[slot] = ImageClient(process.pid)
                 states[slot] = self._observe(slot, raw, 0)

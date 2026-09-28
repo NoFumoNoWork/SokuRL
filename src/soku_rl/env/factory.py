@@ -13,7 +13,7 @@ def make_pettingzoo_env(runtime, episode, log_directory):
     log_path = Path(log_directory) / f"worker-{uuid4().hex}.log"
     backend = WorkerBackend(log_path=log_path, **runtime)
     try:
-        backend.configure_observation(config.observation_mode)
+        backend.configure_observation(config.backend_observation())
         return HisoutenParallelEnv(backend, config)
     except BaseException:
         backend.close()

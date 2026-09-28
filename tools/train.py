@@ -61,7 +61,7 @@ def main(cfg: DictConfig):
     report = {"success": False, "algorithm": algorithm}
     try:
         with closing(WorkerBackend(log_path=destination / "worker.log", **config["runtime"])) as backend:
-            backend.configure_observation(episode.observation_mode)
+            backend.configure_observation(episode.backend_observation())
             identity["runtime"] = backend.identity
             (destination / "identity.json").write_text(json.dumps(identity, indent=2), encoding="utf-8")
             env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)

@@ -294,6 +294,7 @@ def _launch_vs_group_from_title(
     pause_at_start: bool = False,
     seeds: tuple[int, ...] | None = None,
     capture_images: bool = False,
+    capture_state: bool = False,
 ) -> list[psutil.Process]:
     if worker_count < 1:
         raise ValueError("worker_count must be positive")
@@ -319,7 +320,7 @@ def _launch_vs_group_from_title(
         "SOKURL_VS_STAGE": "0",
         "SOKURL_VS_MUSIC": "0",
         "SOKURL_HEADLESS_RENDER": "1" if headless else "0",
-        "SOKURL_CAPTURE_IMAGES": "1" if capture_images else "0",
+        "SOKURL_CAPTURE_IMAGES": "1" if capture_images else "2" if capture_state else "0",
         "SOKURL_UNLIMITED_PACING": "1" if unlimited else "0",
         "SOKURL_VS_PAUSE_AT_START": "1" if pause_at_start else "0",
     })
