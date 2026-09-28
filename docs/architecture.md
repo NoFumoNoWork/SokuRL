@@ -32,6 +32,7 @@ Python 使用 64 位解释器，游戏和加载到游戏中的 DLL 使用 32 位
 | `tools/sokurl.py` | 校验游戏、启动 Practice/VS/回放、查询和关闭指定进程 | 游戏目录写在模块常量中，未读取 `config/game.yaml` |
 | `native/SokuRLBridge/SokuRLBridge.cpp` | 在游戏输入和战斗更新函数处接入控制，发布状态，暂停和步进 | 游戏版本和内存地址固定；需要 SokuLib |
 | `native/SokuRLBridge/ControlBlock.hpp` | 定义 C++ 共享内存结构与命令编号 | 与 Python 结构必须逐字节一致 |
+| `native/RuntimeModules/CMakeLists.txt` | 构建运行所需的加载器和四个社区模块 | 使用安装文档中固定版本的第三方源码 |
 | `tools/bridge_shared.py` | Python 共享内存结构、命令发送、状态快照和帧读取 | 调用方负责等待确认并检查结果 |
 | `tools/frame_runtime.py` | 帧导航计划、检查点标识和记录计数 | 不直接运行游戏 |
 | `tools/frame_validation.py` | 启动检查点、重放输入、比较状态与实例隔离 | 同时被场景运行代码当作运行库使用 |
@@ -99,6 +100,6 @@ SWRSToys 通过 `d3d9.dll` 加载模块。当前启动路径依赖以下组件�
 3. 原生桥接文件同时承担启动、输入、状态采集、同步和重建，修改影响难以局部判断。
 4. Python 与 C++ 手写两份协议定义，需要持续验证布局和版本一致性。
 5. 启动失败路径和确认超时行为尚未统一；新接口应保证明确失败和只清理自己启动的进程。
-6. 配置文件与实际启动常量并存；第三方源码版本、模块部署与配置生成缺少可复现安装流程。
+6. 配置文件与实际启动常量并存。安装文档已记录第三方版本和部署清单；依赖获取、配置生成与部署仍需整理为统一安装入口。
 
 后续顺序和验收条件见 [开发计划](development-plan.md)。
