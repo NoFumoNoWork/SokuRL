@@ -1,0 +1,10 @@
+defaults:
+  - baselines
+  - _self_
+
+profiles: [rush, zoning, counter, community_combo, community_guard]
+workers: 16
+launch_timeout: 180.0
+policy_seed: 1732
+alpha: 0.05
+output: logs/validation/strategy-evaluation.json
