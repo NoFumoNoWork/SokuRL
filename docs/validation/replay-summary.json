@@ -2,6 +2,12 @@
   "schema": "SokuRLValidationSummary/v1",
   "milestone": "Replay capture and deterministic seek",
   "game_version": "1.10a",
+  "source_replay": {
+    "distributed": false,
+    "size_bytes": 58565,
+    "sha256": "3C08B5AFD23DF5ACDF80F058E05E8C6323EB554C5FF8D59BD610CEB0F91A32F7",
+    "note": "User-supplied expert match; not included in this repository."
+  },
   "capture": {
     "simulation_frames": 14954,
     "last_frame_id": 14953,

@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "sokumods": {
+    "repository": "https://github.com/SokuDev/SokuMods.git",
+    "commit": "eb0574cea1eda70484b736eb192964ef87e50a67",
+    "tree_sha1": "1dcbebecbdd4a774c39a1f0d015385fe227858c2"
+  },
+  "skipintro": {
+    "repository": "https://github.com/SokuDev/SkipIntro.git",
+    "upstream_commit": "fd945ff5c1c5b7de0ff7d03b988e9219a3674213",
+    "upstream_tree_sha1": "d1b300e9d89029bb02f3feeaff9bc3b50ddde95b",
+    "patch": "patches/skipintro-replaydnd-command-line.patch",
+    "patch_sha256": "C69800049A88DB9BBB998F7AD474F12E2BE87A7A7D5DE0D741C0036118F5DA5F",
+    "patched_files": [
+      {
+        "path": "dllmain.cpp",
+        "sha256": "FE3F95AD8E2B20D5DBBDF526D4C59358155B4A380DA1D2D6151723F3131875C9"
+      },
+      {
+        "path": "Soku.hpp",
+        "sha256": "E439AD3702479FB2DA23C9091492C8459530C37DE0F21B05663978DBE2228C0C"
+      }
+    ]
+  },
+  "verified_build": {
+    "generator": "Visual Studio 18 2026",
+    "platform": "Win32",
+    "compiler": "MSVC 19.51.36260.0",
+    "outputs": [
+      {
+        "path": "d3d9.dll",
+        "sha256": "841C30CAAC21FE464B2648A6A72F65893352F5E210727E3E60F8EF5F03B9966A"
+      },
+      {
+        "path": "WindowResizer.dll",
+        "sha256": "D39F131DEB6BE70671EFBA4E31D98325DA33021D9614F5C1DF19EFEED21EFC4F"
+      },
+      {
+        "path": "SkipIntro.dll",
+        "sha256": "06CE2C9443EA4F83BCE489CB8FDCD307F77ACA2C8425A939E405E2E6720E639F"
+      },
+      {
+        "path": "MemoryPatch.dll",
+        "sha256": "9965AC255F0420C18F07421B9DF3B2F1250F4CFEAFA5C6CD6DD5E6841F9427E2"
+      },
+      {
+        "path": "ReplayDnD.dll",
+        "sha256": "17B875763C3642398AE5DF4B4FBEC6874FFAAA71998C3EFCFC558B648657022A"
+      }
+    ]
+  }
+}

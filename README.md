@@ -53,7 +53,7 @@ cards, projectiles, and character-specific behavior still come from the game.
 [x] dual-player logical input
 [x] deterministic replay, reset, and frame seek
 [x] PID-isolated parallel workers
-[x] headless battle rendering
+[x] battle render skipping
 [x] faster-than-real-time local VS simulation
 [ ] trainer-facing observation and action spaces
 [ ] reward design and PPO baseline
@@ -66,12 +66,63 @@ cards, projectiles, and character-specific behavior still come from the game.
 - Windows
 - A legally obtained Touhou Hisoutensoku 1.10a installation
 - `th123.exe` MD5: `DF35D1FBC7B583317ADABE8CD9F53B2E`
-- Python 3.11 x64 in the repository-local `.venv`
+- Conda or Miniforge for a repository-local Python 3.11 x64 environment
+- Git
 - MSVC with Win32/x86 support for native bridge builds
 
 The game executable and proprietary game data are **not distributed with this
 repository**. SokuRL does not patch `th123.exe`, `th123a.dat`, `th123b.dat`, or
 `th123c.dat` on disk.
+
+Place a legally obtained th123 1.10a installation at `SokuRL/th123_jp/`, so the
+supported executable is available as `SokuRL/th123_jp/th123.exe`.
+
+Clone SokuRL and create the repository-local Python 3.11 x64 environment. The
+documented command uses a Conda prefix because it creates the expected
+`.venv\python.exe` layout without activating the Conda base environment:
+
+```powershell
+git clone https://github.com/NoFumoNoWork/SokuRL.git
+cd SokuRL
+conda create --prefix .\.venv python=3.11 pip -y
+.\.venv\python.exe -m pip install -r requirements.txt
+.\.venv\python.exe -m pip install -e . --no-deps
+.\.venv\python.exe -c "import struct; assert struct.calcsize('P') == 8; print('Python x64 OK')"
+```
+
+`requirements.txt` pins the direct runtime dependency used by the launcher and
+validation tools. The editable install exposes the `src/` package while
+`--no-deps` keeps `requirements.txt` as the single resolved dependency input.
+
+Fetch the pinned native dependencies:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\bootstrap_sokumods.ps1
+```
+
+The bootstrap script creates the ignored local checkout
+`third_party/SokuMods/`, checks out SokuMods commit
+`eb0574cea1eda70484b736eb192964ef87e50a67`, initializes its recursive
+submodules, verifies SkipIntro commit
+`fd945ff5c1c5b7de0ff7d03b988e9219a3674213`, and applies the versioned SokuRL
+patch described below. Existing checkouts at another commit are rejected rather
+than reset.
+
+All dependency identities and hashes are versioned in
+[`config/dependencies.lock.json`](config/dependencies.lock.json). Verify an
+existing source checkout at any time with:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify_sokumods.ps1
+```
+
+| Locked input | Identity |
+| --- | --- |
+| SokuMods commit | `eb0574cea1eda70484b736eb192964ef87e50a67` |
+| SokuMods Git tree | `1dcbebecbdd4a774c39a1f0d015385fe227858c2` |
+| SkipIntro upstream commit | `fd945ff5c1c5b7de0ff7d03b988e9219a3674213` |
+| SkipIntro upstream Git tree | `d1b300e9d89029bb02f3feeaff9bc3b50ddde95b` |
+| SokuRL SkipIntro patch SHA-256 | `C69800049A88DB9BBB998F7AD474F12E2BE87A7A7D5DE0D741C0036118F5DA5F` |
 
 Verify a local installation with:
 
@@ -80,6 +131,9 @@ Verify a local installation with:
 ```
 
 ## Quick Start
+
+Complete the SokuMods build, native bridge build, and runtime deployment steps
+below before running these commands.
 
 ```powershell
 # Stable local Practice preset
@@ -280,6 +334,86 @@ ReplayDnD=modules/ReplayDnD/ReplayDnD.dll
 Community module sources live under `third_party/SokuMods/`; the local game
 installation remains outside version control.
 
+## SkipIntro Reproducibility
+
+SokuRL does not build an unmodified upstream SkipIntro. The pinned upstream
+source is patched so that a launch with one command-line argument leaves startup
+to ReplayDnD:
+
+```cpp
+// ReplayDnD owns command-line file/directory launches and needs Logo to run.
+if (__argc == 2)
+    return;
+```
+
+Without this change, SkipIntro can intercept startup before ReplayDnD loads a
+`.rep` file or replay directory. The exact source change is committed as
+[`patches/skipintro-replaydnd-command-line.patch`](patches/skipintro-replaydnd-command-line.patch).
+The bootstrap script applies it inside SkipIntro's own Git checkout and is
+idempotent, so a second run verifies the already-applied patch. The patch also
+normalizes the missing final newline in `Soku.hpp`; that second file has no
+runtime behavior change. Both patched-file hashes are recorded in the dependency
+lock.
+
+The deployed Practice preset is versioned at
+[`config/runtime/SkipIntro.ini`](config/runtime/SkipIntro.ini):
+
+```ini
+[GLOBAL]
+scene_id = 3
+menu_id = 0
+type = 8
+subtype = 0
+
+[P1]
+character = 1
+palette = 0
+deck = 0
+
+[P2]
+character = 0
+palette = 0
+deck = 0
+```
+
+This selects local Practice with P1 Marisa and P2 Reimu. `sokurl.py vs`
+temporarily changes only the startup scene to Title, performs the validated
+Title-context VS bootstrap, and restores the file afterward. Replay launches
+pass the `.rep` path to `th123.exe`; the patch above keeps SkipIntro out of that
+command-line path so ReplayDnD can own it.
+
+## Build SokuMods Modules
+
+Open an **x86 Developer Command Prompt for Visual Studio**. From the SokuRL
+root, configure the pinned checkout and build only the modules used here:
+
+```cmd
+cmake -S third_party\SokuMods -B third_party\SokuMods\build -A Win32 -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+cmake --build third_party\SokuMods\build --config Release --target swrstoys WindowResizer SkipIntro MemoryPatch ReplayDnD
+```
+
+The policy compatibility option is required with CMake 4.x because the pinned
+SokuMods dependency graph includes older projects such as mbedtls. It changes
+CMake policy compatibility only; it does not patch those upstream sources.
+
+After building, verify the recorded DLL SHA-256 values and x86 PE architecture:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts\verify_sokumods.ps1 `
+  -BuildDirectory third_party\SokuMods\build\Release
+```
+
+The resulting Win32 binaries are:
+
+```text
+third_party/SokuMods/build/Release/d3d9.dll
+third_party/SokuMods/build/Release/WindowResizer.dll
+third_party/SokuMods/build/Release/SkipIntro.dll
+third_party/SokuMods/build/Release/MemoryPatch.dll
+third_party/SokuMods/build/Release/ReplayDnD.dll
+```
+
 ## Build the Native Bridge
 
 Open an **x86 Developer Command Prompt for Visual Studio**, then run:
@@ -297,12 +431,93 @@ native\SokuRLBridge\build\Release\SokuRLBridge.dll
 
 Do not build the bridge as x64.
 
+`SokuRLBridge` links against the pinned
+`third_party/SokuMods/SokuLib` checkout prepared by the bootstrap script.
+
+## Deploy the Runtime
+
+The repository includes the exact tested module configurations under
+`config/runtime/`. After building SokuMods and SokuRLBridge, deploy only the mod
+files:
+
+```powershell
+$game = Resolve-Path .\th123_jp
+$release = Resolve-Path .\third_party\SokuMods\build\Release
+
+Copy-Item "$release\d3d9.dll" "$game\d3d9.dll"
+Copy-Item .\config\runtime\SWRSToys.ini "$game\SWRSToys.ini"
+
+foreach ($module in @("WindowResizer", "SkipIntro", "MemoryPatch", "ReplayDnD")) {
+    $destination = Join-Path $game "modules\$module"
+    New-Item -ItemType Directory -Force $destination | Out-Null
+    Copy-Item "$release\$module.dll" "$destination\$module.dll"
+    Copy-Item ".\config\runtime\$module.ini" "$destination\$module.ini"
+}
+
+$bridge = Join-Path $game "modules\SokuRLBridge"
+New-Item -ItemType Directory -Force $bridge | Out-Null
+Copy-Item .\native\SokuRLBridge\build\Release\SokuRLBridge.dll `
+  "$bridge\SokuRLBridge.dll"
+```
+
+This creates:
+
+```text
+th123_jp/
+  d3d9.dll
+  SWRSToys.ini
+  modules/
+    WindowResizer/WindowResizer.dll + WindowResizer.ini
+    SokuRLBridge/SokuRLBridge.dll
+    SkipIntro/SkipIntro.dll + SkipIntro.ini
+    MemoryPatch/MemoryPatch.dll + MemoryPatch.ini
+    ReplayDnD/ReplayDnD.dll + ReplayDnD.ini
+```
+
+The templates enable only the required multi-instance memory patch, configure
+ReplayDnD for automatic shutdown and muted music, and preserve the deterministic
+SkipIntro Practice preset. These commands do not overwrite `th123.exe` or any
+`.dat` file. Review or back up existing mod DLLs and `.ini` files before
+replacing an existing setup.
+
+## Updating SokuMods or SkipIntro
+
+Treat the dependency lock, patch, README, and validation evidence as one change.
+When SokuMods or SkipIntro is updated:
+
+1. Update the repository commit and Git tree hash in
+   `config/dependencies.lock.json`.
+2. Rebase or regenerate every patch under `patches/`; never leave a required
+   source edit only in the ignored checkout.
+3. Update the patch SHA-256 and every patched-file SHA-256 in the lock.
+4. Rebuild Win32 from a clean directory, update the verified output hashes, and
+   run `scripts/verify_sokumods.ps1` with `-BuildDirectory`.
+5. Document behavior changes, especially SkipIntro startup ownership and config
+   semantics, in this README and commit all related files together.
+
+The verifier fails on a different commit, tree, patch, patched-file set, source
+hash, output hash, or non-x86 DLL. This keeps an upstream update visible in Git
+instead of silently changing the ignored `third_party/SokuMods/` checkout.
+
 ## Reproduce the Validations
+
+The expert replay used for the published 14,954-frame result is not distributed
+with this repository. Its byte identity is:
+
+```text
+size:    58,565 bytes
+SHA-256: 3C08B5AFD23DF5ACDF80F058E05E8C6323EB554C5FF8D59BD610CEB0F91A32F7
+```
+
+The public [replay validation summary](docs/validation/replay-summary.json)
+records the same identity. A byte-identical replay is required to reproduce
+that exact 14,954-frame / 55-object experiment. Other `.rep` files can still be
+used to exercise the same capture and reconstruction harness.
 
 ```powershell
 .\.venv\python.exe -m unittest discover -s tests -p "test_*.py" -v
 .\.venv\python.exe tools\frame_validation.py
-.\.venv\python.exe tools\replay_validation.py
+.\.venv\python.exe tools\replay_validation.py C:\path\to\match.rep
 .\.venv\python.exe tools\scenario_validation.py --loads 20 --runs 3
 .\.venv\python.exe tools\vs_stress_validation.py --headless --runs 20 --frames 300
 .\.venv\python.exe tools\headless_validation.py --unlimited --frames 10000
@@ -311,6 +526,37 @@ Do not build the bridge as x64.
 
 Full local run logs are written to `logs/validation/` and excluded from Git.
 The curated summaries under `docs/validation/` are versioned.
+
+### Restricted sandbox test failure
+
+The test suite creates a temporary recording directory under `tests/`. In a
+filesystem-restricted runner, this test can fail even when the implementation is
+healthy:
+
+```text
+test_writer_outputs_manifest_and_zero_drop_validity ... ERROR
+PermissionError: [WinError 5] Access is denied:
+  D:\...\SokuRL\tests\tmp...\<timestamp>
+```
+
+This means the runner allowed the first temporary directory but denied its
+nested session directory. It is a filesystem sandbox restriction, not a bridge,
+protocol, or recorder assertion failure. Rerun the same suite from a normal host
+PowerShell with write access to the repository:
+
+```powershell
+.\.venv\python.exe -m unittest discover -s tests -p "test_*.py" -v
+```
+
+The host-side verification for this revision passed all 17 tests. A failed
+sandbox run can leave its `tests/tmp...` directory behind. List candidate
+directories first, then remove only the exact path confirmed to belong to the
+failed test:
+
+```powershell
+Get-ChildItem .\tests -Force -Directory -Filter "tmp*"
+Remove-Item -LiteralPath .\tests\tmp<confirmed-name> -Recurse -Force
+```
 
 ## Known Limits
 
@@ -330,18 +576,24 @@ The curated summaries under `docs/validation/` are versioned.
 
 ```text
 native/SokuRLBridge/     Win32 bridge and shared-memory ABI
+config/runtime/          tested SWRSToys module configuration templates
+config/dependencies.lock.json  pinned upstream identities and hashes
+requirements.txt         pinned Python runtime dependencies
 tools/sokurl.py          launcher and process lifecycle CLI
 tools/bridge_shared.py   Python ABI and command client
 tools/scenario_runner.py anchors and scripted actions
 tools/*_validation.py    deterministic and runtime validation harnesses
 docs/validation/         publishable machine-readable summaries
+patches/                 versioned patches for pinned upstream dependencies
 scenarios/               deterministic script examples
+scripts/bootstrap_sokumods.ps1  pinned SokuMods/SkipIntro checkout bootstrap
+scripts/verify_sokumods.ps1     source, patch, output-hash, and x86 verifier
 third_party/SokuMods/    community source/build dependency
 th123_jp/                local game runtime, excluded from Git
 ```
 
-## Development Install
+## Optional Development Dependencies
 
 ```powershell
-.\.venv\python.exe -m pip install -e .
+.\.venv\python.exe -m pip install -e ".[dev]"
 ```

@@ -7,8 +7,8 @@ name = "hisouten-rl"
 version = "0.1.0"
 description = "Reinforcement-learning environment scaffolding for Touhou Hisoutensoku"
 readme = "README.md"
-requires-python = ">=3.10"
-dependencies = []
+requires-python = ">=3.11,<3.12"
+dependencies = ["psutil==7.2.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
