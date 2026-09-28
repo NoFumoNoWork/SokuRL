@@ -1,0 +1,41 @@
+{
+  "schema": "SokuRLValidationSummary/v1",
+  "milestone": "Replay capture and deterministic seek",
+  "game_version": "1.10a",
+  "capture": {
+    "simulation_frames": 14954,
+    "last_frame_id": 14953,
+    "dropped_records": 0,
+    "first_non_contiguous_frame": null,
+    "character_ids": [1, 10],
+    "max_live_objects": {
+      "p1": 39,
+      "p2": 55
+    },
+    "airborne_frame_counts": {
+      "p1": 7750,
+      "p2": 8090
+    },
+    "hitstop_frame_counts": {
+      "p1": 1922,
+      "p2": 1535
+    }
+  },
+  "reconstruction_targets": [
+    {
+      "frame": 1558,
+      "expected_hash": "46E863FFE6CFE2F8",
+      "actual_hash": "46E863FFE6CFE2F8",
+      "first_divergent_frame": null,
+      "field_differences": 0
+    },
+    {
+      "frame": 5190,
+      "expected_hash": "82691C791E70C351",
+      "actual_hash": "82691C791E70C351",
+      "first_divergent_frame": null,
+      "field_differences": 0
+    }
+  ],
+  "success": true
+}

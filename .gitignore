@@ -1,6 +1,7 @@
 # Local game installation and community tools
 th123_jp/
 extracted/
+/third_party/SokuMods/
 
 # Runtime output
 logs/*

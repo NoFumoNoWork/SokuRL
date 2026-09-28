@@ -1,0 +1,93 @@
+{
+  "schema": "SokuRLValidationSummary/v1",
+  "milestone": "M2-B headless and unlocked VS simulation",
+  "game": {
+    "name": "Touhou Hisoutensoku",
+    "version": "1.10a",
+    "architecture": "x86",
+    "executable_md5": "DF35D1FBC7B583317ADABE8CD9F53B2E"
+  },
+  "deterministic_equivalence": {
+    "modes": [
+      "rendered",
+      "headless_paced",
+      "headless_unlimited"
+    ],
+    "seed": 1397705557,
+    "required_frames": 3000,
+    "long_run_frames": 10000,
+    "initial_state_hash": "C22EAFB6CA0DA234",
+    "long_run_final_state_hash": "CC6DB833624518B5",
+    "first_divergent_frame": null,
+    "dropped_records": {
+      "rendered": 0,
+      "headless_paced": 0,
+      "headless_unlimited": 0
+    },
+    "coverage": {
+      "max_p1_objects": 16,
+      "max_p2_objects": 8,
+      "min_p1_hp": 5465,
+      "min_p2_hp": 3356,
+      "max_hitstop": 9,
+      "max_untech": 40,
+      "airborne_seen": true,
+      "corner_x": 1240.0
+    }
+  },
+  "single_worker": {
+    "rendered_sim_fps": 60.029942006511405,
+    "headless_paced_sim_fps": 59.99798006804813,
+    "headless_unlimited_sim_fps": 28059.602125021665,
+    "speedup_over_rendered": 467.4267738252697,
+    "dropped_records": 0
+  },
+  "throughput": [
+    {
+      "workers": 1,
+      "mean_sim_fps_per_worker": 28059.602125021665,
+      "aggregate_sim_fps": 28059.602125021665,
+      "mean_system_cpu_percent": 27.216129032258067,
+      "dropped_records": 0,
+      "recording_stable": true
+    },
+    {
+      "workers": 4,
+      "mean_sim_fps_per_worker": 24063.984438827283,
+      "aggregate_sim_fps": 96255.93775530913,
+      "mean_system_cpu_percent": 49.632,
+      "dropped_records": 0,
+      "recording_stable": true
+    },
+    {
+      "workers": 8,
+      "mean_sim_fps_per_worker": 18832.73577029769,
+      "aggregate_sim_fps": 150661.8861623815,
+      "mean_system_cpu_percent": 92.74901960784314,
+      "dropped_records": 0,
+      "recording_stable": true
+    },
+    {
+      "workers": 16,
+      "mean_sim_fps_per_worker": 12935.267076158989,
+      "aggregate_sim_fps": 206964.27321854385,
+      "mean_system_cpu_percent": 99.84,
+      "dropped_records": 139,
+      "recording_stable": false,
+      "note": "CPU-saturated measurement; two frame rings overflowed."
+    }
+  ],
+  "regression": {
+    "headless_startup_successes": 20,
+    "headless_startup_attempts": 20,
+    "practice_ready": true,
+    "normal_vs_pacing_preserved": true,
+    "pid_isolation": true,
+    "unit_tests_passed": 17,
+    "unit_tests_total": 17
+  },
+  "notes": [
+    "Results are measurements from one development machine, not portable hardware guarantees.",
+    "GPU utilization was not available from the benchmark harness."
+  ]
+}
