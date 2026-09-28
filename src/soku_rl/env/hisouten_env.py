@@ -136,8 +136,10 @@ class HisoutenParallelEnv(ParallelEnv):
     def reset(self, seed=None, options=None):
         if self.closed:
             raise RuntimeError("environment is closed")
-        if options not in (None, {}):
-            raise ValueError("no reset options are supported")
+        # PettingZoo's public contract permits generic reset option dictionaries.
+        # Game settings are fixed by the construction config, not by this dictionary.
+        if options is not None and not isinstance(options, dict):
+            raise TypeError("reset options must be a dictionary or None")
         if seed is not None:
             if type(seed) is not int or not 0 <= seed < 0xFFFFFFFF:
                 raise ValueError("seed must be in [0, 0xFFFFFFFF); the upper value is reserved")
