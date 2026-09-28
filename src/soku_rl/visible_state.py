@@ -20,7 +20,14 @@ class StateObservation:
 
 def observe_visible_states(raw, render, config):
     poses, objects = visible_entities(render, config)
-    return tuple(_encode(raw, poses, objects, player, config) for player in (0, 1))
+    try:
+        return tuple(_encode(raw, poses, objects, player, config) for player in (0, 1))
+    except ValueError as error:
+        fighters = [{key: getattr(fighter, key) for key in
+                     ("characterId", "hp", "spirit", "maxSpirit")}
+                    for fighter in (raw.p1, raw.p2)]
+        raise ValueError(f"public state failed at frame={raw.frameId}, "
+                         f"fighters={fighters}: {error}") from error
 
 
 def _encode(raw, poses, objects, player, config):

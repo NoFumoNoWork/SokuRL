@@ -99,5 +99,5 @@ def visible_entities(scene, config):
 
 def quantize_gauge(value, maximum, quantum):
     if not isfinite(value) or not isfinite(maximum) or maximum <= 0 or not 0 <= value <= maximum:
-        raise ValueError("invalid visible gauge value")
+        raise ValueError(f"invalid visible gauge value: value={value}, maximum={maximum}, quantum={quantum}")
     return min(1., max(0., floor(value / maximum / quantum + 0.5) * quantum))
