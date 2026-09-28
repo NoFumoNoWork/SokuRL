@@ -85,7 +85,16 @@ class SokuGameBatch:
             pending[slot] = (client.reset_episode(seeds[slot]), segment)
         states = self._launch_slots(fresh) if fresh else {}
         for slot, (sequence, segment) in pending.items():
-            raw = self.clients[slot].wait_for_reset(sequence, segment, seeds[slot], self.launch_timeout)
+            try:
+                raw = self.clients[slot].wait_for_reset(sequence, segment, seeds[slot], self.launch_timeout)
+            except TimeoutError as error:
+                pid = self.processes[slot].pid
+                try:
+                    live = sokurl._read_process_values(pid)
+                    detail = f"live_scene={live[0]} live_mode={live[1]} characters={live[2:4]}"
+                except OSError as read_error:
+                    detail = f"live process read failed: {read_error!r}"
+                raise TimeoutError(f"{error}; {detail}") from error
             self.frames[slot] = 0
             states[slot] = self._observe(slot, raw, 0)
         self.active.update(seeds)
