@@ -28,6 +28,8 @@ def _policy_hash(policy):
 
 def train_benchmarl(config, device, directory):
     algorithm = config["algorithm"]
+    if algorithm["timeout_payoff"] != "zero_at_horizon":
+        raise ValueError("IPPO requires the declared finite-horizon payoff")
     experiment_config = _apply(ExperimentConfig.get_from_yaml(), algorithm["experiment"])
     experiment_config.sampling_device = str(device)
     experiment_config.train_device = str(device)

@@ -9,6 +9,24 @@ from soku_rl.learning_wrappers import LearningConfig, LearningParallelEnv
 
 @unittest.skipUnless(importlib.util.find_spec("torchrl"), "install the marl extra")
 class TorchRLContractTests(unittest.TestCase):
+    def test_training_horizon_has_no_bootstrap_but_keeps_timeout_record(self):
+        from soku_rl.torchrl_env import TorchRLInputs
+        from soku_rl.env.encoding import AGENTS
+
+        base = HisoutenParallelEnv(RecordingBackend(), EpisodeConfig(6, 4, 3, 12, "diagnostic_state", VISIBILITY))
+        env = TorchRLInputs(base)
+        try:
+            _, reset_info = env.reset(seed=3)
+            self.assertEqual(reset_info[AGENTS[0]]["source_truncated"], 0)
+            env.step(dict.fromkeys(AGENTS, 256))
+            _, rewards, terms, truncs, info = env.step(dict.fromkeys(AGENTS, 256))
+            self.assertEqual(rewards, dict.fromkeys(AGENTS, 0.))
+            self.assertTrue(all(terms.values()))
+            self.assertFalse(any(truncs.values()))
+            self.assertEqual(info[AGENTS[0]]["source_truncated"], 1)
+        finally:
+            env.close()
+
     def test_numeric_specs_and_episode_boundaries(self):
         from torchrl.envs.utils import check_env_specs
         from soku_rl.torchrl_env import wrap_torchrl

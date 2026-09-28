@@ -1,4 +1,5 @@
 name: ippo
+timeout_payoff: zero_at_horizon
 experiment:
   prefer_continuous_actions: false
   parallel_collection: true

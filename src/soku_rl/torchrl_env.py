@@ -10,7 +10,12 @@ from .learning_wrappers import LearningConfig, LearningParallelEnv
 
 
 class TorchRLInputs(BaseParallelWrapper):
-    """Convert info to numbers and CHW image bytes to BenchMARL's HWC floats."""
+    """Adapt numeric info, image layout and finite-horizon payoff for training.
+
+    A public timeout is a terminal zero-payoff outcome in this training game.
+    Mark it terminal here so GAE does not bootstrap a value beyond the horizon.
+    The source timeout remains available in numeric info, never in policy input.
+    """
     def __init__(self, env):
         super().__init__(env)
         self.observation_spaces = {}
@@ -38,7 +43,8 @@ class TorchRLInputs(BaseParallelWrapper):
     @staticmethod
     def convert(infos):
         keys = ("frame", "episode", "decision_frames", "latency_frames")
-        return {agent: {key: info[key] for key in keys} for agent, info in infos.items()}
+        return {agent: {key: info[key] for key in keys} | {"source_truncated": 0}
+                for agent, info in infos.items()}
 
     def reset(self, seed=None, options=None):
         observations, infos = self.env.reset(seed=seed, options=options)
@@ -46,7 +52,11 @@ class TorchRLInputs(BaseParallelWrapper):
 
     def step(self, actions):
         observations, rewards, terminated, truncated, infos = self.env.step(actions)
-        return self.observations(observations), rewards, terminated, truncated, self.convert(infos)
+        numeric = self.convert(infos)
+        for agent in infos:
+            numeric[agent]["source_truncated"] = int(truncated[agent])
+        terminal = {agent: terminated[agent] or truncated[agent] for agent in terminated}
+        return self.observations(observations), rewards, terminal, dict.fromkeys(truncated, False), numeric
 
 
 def wrap_torchrl(env, seed, device):
