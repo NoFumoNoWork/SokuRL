@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 MAPPING_NAME_FORMAT = r"Local\SokuRLBridge_{}"
 CONTROL_MAGIC = 0x554B4F53
-CONTROL_VERSION = 6
+CONTROL_VERSION = 7
 MAX_DURATION_FRAMES = 10_000
 FRAME_RING_CAPACITY = 512
 INPUT_HISTORY_CAPACITY = 4096
@@ -49,6 +49,7 @@ COMMAND_GOTO_FRAME = 7
 COMMAND_MENU_CONFIRM = 8
 COMMAND_STEP_WITH_INPUTS = 9
 COMMAND_APPLY_SIMPLE_STATE = 10
+COMMAND_RESET_EPISODE = 11
 
 RESULT_NAMES = {
     0: "IDLE", 1: "ACCEPTED", 2: "COMPLETE", 3: "RELEASED",
@@ -382,6 +383,31 @@ class BridgeClient:
         sequence = (block.commandSeq + 1) & 0xFFFFFFFF or 1
         block.commandSeq = sequence
         return sequence
+
+    def reset_episode(self, seed):
+        if type(seed) is not int or not 0 <= seed < 0xFFFFFFFF:
+            raise ValueError("reset seed must be in [0, 0xFFFFFFFF)")
+        return self._send(COMMAND_RESET_EPISODE, argument=seed)
+
+    def wait_for_reset(self, sequence, segment, seed, timeout):
+        if timeout <= 0:
+            raise ValueError("reset timeout must be positive")
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            snapshot = self.snapshot()
+            if snapshot.ack_seq == sequence:
+                if snapshot.result_code not in (2, 8):
+                    raise RuntimeError(f"reset rejected with result {snapshot.result_code}")
+                raw = snapshot.latest
+                if (snapshot.in_gameplay and snapshot.checkpoint_valid and
+                        snapshot.run_state_name == "PAUSED" and snapshot.game_frame == 0 and
+                        raw.frameId == 0 and raw.segmentId == segment and raw.randomSeed == seed):
+                    if raw.stateHash != calculate_state_hash(raw):
+                        raise RuntimeError("reset frame-zero hash mismatch")
+                    self.drain_frames()
+                    return raw
+            time.sleep(.001)
+        raise TimeoutError(f"PID {self.pid}: reset did not reach a new paused frame zero")
 
     @staticmethod
     def _write_input(target: LogicalInput, values: tuple[int, ...] | LogicalInput) -> None:

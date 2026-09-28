@@ -88,6 +88,7 @@ bool g_activeInputEnabled = false;
 bool g_neutralPending = false;
 bool g_vsBootstrapArmed = false;
 bool g_vsBootstrapComplete = false;
+bool g_episodeResetRequested = false;
 bool g_headlessRender = false;
 bool g_unlimitedPacing = false;
 bool g_vsPauseAtStart = false;
@@ -634,6 +635,14 @@ void consumeCommand(bool gameplay)
         clearControlledInput(SokuRLBridge::ResultCode::Released, gameplay);
     } else if (!gameplay) {
         publishResult(SokuRLBridge::ResultCode::NotInGameplay);
+    } else if (type == SokuRLBridge::CommandType::ResetEpisode &&
+        g_vsBootstrapArmed && isLocalVersusGameplay() && argument < 0xFFFFFFFFULL) {
+        g_vsSeed = static_cast<std::uint32_t>(argument);
+        g_vsSeedRequested = true;
+        g_episodeResetRequested = true;
+        g_paused = true;
+        g_stepsRemaining = 0;
+        clearControlledInput(SokuRLBridge::ResultCode::Restarting, true);
     } else if (type == SokuRLBridge::CommandType::Input && isValidInput(input, duration)) {
         g_activeInputs[0] = toKeyInput(input);
         g_activeInputMask = 1;
@@ -908,6 +917,8 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
     const bool gameplay = isSupportedGameplay();
     store32(&g_control->inGameplay, gameplay ? 1U : 0U);
     consumeCommand(gameplay);
+    if (g_episodeResetRequested)
+        return 0;
     if (!gameplay) {
         g_battleActive = false;
         invalidateCheckpoint(SokuRLBridge::ResultCode::CheckpointInvalidated);
@@ -1026,6 +1037,40 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
 int __fastcall battleOnProcess(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleProcess)();
+    if (g_episodeResetRequested) {
+        // Return through the engine's normal scene lifecycle. It destroys the
+        // old battle and constructs a fresh one; the process and DLL stay alive.
+        g_episodeResetRequested = false;
+        g_vsBootstrapComplete = false;
+        g_battleActive = false;
+        g_checkpointArmed = false;
+        g_checkpointSeedRequested = false;
+        g_restartRequested = false;
+        g_awaitingRestart = false;
+        g_reconstructing = false;
+        g_currentFrame = 0;
+        ++g_segmentId;
+        g_history.clear();
+        g_effectiveInputs[0] = {};
+        g_effectiveInputs[1] = {};
+        g_neutralPending = false;
+        g_renderPending = true;
+        beginStatusWrite();
+        g_control->inGameplay = 0;
+        g_control->checkpointValid = 0;
+        g_control->reconstructing = 0;
+        g_control->currentFrame = 0;
+        g_control->recordedFrames = 0;
+        g_control->stepsRemaining = 0;
+        g_control->ringReadSeq = 0;
+        g_control->ringWriteSeq = 0;
+        g_control->droppedFrames = 0;
+        g_control->lastVerifiedFrame = SokuRLBridge::NO_FRAME;
+        g_control->firstDivergentFrame = SokuRLBridge::NO_FRAME;
+        endStatusWrite();
+        SokuRLBridge::resetImageCapture();
+        return SokuLib::SCENE_TITLE;
+    }
     if (g_captureStateOnly && g_battleActive && g_control && isSupportedGameplay())
         SokuRLBridge::captureImage(g_currentFrame);
     if (!g_restartRequested)
@@ -1116,16 +1161,15 @@ bool installHooks()
     if (g_captureImages)
         g_originalBattleRender = SokuLib::TamperDword(
             &SokuLib::VTable_Battle.onRender, battleOnRender);
-    if (g_captureStateOnly)
-        g_originalBattleProcess = SokuLib::TamperDword(
-            &SokuLib::VTable_Battle.onProcess, battleOnProcess);
+    g_originalBattleProcess = SokuLib::TamperDword(
+        &SokuLib::VTable_Battle.onProcess, battleOnProcess);
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
     return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
         g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess &&
         (!g_captureImages || g_originalBattleRender) &&
-        (!g_captureStateOnly || g_originalBattleProcess);
+        g_originalBattleProcess;
 }
 }
 

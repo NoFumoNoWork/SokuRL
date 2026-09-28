@@ -6,7 +6,7 @@
 namespace SokuRLBridge
 {
 constexpr std::uint32_t CONTROL_MAGIC = 0x554B4F53;
-constexpr std::uint32_t CONTROL_VERSION = 6;
+constexpr std::uint32_t CONTROL_VERSION = 7;
 constexpr wchar_t MAPPING_NAME_FORMAT[] = L"Local\\SokuRLBridge_%lu";
 constexpr std::uint32_t MAX_DURATION_FRAMES = 10000;
 constexpr std::uint32_t FRAME_RING_CAPACITY = 512;
@@ -18,6 +18,7 @@ enum class CommandType : std::uint32_t {
     None = 0, Input = 1, Release = 2, Run = 3, Pause = 4,
     StepFrames = 5, EstablishCheckpoint = 6, GotoFrame = 7,
     MenuConfirm = 8, StepWithInputs = 9, ApplySimpleState = 10,
+    ResetEpisode = 11,
 };
 
 enum class ResultCode : std::uint32_t {

@@ -74,7 +74,23 @@ class SokuGameBatch:
             raise ValueError("nonempty nonnegative slot IDs are required")
         if any(type(s) is not int or not 0 <= s < 0xFFFFFFFF for s in seeds.values()):
             raise ValueError("native seed 0xFFFFFFFF is reserved; use a smaller uint32")
-        self._close_slots(set(seeds) & set(self.processes))
+        existing = set(seeds) & set(self.processes)
+        fresh = {slot: seed for slot, seed in seeds.items() if slot not in existing}
+        self.active.difference_update(seeds)
+        pending = {}
+        for slot in sorted(existing):
+            client = self.clients[slot]
+            segment = (client.snapshot().latest.segmentId + 1) & 0xFFFFFFFF
+            pending[slot] = (client.reset_episode(seeds[slot]), segment)
+        states = self._launch_slots(fresh) if fresh else {}
+        for slot, (sequence, segment) in pending.items():
+            raw = self.clients[slot].wait_for_reset(sequence, segment, seeds[slot], self.launch_timeout)
+            self.frames[slot] = 0
+            states[slot] = self._observe(slot, raw, 0)
+        self.active.update(seeds)
+        return states
+
+    def _launch_slots(self, seeds):
         processes = sokurl._launch_vs_group_from_title(
             len(seeds), self.launch_timeout, headless=True, unlimited=True,
             seeds=tuple(seeds.values()), pause_at_start=True,

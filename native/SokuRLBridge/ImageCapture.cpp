@@ -100,6 +100,16 @@ void captureImage(std::uint64_t frame)
     InterlockedIncrement(&image->sequence);
 }
 
+void resetImageCapture()
+{
+    if (!image)
+        return;
+    InterlockedIncrement(&image->sequence);
+    image->result = E_PENDING;
+    image->frame = UINT64_MAX;
+    InterlockedIncrement(&image->sequence);
+}
+
 void closeImageCapture()
 {
     if (readback)

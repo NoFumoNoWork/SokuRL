@@ -24,5 +24,6 @@ struct ImageFrame {
 
 bool initializeImageCapture(bool pixels);
 void captureImage(std::uint64_t frame);
+void resetImageCapture();
 void closeImageCapture();
 }
