@@ -1,10 +1,10 @@
 # SokuRL
 
-中文文档：[安装与验收](docs/installation.md) · [架构与能力边界](docs/architecture.md) · [状态决策树基线](docs/baselines.md) · [后续开发计划](docs/development-plan.md)。
+中文文档：[安装与验收](docs/installation.md) · [架构与能力边界](docs/architecture.md) · [状态决策树基线](docs/baselines.md) · [社区规则策略](docs/community-ai.md) · [双人博弈与胜率评估](docs/strategy-evaluation.md) · [后续开发计划](docs/development-plan.md)。
 
 实测报告：[Linux 并行采样与 RL 施工决策](docs/linux-performance.md)。
 
-当前原生模块拒绝 `GotoFrame`，不能把下文历史上的帧导航与场景重建说明当作已完成的重置接口。现有完整重置需要重启游戏。仓库新增三个无需训练的状态决策树基线；强化学习训练环境仍未实现。
+当前原生模块拒绝 `GotoFrame`，不能把下文历史上的帧导航与场景重建说明当作已完成的重置接口。现有完整重置需要重启游戏。仓库提供三个状态决策树、静止对照和两个参考社区脚本实现的规则子集，以及双人部分可观测博弈接口和配对胜率评估。完整神 AI、Gymnasium 训练封装和学习算法尚未实现。
 
 使用标准 Windows 虚拟环境时，Python 路径为 `.venv\Scripts\python.exe`；
 下文的 `.venv\python.exe` 是原开发环境的路径。请使用实际存在的解释器路径。
@@ -16,9 +16,8 @@ automation, per-simulation-frame battle state, logical input control, replay
 seeking, reproducible scenario anchors, multi-instance isolation, and an
 experimentally validated faster-than-real-time VS worker.
 
-The project is not yet an RL training implementation. PPO, reward design,
-dataset generation, and policy training are intentionally outside the current
-milestone.
+The project defines terminal rewards and a two-player game interface. It does
+not yet train policies. PPO and training dataset generation are not implemented.
 
 ## Supported Runtime
 
@@ -369,7 +368,7 @@ the bridge as x64.
 - `24C` is exposed as a raw sequence rather than a guaranteed named macro.
 - Checkpoint history is short range and deterministic; it is not a raw memory
   savestate.
-- PPO, reward design, replay datasets, and policy training are not implemented.
+- PPO, training replay datasets, and policy training are not implemented.
 
 ## Repository Layout
 

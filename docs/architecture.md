@@ -42,9 +42,12 @@ Python 使用 64 位解释器，游戏和加载到游戏中的 DLL 使用 32 位
 | `tools/*validation.py` | 验证对战、回放、场景重建和加速一致性 | 需要真实游戏和已安装模块 |
 | `tests/test_bridge_protocol.py` | 检查结构尺寸、协议编号、帧规则、脚本与记录 | 不证明 DLL 能加载或游戏能对战 |
 
-`src/soku_rl/baselines.py` 提供与操作系统无关的状态决策树策略；`tools/baseline_tournament.py` 把桥接状态转换为策略观测，并在真实游戏中运行双方策略。详见[状态决策树基线](baselines.md)。
+`src/soku_rl/baselines.py` 提供状态决策树，`community_rules.py` 提供有记忆的社区规则子集。两者通过 `strategies.py` 创建独立的每局实例。
 
-`src/soku_rl` 中的强化学习环境、奖励、重置、通用观测转换、键盘控制等文件仍是占位文件。安装包成功不等于存在可调用的强化学习环境。
+`pomg.py` 定义双人博弈接口，`observations.py` 转换观测，`evaluation.py` 负责配对对局及胜率统计；这些模块不依赖 Windows。
+`tools/game_batch.py` 把接口接到真实游戏，`tools/evaluate.py` 提供配置和结果文件入口。详见[双人博弈与评估](strategy-evaluation.md)。
+
+Gymnasium 训练封装和学习算法仍未实现。旧的环境占位文件不构成可调用的训练接口。
 
 ## 原生依赖
 
@@ -99,7 +102,7 @@ SWRSToys 通过 `d3d9.dll` 加载模块。当前启动路径依赖以下组件�
 
 ## 当前架构问题
 
-1. 生产路径集中在 `tools`，可安装的 `src/soku_rl` 尚未提供运行接口，调用方依赖脚本目录导入。
+1. 策略与评估已进入 `src/soku_rl`；原生游戏的启动与同步仍在 `tools`，适配器依赖脚本目录导入。
 2. 场景执行依赖 `frame_validation.py`，运行逻辑和验收逻辑相互耦合。
 3. 原生桥接文件同时承担启动、输入、状态采集、同步和重建，修改影响难以局部判断。
 4. Python 与 C++ 手写两份协议定义，需要持续验证布局和版本一致性。
