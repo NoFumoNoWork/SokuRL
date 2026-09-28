@@ -28,6 +28,9 @@ def main(cfg: DictConfig):
     elif algorithm == "psro":
         from soku_rl.psro import train_psro as train
         dependencies = ["open-spiel", "stable-baselines3", "cvxpy"]
+    elif algorithm == "ippo":
+        from soku_rl.benchmarl_training import train_benchmarl as train
+        dependencies = ["torchrl", "tensordict", "benchmarl"]
     else:
         raise ValueError(f"unsupported algorithm: {algorithm}")
     if type(config["seed"]) is not int or not 0 <= config["seed"] < 2**31:
@@ -60,12 +63,15 @@ def main(cfg: DictConfig):
     started = time.perf_counter()
     report = {"success": False, "algorithm": algorithm}
     try:
-        with closing(WorkerBackend(log_path=destination / "worker.log", **config["runtime"])) as backend:
-            backend.configure_observation(episode.backend_observation())
-            identity["runtime"] = backend.identity
-            (destination / "identity.json").write_text(json.dumps(identity, indent=2), encoding="utf-8")
-            env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
-            report["result"] = train(env, config["algorithm"], device, config["seed"], destination)
+        if algorithm == "ippo":
+            report["result"] = train(config, device, destination)
+        else:
+            with closing(WorkerBackend(log_path=destination / "worker.log", **config["runtime"])) as backend:
+                backend.configure_observation(episode.backend_observation())
+                identity["runtime"] = backend.identity
+                (destination / "identity.json").write_text(json.dumps(identity, indent=2), encoding="utf-8")
+                env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
+                report["result"] = train(env, config["algorithm"], device, config["seed"], destination)
         report["success"] = True
     except BaseException as error:
         report["error"] = repr(error)
