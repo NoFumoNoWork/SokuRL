@@ -15,6 +15,17 @@ from soku_rl.worker_pipe import WorkerBackend
 from soku_rl.learning_wrappers import LearningConfig, LearningVectorEnv
 
 
+def observation_hash(observation):
+    if not isinstance(observation, dict):
+        return hashlib.sha256(observation.tobytes()).hexdigest()
+    digest = hashlib.sha256()
+    for key, value in sorted(observation.items()):
+        digest.update(key.encode())
+        digest.update(str((value.shape, value.dtype.str)).encode())
+        digest.update(value.tobytes())
+    return digest.hexdigest()
+
+
 @hydra.main(version_base="1.3", config_path="../config", config_name="validate")
 def main(cfg):
     config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
@@ -68,8 +79,7 @@ def main(cfg):
                     report["episodes"].append({"slot": slot, "seed": seeds[slot],
                         "decisions": len(traces[slot]), "frames": frames[slot],
                         "outcome": info["outcome"], "trace": name + ".npz",
-                        "final_observation_sha256": hashlib.sha256(
-                            observations[slot][AGENTS[0]].tobytes()).hexdigest()})
+                        "final_observation_sha256": observation_hash(observations[slot][AGENTS[0]])})
                     if completed[slot] < count:
                         resets[slot] = int(rng.integers(0, 0xFFFFFFFF))
                     del observations[slot]

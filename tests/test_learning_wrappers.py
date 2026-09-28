@@ -100,4 +100,4 @@ def test_action_vocabulary_is_reversible_and_invalid_inputs_fail():
     with pytest.raises(ValueError, match="unavailable"):
         interface.action(575)
     with pytest.raises(ValueError, match="image"):
-        LearningInterface(config("image"), LearningConfig("full", False, 8, 0.))
+        LearningInterface(config("image"), LearningConfig("full", False, 8, 1.))
