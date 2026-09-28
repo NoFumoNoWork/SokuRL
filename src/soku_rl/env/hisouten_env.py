@@ -49,6 +49,11 @@ class Episode:
             raise ValueError("both players must submit an action in the same step")
         return tuple(decode_action(actions[agent]) for agent in AGENTS)
 
+    def invalidate(self):
+        self.ready, self.ended = False, True
+        for history in self.history:
+            history.clear()
+
     def step(self, time_step):
         if time_step.frame != self.frame + 1:
             raise RuntimeError("backend must advance exactly one frame")
@@ -98,12 +103,14 @@ class HisoutenParallelEnv(ParallelEnv):
         if options not in (None, {}):
             raise ValueError("no reset options are supported")
         if seed is not None:
-            if type(seed) is not int or not 0 <= seed < 2**32:
-                raise ValueError("seed must be a uint32")
+            if type(seed) is not int or not 0 <= seed < 0xFFFFFFFF:
+                raise ValueError("seed must be in [0, 0xFFFFFFFF); the upper value is reserved")
             self.np_random, self.np_random_seed = seeding.np_random(seed)
             world_seed = seed
         else:
-            world_seed = int(self.np_random.integers(0, 2**32, dtype=np.uint64))
+            world_seed = int(self.np_random.integers(0, 0xFFFFFFFF, dtype=np.uint64))
+        self.episode.invalidate()
+        self.agents = []
         result = self.episode.reset(self.backend.reset_slots({0: world_seed})[0], world_seed)
         self.agents = list(AGENTS)
         return result
@@ -114,7 +121,12 @@ class HisoutenParallelEnv(ParallelEnv):
         if not self.agents and self.episode.ready and actions == {}:
             return {}, {}, {}, {}, {}
         joint = self.episode.actions(actions)
-        result = self.episode.step(self.backend.step({0: joint})[0])
+        try:
+            result = self.episode.step(self.backend.step({0: joint})[0])
+        except BaseException:
+            self.episode.invalidate()
+            self.agents = []
+            raise
         if self.episode.ended:
             self.agents = []
         return result

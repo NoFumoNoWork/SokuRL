@@ -29,8 +29,10 @@ class TwoPlayerVectorEnv:
 
     def reset(self, seeds):
         self._check_slots(seeds)
-        if any(type(s) is not int or not 0 <= s < 2**32 for s in seeds.values()):
-            raise ValueError("each seed must be a uint32")
+        if any(type(s) is not int or not 0 <= s < 0xFFFFFFFF for s in seeds.values()):
+            raise ValueError("each seed must be in [0, 0xFFFFFFFF)")
+        for slot in seeds:
+            self.episodes[slot].invalidate()
         states = self.backend.reset_slots(seeds)
         if set(states) != set(seeds):
             raise RuntimeError("backend returned incorrect reset slots")
@@ -40,10 +42,15 @@ class TwoPlayerVectorEnv:
     def step(self, actions):
         self._check_slots(actions)
         joint = {s: self.episodes[s].actions(a) for s, a in actions.items()}
-        states = self.backend.step(joint)
-        if set(states) != set(actions):
-            raise RuntimeError("backend returned incorrect step slots")
-        results = {s: self.episodes[s].step(states[s]) for s in actions}
+        try:
+            states = self.backend.step(joint)
+            if set(states) != set(actions):
+                raise RuntimeError("backend returned incorrect step slots")
+            results = {s: self.episodes[s].step(states[s]) for s in actions}
+        except BaseException:
+            for slot in actions:
+                self.episodes[slot].invalidate()
+            raise
         return tuple({s: r[i] for s, r in results.items()} for i in range(5))
 
     def close(self):

@@ -34,8 +34,12 @@ def send(stream, value):
     data = pickle.dumps(value, protocol=5)
     if len(data) > MAX_MESSAGE:
         raise ValueError("worker message exceeds size limit")
-    stream.write(struct.pack("!I", len(data)))
-    stream.write(data)
+    packet = memoryview(struct.pack("!I", len(data)) + data)
+    while packet:
+        written = stream.write(packet)
+        if not written:
+            raise BrokenPipeError("worker message write made no progress")
+        packet = packet[written:]
     stream.flush()
 
 
@@ -111,5 +115,6 @@ class WorkerBackend:
                 self.process.wait(timeout=self.timeout)
             finally:
                 self.log.close()
+            self.process.stdout.close()
             if self.process.returncode:
                 raise RuntimeError(f"rollout worker exited with code {self.process.returncode}")

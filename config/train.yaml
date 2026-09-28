@@ -1,0 +1,23 @@
+defaults:
+  - algorithm: nfsp
+  - _self_
+
+seed: 1732
+device: cuda:0
+num_envs: 16
+episode:
+  max_frames: 7200
+  history_frames: 4
+runtime:
+  # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
+  command: ???
+  cwd: ${hydra:runtime.cwd}
+  timeout: 300.0
+  launch_timeout: 180.0
+output: logs/training/${algorithm.name}-${now:%Y%m%d-%H%M%S}
+
+hydra:
+  run:
+    dir: logs/hydra/train-${now:%Y%m%d-%H%M%S}
+  job:
+    chdir: false
