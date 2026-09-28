@@ -45,8 +45,8 @@ void captureRenderState(RenderState &state)
     state.cameraScale = SokuLib::camera.scale;
     state.weather = static_cast<std::uint32_t>(SokuLib::activeWeather);
     auto &battle = SokuLib::getBattleMgr();
-    entity(battle.leftCharacterManager, state.players[0]);
-    entity(battle.rightCharacterManager, state.players[1]);
+    entity(battle.leftCharacterManager.objectBase, state.players[0]);
+    entity(battle.rightCharacterManager.objectBase, state.players[1]);
     objects(battle.leftCharacterManager, state, 0);
     objects(battle.rightCharacterManager, state, 1);
 }
