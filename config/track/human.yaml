@@ -1,0 +1,6 @@
+# @package _global_
+track: human
+episode:
+  decision_frames: 3
+  latency_frames: 12
+  observation_mode: state

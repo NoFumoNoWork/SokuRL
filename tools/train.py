@@ -40,8 +40,10 @@ def main(cfg: DictConfig):
     if not isinstance(config["runtime"]["command"], list):
         raise ValueError("runtime.command must be an explicit argument list")
     episode = EpisodeConfig(**config["episode"])
-    if episode.observation_mode == "diagnostic_state":
-        raise ValueError("privileged diagnostic state is not a training observation")
+    if config["track"] == "human" and episode.observation_mode == "diagnostic_state":
+        raise ValueError("the human track cannot expose privileged diagnostic state")
+    if config["track"] not in {"human", "superhuman"}:
+        raise ValueError("unsupported training track")
     device = torch.device(config["device"])
     if device.type == "cuda":
         if not torch.cuda.is_available():

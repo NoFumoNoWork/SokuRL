@@ -1,6 +1,7 @@
 defaults:
   - algorithm: nfsp
   - _self_
+  - track: human
 
 seed: 1732
 device: cuda:0
@@ -8,9 +9,6 @@ num_envs: 16
 episode:
   max_frames: 7200
   history_frames: 4
-  decision_frames: 3
-  latency_frames: 12
-  observation_mode: state
   visibility:
     pixel_quantum: 8
     minimum_alpha: 0.5
