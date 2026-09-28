@@ -10,7 +10,7 @@ def fingerprints():
     sources = sorted((ROOT / "src/soku_rl").rglob("*.py")) + [
         ROOT / "tools" / name for name in (
             "game_batch.py", "evaluate.py", "bridge_shared.py", "sokurl.py", "runtime_identity.py", "rollout_worker.py",
-            "headless_validation.py", "interaction_benchmark.py", "unlimited_benchmark.py")]
+            "image_shared.py", "headless_validation.py", "interaction_benchmark.py", "unlimited_benchmark.py")]
     source_hashes = {str(p.relative_to(ROOT)).replace("\\", "/"):
                      hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     artifacts = [sokurl.GAME_DIR / name for name in
@@ -24,4 +24,3 @@ def fingerprints():
     game_id = hashlib.sha256(json.dumps(artifact_hashes, sort_keys=True).encode()).hexdigest()
     return {"implementation": implementation, "game_id": game_id,
             "source_hashes": source_hashes, "artifact_hashes": artifact_hashes}
-
