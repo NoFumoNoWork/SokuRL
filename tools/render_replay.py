@@ -71,7 +71,7 @@ def main(cfg):
     (directory / "source-record.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
     command = [*replay["ffmpeg"], "-hide_banner", "-loglevel", "error", "-f", "rawvideo",
                "-pixel_format", "rgb24", "-video_size", "320x240", "-framerate", "60", "-i", "pipe:0",
-               "-an", "-c:v", "h264_nvenc", "-gpu", str(replay["encoder_gpu"]), "-preset", "p4",
+               "-an", "-c:v", "h264_nvenc", "-gpu", str(replay["encoder_gpu"]), "-preset", replay["encoder_preset"],
                "-cq", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(directory / "replay.mp4")]
     report = {"success": False, "source_record": record,
               "trace_sha256": hashlib.sha256(trace.read_bytes()).hexdigest(),

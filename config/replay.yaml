@@ -7,4 +7,5 @@ replay:
   # Rendering must use the same game and native module as the recorded trial.
   ffmpeg: [ffmpeg]
   encoder_gpu: 4
+  encoder_preset: medium
 output: logs/replays/${replay.trial_id}
