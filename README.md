@@ -362,6 +362,10 @@ the bridge as x64.
 
 ## Known Limits
 
+The [rule policy pool](docs/rule-policy-pool.md) has 15 active policies, including
+ten stateful tactics. PPO training and policy evaluation use the same roster.
+The new tactics support both public state and diagnostic state observations.
+
 - Only th123 1.10a with the documented executable hash is supported.
 - The accelerated worker still creates a window and initializes D3D, resources,
   and audio. It is render-skipping, not a standalone simulator.

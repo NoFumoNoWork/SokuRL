@@ -92,7 +92,7 @@ u(A,B)\in\left[\frac{W-L-T}{N},\frac{W-L+T}{N}\right].
 .\.venv\Scripts\python.exe tools/evaluate.py
 ```
 
-默认五个策略，每个种子包含 10 个异策略组合和 5 个自对战组合，每个组合交换位置，两局一组；三个种子合计 90 局。
+默认使用[规则策略池](rule-policy-pool.md)中的 15 个非空闲策略。每个种子包含 105 个异策略组合和 15 个自对战组合，每个组合交换位置，两局一组；三个种子合计 720 局。
 结果路径已存在时拒绝覆盖。再次运行应通过 `output=...` 选择新文件。
 
 结果保存完整计划、策略指纹、游戏文件与模块指纹、每局种子、座位、角色、初末状态哈希、结果、规则触发次数和耗时。
@@ -100,4 +100,4 @@ u(A,B)\in\left[\frac{W-L-T}{N},\frac{W-L+T}{N}\right].
 
 原来的 `tools/baseline_tournament.py` 仍可运行，配置格式继续有效；需要胜率和收益矩阵时使用新入口。
 
-该入口已完成[五个策略的 90 局正式评估](community-evaluation.md)。
+该入口此前完成了[原有五个策略的 90 局正式评估](community-evaluation.md)。该报告的结果不包含后来新增的 10 个策略。
