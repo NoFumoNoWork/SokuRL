@@ -1,4 +1,3 @@
-seed: 1397705557
 seeds: [1397705557, 1397705558, 1397705559]
 max_frames: 7200
 output: logs/validation/baseline-tournament.json
