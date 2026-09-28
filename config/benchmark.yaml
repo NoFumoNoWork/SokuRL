@@ -1,0 +1,14 @@
+defaults:
+  - train
+  - _self_
+candidate:
+  name: learned
+  player_0: ???
+  player_1: ???
+benchmark:
+  opponents: [rush, zoning, counter, community_combo, community_guard]
+  # Held-out, independently drawn world seeds; never used to fit policy weights.
+  world_seeds: [2975248391, 519347228, 3862017460, 1840726539, 714965083, 2503189472, 413720596, 3621084537, 1297456028, 3280951746, 943710265, 4026381579, 2168703945, 658239714, 1753968021, 3048576293, 1120384967, 3785210490, 2370461582, 849315627, 4169257038, 1593078246, 2837410956, 347206519, 3951607824, 2048936715, 763420198, 3198574062, 1468203597, 2675341089, 587310246, 3549078216]
+  policy_seed: 728341
+  alpha: 0.05
+output: logs/benchmark/${candidate.name}-${track}-${now:%Y%m%d-%H%M%S}
