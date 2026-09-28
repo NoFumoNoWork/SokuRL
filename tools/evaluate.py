@@ -3,7 +3,6 @@ from dataclasses import asdict
 import hashlib
 import json
 from pathlib import Path
-import subprocess
 import time
 
 import hydra
@@ -34,9 +33,8 @@ def fingerprints():
                        hashlib.sha256(p.read_bytes()).hexdigest() for p in artifacts}
     implementation = hashlib.sha256(json.dumps(source_hashes, sort_keys=True).encode()).hexdigest()
     game_id = hashlib.sha256(json.dumps(artifact_hashes, sort_keys=True).encode()).hexdigest()
-    revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     return {"implementation": implementation, "game_id": game_id,
-            "source_hashes": source_hashes, "artifact_hashes": artifact_hashes, "revision": revision}
+            "source_hashes": source_hashes, "artifact_hashes": artifact_hashes}
 
 
 def save_report(destination, report):
