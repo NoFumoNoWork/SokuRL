@@ -1,4 +1,4 @@
-"""Measure synchronized two-player sampling, including deterministic resets."""
+"""Measure synchronized two-player sampling and process restart costs."""
 from __future__ import annotations
 
 import ctypes
@@ -78,22 +78,25 @@ def benchmark(config):
         for episode in range(episodes):
             if episode:
                 reset_started = time.perf_counter()
-                sequences = [client.goto_frame(0) for client in clients]
-                deadline = time.perf_counter() + 30.0
-                while True:
-                    snapshots = [client.snapshot() for client in clients]
-                    if all(s.ack_seq == q and s.game_frame == 0
-                           and s.run_state_name == "PAUSED" and not s.reconstructing
-                           for s, q in zip(snapshots, sequences, strict=True)):
-                        break
-                    if time.perf_counter() > deadline:
-                        raise RuntimeError("reset timed out")
-                    time.sleep(0.001)
-                for snapshot, initial in zip(snapshots, initial_hashes, strict=True):
-                    if snapshot.latest.stateHash != initial:
-                        raise RuntimeError("reset changed initial state hash")
-                for client, buffer in zip(clients, buffers, strict=True):
-                    _drain_fast(client, buffer)
+                # The native bridge explicitly rejects GotoFrame. Restart the
+                # original game instead of treating a partial state patch as reset.
+                for client in clients:
+                    client.close()
+                clients.clear()
+                for process in processes:
+                    if process.is_running():
+                        sokurl.shutdown(5.0, process.pid)
+                processes.clear()
+                for initial in initial_hashes:
+                    process = sokurl._launch_vs_from_title(
+                        60.0, headless=True, unlimited=True,
+                        seed=seed, pause_at_start=True,
+                    )
+                    processes.append(process)
+                    client = BridgeClient(process.pid)
+                    clients.append(client)
+                    if wait_for_frame_zero(client, process.pid).stateHash != initial:
+                        raise RuntimeError("restart changed initial state hash")
                 reset_seconds.append(time.perf_counter() - reset_started)
             started = time.perf_counter()
             for frame, (p1, p2) in enumerate(trace, 1):
@@ -132,6 +135,7 @@ def benchmark(config):
             "reset_batch_seconds": reset_seconds, "episodes": episode_reports,
             "dropped_frames": dropped, "all_frame_hashes_match": True,
             "policy_inference_included": False,
+            "reset_method": "process_restart",
         }
     finally:
         for client in clients:
