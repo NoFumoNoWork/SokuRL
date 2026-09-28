@@ -1,5 +1,11 @@
 # SokuRL
 
+中文文档：[架构与能力边界](docs/architecture.md) · [后续开发计划](docs/development-plan.md)。
+
+使用标准 Windows 虚拟环境时，Python 路径为 `.venv\Scripts\python.exe`；
+下文的 `.venv\python.exe` 是原开发环境的路径。请使用实际存在的解释器路径。
+Python 依赖安装不包含游戏本体、SWRSToys 模块或原生桥接 DLL。
+
 SokuRL is a Windows control and state-extraction layer for Touhou Hisoutensoku
 (`th123`) 1.10a. It currently provides deterministic local Practice and VS Player
 automation, per-simulation-frame battle state, logical input control, replay
