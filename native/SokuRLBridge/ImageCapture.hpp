@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include "RenderState.hpp"
 
 namespace SokuRLBridge {
 // A separate versioned mapping keeps the existing diagnostic ABI unchanged.
@@ -16,6 +17,7 @@ struct ImageFrame {
     std::uint32_t height;
     std::uint32_t sourceWidth;
     std::uint32_t sourceHeight;
+    RenderState renderState;
     unsigned char rgb[IMAGE_WIDTH * IMAGE_HEIGHT * 3];
 };
 #pragma pack(pop)

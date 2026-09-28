@@ -20,6 +20,8 @@ add_library(SokuRLBridge MODULE
     ControlBlock.hpp
     ImageCapture.hpp
     ImageCapture.cpp
+    RenderState.hpp
+    RenderState.cpp
     SokuRLBridge.cpp
 )
 target_link_libraries(SokuRLBridge PRIVATE SokuLib)

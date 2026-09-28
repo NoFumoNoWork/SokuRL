@@ -78,7 +78,7 @@ bool initializeImageCapture()
     }
     std::memset(image, 0, sizeof(*image));
     image->magic = 0x474D4953;
-    image->version = 1;
+    image->version = 2;
     image->result = E_PENDING;
     image->frame = UINT64_MAX;
     image->width = IMAGE_WIDTH;
@@ -92,6 +92,8 @@ void captureImage(std::uint64_t frame)
         return;
     InterlockedIncrement(&image->sequence);
     image->result = readImage();
+    if (SUCCEEDED(image->result))
+        captureRenderState(image->renderState);
     image->frame = frame;
     InterlockedIncrement(&image->sequence);
 }
