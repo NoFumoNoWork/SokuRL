@@ -4,7 +4,7 @@
 
 公共接口是 PettingZoo `ParallelEnv`。双方为 `player_0` 和 `player_1`，同时提交动作，同时得到新观测。环境不内置对手策略。Gymnasium 只负责定义动作和观测空间。
 
-单局在首次击倒、同时击倒或达到配置的帧数上限时结束。这是三局两胜比赛中的小局。环境对象和 Wine 工作进程可持续使用；目前每次 `reset` 仍重启指定的游戏进程，以清除引擎内部状态。
+单局在首次击倒、同时击倒或达到配置的帧数上限时结束。这是三局两胜比赛中的小局。环境对象、Wine 工作进程和游戏进程持续使用。ABI 7 的 `reset` 让引擎通过场景生命周期重建对战，保留游戏进程编号；它不是任意内存快照恢复。指定种子的轨迹对照已通过，完整训练中出现的重置超时仍在定位。
 
 ## 分层和进程
 
@@ -30,9 +30,11 @@ flowchart TD
 | `env/control.py` | 决策间隔和延迟按键队列 |
 | `env/hisouten_env.py` | 单局历史、奖励、终止及 PettingZoo 接口 |
 | `env/vector_env.py` | 复用单局逻辑，推进和重置环境子集 |
+| `learning_wrappers.py`、`learning_features.py` | 奖励塑形、公开派生特征、己方按键历史和动作编号映射 |
 | `torchrl_env.py`、`benchmarl_task.py` | 转换张量布局，声明 BenchMARL 任务 |
 | `spiel_nfsp.py`、`nfsp.py` | OpenSpiel NFSP 的批量决策、显式转移和训练调度 |
 | `psro.py`、`population.py`、`ppo_response.py` | 策略种群、真实对局收益、PPO 响应训练 |
+| `ppo_training.py`、`recurrent_policy.py` | 固定规则对手训练和每局独立的循环策略记忆 |
 
 Linux 进程负责 PyTorch 与 CUDA。Wine Python 使用纯 Python 字节读取图像，不导入 NumPy 或 CUDA。模型库不进入游戏进程。
 
@@ -102,6 +104,8 @@ observations, rewards, terminated, truncated, infos = env.step(actions)
 公开 `info` 只含模拟帧、对局编号、结果、决策间隔和延迟。游戏种子、内存哈希和原始状态诊断进入运行记录，不进入策略输入。
 
 ## 算法适配
+
+学习包装层位于基础环境与算法之间，PPO、IPPO、NFSP 和 PSRO 使用同一套转换。配置、维度、奖励约束与训练命令见[学习包装层](learning-wrappers.md)。本页下面的 576 动作和基础观测维度描述未包装的环境。
 
 - **BenchMARL IPPO**：两个玩家组分别学习。TorchRL 使用官方 PettingZoo 包装器；图像从 CHW 字节转为 HWC 浮点数，供 BenchMARL 卷积模型使用。
 - **OpenSpiel NFSP 2.0.2**：复用上游网络、DQN 回放和损失、蓄水池抽样及平均策略损失。每局每方固定一次最佳响应或平均策略模式。状态转移显式按环境提交，所有模式下都推进 DQN 更新计数。当前 NFSP 网络只接收数值向量，图像输入会明确报错。

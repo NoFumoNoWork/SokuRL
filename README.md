@@ -8,6 +8,8 @@
 
 AI 工作进程默认静音，配置为 `runtime.mute_audio=true`。模块只在该游戏进程内把音乐和音效的音量设为零，不修改系统总音量、原始游戏文件或保存的游戏音量配置。
 
+训练可选[学习包装层](docs/learning-wrappers.md)：血量势函数奖励、公开相对位置、己方按键历史和 90 种按键组合；完整 576 动作仍可选。固定规则对手训练支持 PPO 和带 LSTM 记忆的 RecurrentPPO，双人训练支持 IPPO、NFSP 和 PSRO。接口检查通过不代表已经达到最终胜率目标。
+
 使用标准 Windows 虚拟环境时，Python 路径为 `.venv\Scripts\python.exe`；
 下文的 `.venv\python.exe` 是原开发环境的路径。请使用实际存在的解释器路径。
 Python 依赖安装不包含游戏本体、SWRSToys 模块或原生桥接 DLL。
