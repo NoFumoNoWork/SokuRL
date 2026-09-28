@@ -1,4 +1,4 @@
-"""Hydra entry point for public NFSP or PSRO over the two-player vector game."""
+"""Hydra entry point for public RL algorithms over the two-player game."""
 import hashlib
 from contextlib import closing
 from importlib.metadata import version
@@ -31,6 +31,9 @@ def main(cfg: DictConfig):
     elif algorithm == "ippo":
         from soku_rl.benchmarl_training import train_benchmarl as train
         dependencies = ["torchrl", "tensordict", "benchmarl"]
+    elif algorithm == "ppo":
+        from soku_rl.ppo_training import train_ppo as train
+        dependencies = ["stable-baselines3"]
     else:
         raise ValueError(f"unsupported algorithm: {algorithm}")
     if type(config["seed"]) is not int or not 0 <= config["seed"] < 2**31:
