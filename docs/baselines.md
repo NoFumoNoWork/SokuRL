@@ -68,3 +68,5 @@ setup/run-python.sh tools/baseline_tournament.py 'profiles=[rush,zoning,counter]
 每个种子同时启动十二个配对实例，已经结束的回合停止发送动作，其余回合继续推进。包含状态转换、策略决策、命令交互和帧记录的采样速度为每秒 9,216–9,461 帧。该数字不包含进程启动和退出，也不包含神经网络推理；完整任务的耗时需要另行统计，不能用此数字直接预算训练时间。
 
 近身压制与观察反击的结果随玩家位置和角色组合变化。这组数据证明策略能够控制双方、造成伤害并形成对抗，不足以给策略作通用强度排名。原始报告为 `logs/validation/baseline-tournament.json`，实验输出不提交到 Git。
+
+完整复测的三十六个回合与首次实验逐局一致，包括帧数、最终状态哈希、胜负、血量和规则计数。计入启动和退出后，共 113,405 帧耗时 150.00 秒，即每秒 756 帧。复测报告为 `logs/validation/baseline-tournament-timed.json`；[Linux 性能报告](linux-performance.md)解释了计算阶段与完整任务速度的差别。

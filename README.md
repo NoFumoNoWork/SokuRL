@@ -2,6 +2,8 @@
 
 中文文档：[安装与验收](docs/installation.md) · [架构与能力边界](docs/architecture.md) · [状态决策树基线](docs/baselines.md) · [后续开发计划](docs/development-plan.md)。
 
+实测报告：[Linux 并行采样与 RL 施工决策](docs/linux-performance.md)。
+
 当前原生模块拒绝 `GotoFrame`，不能把下文历史上的帧导航与场景重建说明当作已完成的重置接口。现有完整重置需要重启游戏。仓库新增三个无需训练的状态决策树基线；强化学习训练环境仍未实现。
 
 使用标准 Windows 虚拟环境时，Python 路径为 `.venv\Scripts\python.exe`；
