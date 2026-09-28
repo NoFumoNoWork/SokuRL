@@ -1,6 +1,7 @@
 defaults:
   - algorithm: nfsp
   - rules: default
+  - wrappers: raw
   - _self_
   - track: human
 

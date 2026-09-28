@@ -12,7 +12,7 @@ def train_nfsp(env, config, device, seed, directory):
         raise ValueError("positive episode and checkpoint counts required")
     if config["timeout_payoff"] != "zero_at_horizon":
         raise ValueError("NFSP trainer requires explicit zero_at_horizon payoff")
-    learner = VectorNFSP(env.single_observation_space.shape, config["agent"], device, seed)
+    learner = VectorNFSP(env.single_observation_space.shape, env.single_action_space.n, config["agent"], device, seed)
     rng = np.random.default_rng(seed)
     count = min(env.num_envs, config["episodes"])
     seeds = {s: int(rng.integers(0, 0xFFFFFFFF)) for s in range(count)}

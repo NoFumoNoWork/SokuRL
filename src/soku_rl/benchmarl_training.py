@@ -40,6 +40,7 @@ def train_benchmarl(config, device, directory):
     else:
         model = _apply(MlpConfig.get_from_yaml(), algorithm["mlp"])
     task = SokuTask("VS", {"runtime": config["runtime"], "episode": config["episode"],
+                          "wrappers": config["wrappers"],
                           "log_directory": str(directory / "workers")})
     (directory / "benchmarl-config.json").write_text(json.dumps({
         "experiment": asdict(experiment_config), "algorithm": asdict(algo_config),

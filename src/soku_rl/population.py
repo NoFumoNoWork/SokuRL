@@ -5,27 +5,29 @@ import hashlib
 import numpy as np
 import torch
 
-from .env.encoding import AGENTS, NUM_ACTIONS
+from .env.encoding import AGENTS
 
 
 @dataclass(frozen=True)
 class UniformPolicy:
     name: str
+    num_actions: int
 
     @property
     def fingerprint(self):
-        return "uniform-576-v1"
+        return f"uniform-{self.num_actions}-v1"
 
     def spawn(self, seed):
-        return UniformEpisode(np.random.default_rng(seed))
+        return UniformEpisode(np.random.default_rng(seed), self.num_actions)
 
 
 @dataclass
 class UniformEpisode:
     rng: object
+    num_actions: int
 
     def act(self, observation):
-        return int(self.rng.integers(NUM_ACTIONS))
+        return int(self.rng.integers(self.num_actions))
 
 
 class PPOPolicy:
@@ -49,7 +51,7 @@ class PPOEpisode:
             distribution = self.model.policy.get_distribution(tensor).distribution
             probabilities = distribution.probs[0].detach().cpu().numpy().astype(np.float64)
         probabilities /= probabilities.sum()
-        return int(self.rng.choice(NUM_ACTIONS, p=probabilities))
+        return int(self.rng.choice(len(probabilities), p=probabilities))
 
 
 class PopulationEvaluator:

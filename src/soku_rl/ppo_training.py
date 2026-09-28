@@ -9,6 +9,7 @@ from stable_baselines3.common.callbacks import BaseCallback, CallbackList, Check
 from stable_baselines3.common.logger import configure
 
 from .observed_rules import RulePolicy
+from .learning_wrappers import LearningRulePolicy
 from .ppo_response import OpponentMixtureVecEnv
 
 
@@ -50,7 +51,8 @@ def train_ppo(env, config, device, seed, directory):
     episode = env.episodes[0].config
     source = hashlib.sha256(b"".join(Path(__file__).with_name(name).read_bytes() for name in (
         "observed_rules.py", "baselines.py", "community_rules.py", "strategies.py"))).hexdigest()
-    opponents = [RulePolicy(name, config["rules"], episode, source) for name in config["opponents"]]
+    opponents = [LearningRulePolicy(RulePolicy(name, config["rules"], episode, source), env.interface)
+                 for name in config["opponents"]]
     weights = np.full(len(opponents), 1 / len(opponents))
     results = {}
     for player in config["players"]:

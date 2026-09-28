@@ -6,16 +6,13 @@ import torch
 from open_spiel.python import rl_agent, rl_environment
 from open_spiel.python.pytorch.nfsp import NFSP
 
-from .env.encoding import AGENTS, NUM_ACTIONS
+from .env.encoding import AGENTS
 
 
-LEGAL_ACTIONS = list(range(NUM_ACTIONS))
-
-
-def time_step(observations, rewards, done):
+def time_step(observations, rewards, done, legal_actions):
     return rl_environment.TimeStep(
         observations={"info_state": [observations[a] for a in AGENTS],
-                      "legal_actions": [LEGAL_ACTIONS, LEGAL_ACTIONS], "current_player": -2},
+                      "legal_actions": [legal_actions, legal_actions], "current_player": -2},
         rewards=[rewards[a] for a in AGENTS], discounts=[0. if done else 1.] * 2,
         step_type=rl_environment.StepType.LAST if done else rl_environment.StepType.MID)
 
@@ -27,14 +24,18 @@ class VectorNFSP:
     DQN replay/loss. Collection is external: one mode per player per episode;
     every transition updates the common DQN clock, including average-policy play.
     """
-    def __init__(self, observation_shape, agent_config, device, seed):
+    def __init__(self, observation_shape, num_actions, agent_config, device, seed):
         if len(observation_shape) != 1:
             raise ValueError("OpenSpiel NFSP currently requires a numeric state vector")
         self.config = dict(agent_config)
+        if type(num_actions) is not int or num_actions < 1:
+            raise ValueError("num_actions must be a positive integer")
+        self.num_actions = num_actions
+        self.legal_actions = list(range(num_actions))
         self.shape = tuple(observation_shape)
         self.device = device
         self.rng = np.random.default_rng(seed)
-        self.agents = {name: NFSP(index, observation_shape[0], NUM_ACTIONS,
+        self.agents = {name: NFSP(index, observation_shape[0], num_actions,
                                  device=str(device), seed=seed + index, **agent_config)
                        for index, name in enumerate(AGENTS)}
         self.modes = {}
@@ -59,23 +60,23 @@ class VectorNFSP:
             epsilon = q.epsilon_schedule(q._iteration)
             for index, slot in enumerate(slots):
                 if self.modes[slot, name] == "best_response":
-                    action = int(self.rng.integers(NUM_ACTIONS) if self.rng.random() < epsilon
+                    action = int(self.rng.integers(self.num_actions) if self.rng.random() < epsilon
                                  else greedy[index])
                     # NFSP learns the empirical distribution of selected BR actions.
-                    probabilities = np.zeros(NUM_ACTIONS, dtype=np.float32)
+                    probabilities = np.zeros(self.num_actions, dtype=np.float32)
                     probabilities[action] = 1.
-                    ts = time_step(observations[slot], dict.fromkeys(AGENTS, 0.), False)
+                    ts = time_step(observations[slot], dict.fromkeys(AGENTS, 0.), False, self.legal_actions)
                     agent.add_transition(ts, rl_agent.StepOutput(action, probabilities))
                 else:
-                    action = int(self.rng.choice(NUM_ACTIONS, p=average[index]))
+                    action = int(self.rng.choice(self.num_actions, p=average[index]))
                 actions[slot][name] = action
         return actions
 
     def feed(self, observations, actions, next_observations, rewards, terminated, truncated):
         for slot, joint in actions.items():
             done = terminated[slot][AGENTS[0]] or truncated[slot][AGENTS[0]]
-            previous = time_step(observations[slot], dict.fromkeys(AGENTS, 0.), False)
-            current = time_step(next_observations[slot], rewards[slot], done)
+            previous = time_step(observations[slot], dict.fromkeys(AGENTS, 0.), False, self.legal_actions)
+            current = time_step(next_observations[slot], rewards[slot], done, self.legal_actions)
             for name, agent in self.agents.items():
                 q = agent._rl_agent
                 q.add_transition(previous, joint[name], current)
@@ -109,7 +110,7 @@ class VectorNFSP:
         for name, agent in self.agents.items():
             q = agent._rl_agent
             torch.save({"format": "sokurl-openspiel-nfsp-v1", "player": name,
-                        "observation_shape": self.shape, "num_actions": NUM_ACTIONS,
+                        "observation_shape": self.shape, "num_actions": self.num_actions,
                         "agent_config": self.config, "metrics": self.metrics()[name],
                         "average_network": agent._avg_network.state_dict(),
                         "q_network": q._q_network.state_dict(),

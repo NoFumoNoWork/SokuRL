@@ -19,6 +19,7 @@ def main(cfg: DictConfig):
     import torch
     from soku_rl.env import EpisodeConfig, TwoPlayerVectorEnv
     from soku_rl.worker_pipe import WorkerBackend
+    from soku_rl.learning_wrappers import LearningConfig, LearningVectorEnv
 
     config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
     algorithm = config["algorithm"]["name"]
@@ -43,6 +44,15 @@ def main(cfg: DictConfig):
     if not isinstance(config["runtime"]["command"], list):
         raise ValueError("runtime.command must be an explicit argument list")
     episode = EpisodeConfig(**config["episode"])
+    learning = LearningConfig(**config["wrappers"])
+    if learning.health_potential_scale:
+        parameters = config["algorithm"]
+        discount = (parameters["agent"]["discount_factor"] if algorithm == "nfsp" else
+                    parameters["experiment"]["gamma"] if algorithm == "ippo" else
+                    parameters["response"]["ppo"]["gamma"] if algorithm == "psro" else
+                    parameters["ppo"]["gamma"])
+        if discount != 1.:
+            raise ValueError("the finite-horizon health potential requires gamma=1")
     if config["track"] == "human" and episode.observation_mode == "diagnostic_state":
         raise ValueError("the human track cannot expose privileged diagnostic state")
     if config["track"] not in {"human", "superhuman"}:
@@ -75,7 +85,7 @@ def main(cfg: DictConfig):
                 backend.configure_observation(episode.backend_observation())
                 identity["runtime"] = backend.identity
                 (destination / "identity.json").write_text(json.dumps(identity, indent=2), encoding="utf-8")
-                env = TwoPlayerVectorEnv(backend, config["num_envs"], episode)
+                env = LearningVectorEnv(TwoPlayerVectorEnv(backend, config["num_envs"], episode), learning)
                 report["result"] = train(env, config["algorithm"], device, config["seed"], destination)
         report["success"] = True
     except BaseException as error:

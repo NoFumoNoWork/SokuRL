@@ -6,6 +6,7 @@ import numpy as np
 
 from .env.encoding import AGENTS
 from .env.factory import make_pettingzoo_env
+from .learning_wrappers import LearningConfig, LearningParallelEnv
 
 
 class TorchRLInputs(BaseParallelWrapper):
@@ -48,10 +49,10 @@ def wrap_torchrl(env, seed, device):
         seed=seed, device=device)
 
 
-def make_torchrl_env(runtime, episode, log_directory, seed, device):
+def make_torchrl_env(runtime, episode, wrappers, log_directory, seed, device):
     env = make_pettingzoo_env(runtime, episode, log_directory)
     try:
-        return wrap_torchrl(env, seed, device)
+        return wrap_torchrl(LearningParallelEnv(env, LearningConfig(**wrappers)), seed, device)
     except BaseException:
         env.close()
         raise

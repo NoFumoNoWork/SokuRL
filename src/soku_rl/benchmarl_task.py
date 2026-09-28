@@ -13,7 +13,7 @@ class SokuTask(PettingZooClass):
             raise ValueError("SokuRL uses discrete held-key commands")
         # BenchMARL owns vector construction around this single-game factory.
         return partial(make_torchrl_env, self.config["runtime"], self.config["episode"],
-                       self.config["log_directory"], seed, device)
+                       self.config["wrappers"], self.config["log_directory"], seed, device)
 
     def supports_continuous_actions(self):
         return False

@@ -19,7 +19,7 @@ class SampledPSROSolver(PSROSolver):
         self.evaluator = evaluator
         super().__init__(
             PlayerRoles(), oracle, simulations,
-            initial_policies=[UniformPolicy("uniform-p0"), UniformPolicy("uniform-p1")],
+            initial_policies=[UniformPolicy(f"uniform-p{p}", evaluator.env.single_action_space.n) for p in (0, 1)],
             rectifier="", training_strategy_selector="probabilistic",
             meta_strategy_method="prd", sample_from_marginals=True,
             number_policies_selected=1, symmetric_game=False,
