@@ -20,6 +20,7 @@ episode:
     object_diameter: 16.0
     minimum_visible_fraction: 0.25
 runtime:
+  mute_audio: true
   # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
   command: ???
   cwd: ${hydra:runtime.cwd}

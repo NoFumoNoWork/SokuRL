@@ -45,9 +45,11 @@ def send(stream, value):
 
 class WorkerBackend:
     """One persistent Python/Wine worker owns independently reset game slots."""
-    def __init__(self, command, cwd, log_path, timeout, launch_timeout):
+    def __init__(self, command, cwd, log_path, timeout, launch_timeout, mute_audio):
         if not command or timeout <= launch_timeout or launch_timeout <= 0:
             raise ValueError("worker timeout must exceed the positive launch timeout")
+        if type(mute_audio) is not bool:
+            raise TypeError("mute_audio must be a boolean")
         self.timeout = timeout
         self.closed = False
         self.broken = False
@@ -55,9 +57,11 @@ class WorkerBackend:
         destination.parent.mkdir(parents=True, exist_ok=True)
         self.log = destination.open("ab", buffering=0)
         try:
+            environment = os.environ.copy()
+            environment["SOKURL_MUTE_AUDIO"] = "1" if mute_audio else "0"
             self.process = subprocess.Popen(
                 list(command), cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                stderr=self.log, bufsize=0,
+                stderr=self.log, bufsize=0, env=environment,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
         except BaseException:
             self.log.close()

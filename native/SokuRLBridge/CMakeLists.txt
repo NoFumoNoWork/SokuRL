@@ -17,6 +17,8 @@ endif()
 add_subdirectory("${SOKUMODS_ROOT}/SokuLib" "${CMAKE_BINARY_DIR}/SokuLib" EXCLUDE_FROM_ALL)
 
 add_library(SokuRLBridge MODULE
+    AudioMute.hpp
+    AudioMute.cpp
     ControlBlock.hpp
     ImageCapture.hpp
     ImageCapture.cpp

@@ -1,5 +1,6 @@
 #include "ControlBlock.hpp"
 #include "ImageCapture.hpp"
+#include "AudioMute.hpp"
 
 #include <BattleManager.hpp>
 #include <BattleMode.hpp>
@@ -1185,6 +1186,11 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     if (!createMapping())
         return false;
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
+    if (environmentValue(L"SOKURL_MUTE_AUDIO", g_headlessRender ? 1U : 0U) == 1 &&
+        !SokuRLBridge::installAudioMute()) {
+        closeMapping();
+        return false;
+    }
     const auto captureMode = environmentValue(L"SOKURL_CAPTURE_IMAGES", 0);
     g_captureImages = captureMode != 0;
     g_captureStateOnly = captureMode == 2;
