@@ -335,7 +335,7 @@ def _launch_vs_from_title(
             raise RuntimeError("SkipIntro scene_id setting was not found")
         SKIPINTRO_INI.write_bytes(title_config)
         process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=env).pid)
-        deadline = time.monotonic() + min(timeout, 10.0)
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if not process.is_running():
                 raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
@@ -347,6 +347,11 @@ def _launch_vs_from_title(
                 pass
             time.sleep(0.01)
         raise RuntimeError(f"Title bootstrap timeout for PID {process.pid}")
+    except Exception:
+        if process is not None and process.is_running():
+            process.terminate()
+            process.wait(timeout=5.0)
+        raise
     finally:
         if original:
             SKIPINTRO_INI.write_bytes(original)
