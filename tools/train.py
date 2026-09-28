@@ -24,7 +24,7 @@ def main(cfg: DictConfig):
     algorithm = config["algorithm"]["name"]
     if algorithm == "nfsp":
         from soku_rl.nfsp import train_nfsp as train
-        dependencies = ["rlcard"]
+        dependencies = ["open-spiel", "dm-tree"]
     elif algorithm == "psro":
         from soku_rl.psro import train_psro as train
         dependencies = ["open-spiel", "stable-baselines3", "cvxpy"]

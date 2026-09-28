@@ -7,13 +7,13 @@ name = "hisouten-rl"
 version = "0.1.0"
 description = "Reinforcement-learning environment scaffolding for Touhou Hisoutensoku"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = ["psutil>=5.9"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 rl = ["gymnasium>=1.0,<2", "numpy>=1.24", "pettingzoo==1.27.0", "PyYAML>=6", "hydra-core>=1.3,<1.4"]
-nfsp = ["rlcard==1.2.0", "torch>=2.2"]
+nfsp = ["open-spiel==2.0.2", "dm-tree>=0.1.9", "torch==2.9.1"]
 psro = ["open-spiel==2.0.2", "stable-baselines3==2.9.0", "cvxpy>=1.4"]
 marl = ["torch==2.9.1", "torchrl==0.10.1", "tensordict==0.10.0", "benchmarl==1.5.1", "open-spiel==2.0.2", "dm-tree>=0.1.9"]
 

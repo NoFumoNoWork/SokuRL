@@ -7,18 +7,18 @@ agent:
   reservoir_buffer_capacity: 20000
   anticipatory_param: 0.1
   batch_size: 128
-  train_every: 32
+  learn_every: 32
   rl_learning_rate: 0.0003
   sl_learning_rate: 0.0003
   min_buffer_size_to_learn: 1024
-  q_replay_memory_size: 20000
-  q_replay_memory_init_size: 1024
-  q_update_target_estimator_every: 1000
-  q_discount_factor: 1.0
-  q_epsilon_start: 0.1
-  q_epsilon_end: 0.01
-  q_epsilon_decay_steps: 1000000
-  q_batch_size: 128
-  q_train_every: 32
-  q_mlp_layers: [256, 256]
-  evaluate_with: average_policy
+  replay_buffer_capacity: 20000
+  update_target_network_every: 1000
+  weight_update_coeff: 0.995
+  discount_factor: 1.0
+  epsilon_start: 0.1
+  epsilon_end: 0.01
+  epsilon_decay_duration: 1000000
+  epsilon_decay_schedule_str: linear
+  optimizer_str: adam
+  loss_str: huber
+  gradient_clipping: 10.0
