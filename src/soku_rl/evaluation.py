@@ -62,8 +62,10 @@ def run_batch(backend, trials, strategies, max_frames):
         policies, returns, counts, initial = {}, {}, {}, {}
         for slot, trial in enumerate(trials):
             state = states[slot]
-            if state.frame != 0 or state.ended:
+            if state.frame != 0 or state.ended or state.rewards != (0, 0):
                 raise RuntimeError("reset must return ongoing frame zero")
+            if tuple(strategies[n].fingerprint for n in trial.players) != trial.strategy_ids:
+                raise ValueError("strategy implementation differs from the trial plan")
             policies[slot] = tuple(strategies[name].spawn(seed)
                                    for name, seed in zip(trial.players, trial.policy_seeds, strict=True))
             returns[slot] = [0.0, 0.0]
@@ -167,7 +169,8 @@ def summarize(plan, records, alpha):
             games = sum(counts.values())
             complete_blocks = games // 2
             entry = {"row": a, "column": b, "planned_blocks": len(blocks),
-                     "complete_blocks": complete_blocks, "counts": dict(counts)}
+                     "complete_blocks": complete_blocks, "counts": dict(counts),
+                     "all_planned_blocks_complete": complete_blocks == len(blocks)}
             if games:
                 w, l, d, t = (counts[k] / games for k in ("win", "loss", "draw", "timeout"))
                 radius = sqrt(log(2 / alpha) / (2 * complete_blocks))

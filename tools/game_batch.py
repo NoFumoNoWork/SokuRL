@@ -46,6 +46,7 @@ class SokuGameBatch:
     def reset(self, seeds):
         if self.processes or not seeds or len(set(seeds)) != 1:
             raise ValueError("fresh batch and one common world seed are required")
+        self.frame = 0
         self.processes = sokurl._launch_vs_group_from_title(
             len(seeds), self.launch_timeout, headless=True, unlimited=True,
             seed=seeds[0], pause_at_start=True,
