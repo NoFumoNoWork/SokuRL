@@ -284,14 +284,17 @@ def practice(timeout: float, pid: int | None) -> int:
     raise RuntimeError(f"timed out after {timeout:.1f}s waiting for PRACTICE_READY")
 
 
-def _launch_vs_from_title(
+def _launch_vs_group_from_title(
+    worker_count: int,
     timeout: float,
     *,
     headless: bool = False,
     unlimited: bool = False,
     seed: int | None = None,
     pause_at_start: bool = False,
-) -> psutil.Process:
+) -> list[psutil.Process]:
+    if worker_count < 1:
+        raise ValueError("worker_count must be positive")
     if unlimited and not headless:
         raise ValueError("--unlimited requires --headless")
     config = configparser.ConfigParser()
@@ -322,7 +325,7 @@ def _launch_vs_from_title(
     mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
     if not mutex:
         raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
-    process = None
+    processes: list[psutil.Process] = []
     original = b""
     try:
         if kernel32.WaitForSingleObject(mutex, INFINITE) != WAIT_OBJECT_0:
@@ -334,29 +337,50 @@ def _launch_vs_from_title(
         if replacements != 1:
             raise RuntimeError("SkipIntro scene_id setting was not found")
         SKIPINTRO_INI.write_bytes(title_config)
-        process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=env).pid)
+        for _ in range(worker_count):
+            process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=env).pid)
+            processes.append(process)
+        pending = list(processes)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            if not process.is_running():
-                raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
-            try:
-                _, mode, _, _, _, _ = _read_process_values(process.pid)
-                if mode == BATTLE_MODE_VSPLAYER:
-                    return process
-            except OSError:
-                pass
+            for process in pending[:]:
+                if not process.is_running():
+                    raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
+                try:
+                    _, mode, _, _, _, _ = _read_process_values(process.pid)
+                    if mode == BATTLE_MODE_VSPLAYER:
+                        pending.remove(process)
+                except OSError:
+                    pass
+            if not pending:
+                return processes
             time.sleep(0.01)
-        raise RuntimeError(f"Title bootstrap timeout for PID {process.pid}")
+        raise RuntimeError(f"Title bootstrap timeout for PIDs {[p.pid for p in pending]}")
     except Exception:
-        if process is not None and process.is_running():
-            process.terminate()
-            process.wait(timeout=5.0)
+        for process in processes:
+            if process.is_running():
+                process.terminate()
+                process.wait(timeout=5.0)
         raise
     finally:
         if original:
             SKIPINTRO_INI.write_bytes(original)
         kernel32.ReleaseMutex(mutex)
         kernel32.CloseHandle(mutex)
+
+
+def _launch_vs_from_title(
+    timeout: float,
+    *,
+    headless: bool = False,
+    unlimited: bool = False,
+    seed: int | None = None,
+    pause_at_start: bool = False,
+) -> psutil.Process:
+    return _launch_vs_group_from_title(
+        1, timeout, headless=headless, unlimited=unlimited,
+        seed=seed, pause_at_start=pause_at_start,
+    )[0]
 
 
 def versus(timeout: float, headless: bool = False, unlimited: bool = False) -> int:

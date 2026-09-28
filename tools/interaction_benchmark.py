@@ -64,11 +64,10 @@ def benchmark(config):
     launch_started = time.perf_counter()
     try:
         initial_hashes = []
-        for index in range(workers):
-            process = sokurl._launch_vs_from_title(
-                60.0, headless=True, unlimited=True, seed=seed, pause_at_start=True,
-            )
-            processes.append(process)
+        processes = sokurl._launch_vs_group_from_title(
+            workers, 180.0, headless=True, unlimited=True, seed=seed, pause_at_start=True,
+        )
+        for index, process in enumerate(processes):
             client = BridgeClient(process.pid)
             clients.append(client)
             initial_hashes.append(wait_for_frame_zero(client, process.pid).stateHash)
@@ -95,12 +94,11 @@ def benchmark(config):
                     if process.is_running():
                         sokurl.shutdown(5.0, process.pid)
                 processes.clear()
-                for initial in initial_hashes:
-                    process = sokurl._launch_vs_from_title(
-                        60.0, headless=True, unlimited=True,
-                        seed=seed, pause_at_start=True,
-                    )
-                    processes.append(process)
+                processes = sokurl._launch_vs_group_from_title(
+                    workers, 180.0, headless=True, unlimited=True,
+                    seed=seed, pause_at_start=True,
+                )
+                for process, initial in zip(processes, initial_hashes, strict=True):
                     client = BridgeClient(process.pid)
                     clients.append(client)
                     if wait_for_frame_zero(client, process.pid).stateHash != initial:
