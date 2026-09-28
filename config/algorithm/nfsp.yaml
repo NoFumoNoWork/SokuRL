@@ -1,0 +1,24 @@
+name: nfsp
+episodes: 256
+checkpoint_every: 64
+timeout_payoff: zero_at_horizon
+agent:
+  hidden_layers_sizes: [256, 256]
+  reservoir_buffer_capacity: 20000
+  anticipatory_param: 0.1
+  batch_size: 128
+  train_every: 32
+  rl_learning_rate: 0.0003
+  sl_learning_rate: 0.0003
+  min_buffer_size_to_learn: 1024
+  q_replay_memory_size: 20000
+  q_replay_memory_init_size: 1024
+  q_update_target_estimator_every: 1000
+  q_discount_factor: 0.999
+  q_epsilon_start: 0.1
+  q_epsilon_end: 0.01
+  q_epsilon_decay_steps: 1000000
+  q_batch_size: 128
+  q_train_every: 32
+  q_mlp_layers: [256, 256]
+  evaluate_with: average_policy
