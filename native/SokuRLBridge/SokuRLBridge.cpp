@@ -1170,8 +1170,10 @@ bool installHooks()
         &SokuLib::VTable_Select.onProcess, selectOnProcess);
     g_originalTitleProcess = SokuLib::TamperDword(
         &SokuLib::VTable_Title.onProcess, titleOnProcess);
-    const bool resetBarrierInstalled = environmentValue(L"SOKURL_RESET_WAIT_DESTRUCTION", 0) == 0 ||
-        SokuRLBridge::installSceneResetBarrier();
+    const bool resetBarrierEnabled = environmentValue(L"SOKURL_RESET_WAIT_DESTRUCTION", 0) != 0;
+    const auto diagnosticDestructorDelay = environmentValue(L"SOKURL_DEBUG_DESTRUCTOR_DELAY_MS", 0);
+    const bool resetBarrierInstalled = (!resetBarrierEnabled && !diagnosticDestructorDelay) ||
+        SokuRLBridge::installSceneResetBarrier(resetBarrierEnabled, diagnosticDestructorDelay);
     if (g_captureImages)
         g_originalBattleRender = SokuLib::TamperDword(
             &SokuLib::VTable_Battle.onRender, battleOnRender);
