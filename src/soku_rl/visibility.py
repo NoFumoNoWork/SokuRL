@@ -101,3 +101,13 @@ def quantize_gauge(value, maximum, quantum):
     if not isfinite(value) or not isfinite(maximum) or maximum <= 0 or not 0 <= value <= maximum:
         raise ValueError(f"invalid visible gauge value: value={value}, maximum={maximum}, quantum={quantum}")
     return min(1., max(0., floor(value / maximum / quantum + 0.5) * quantum))
+
+
+def quantize_spirit(value, maximum, quantum):
+    """Decode the bridge's 16-bit spirit word and project its visible gauge."""
+    if type(value) is not int or not 0 <= value <= 0xFFFF:
+        raise ValueError(f"invalid exported spirit word: {value}")
+    # SokuLib v2::Player declares currentSpirit as signed short. ABI 7 uses
+    # the older unsigned declaration, so guard-break debt arrives above 32767.
+    signed = value - 0x10000 if value & 0x8000 else value
+    return quantize_gauge(max(0, signed), maximum, quantum)
