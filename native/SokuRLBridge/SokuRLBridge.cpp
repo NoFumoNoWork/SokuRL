@@ -1,7 +1,6 @@
 #include "ControlBlock.hpp"
 #include "ImageCapture.hpp"
 #include "AudioMute.hpp"
-#include "CrashReport.hpp"
 #include "SceneReset.hpp"
 
 #include <BattleManager.hpp>
@@ -1021,7 +1020,6 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
     if (!g_vsBootstrapArmed || g_vsBootstrapComplete)
         return result;
 
-    SokuRLBridge::traceResetStage("title_bootstrap", title);
     *reinterpret_cast<signed char *>(INPUT_MANAGER_CLUSTER_DEVICE) = -1;
     SokuLib::setBattleMode(SokuLib::BATTLE_MODE_VSPLAYER,
         SokuLib::BATTLE_SUBMODE_PLAYING1);
@@ -1047,10 +1045,10 @@ int __fastcall battleOnProcess(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleProcess)();
     if (g_episodeResetRequested) {
-        SokuRLBridge::traceResetStage("retire_battle", battle);
         SokuRLBridge::retireBattleScene(battle);
         // Return through the engine's normal scene lifecycle. It destroys the
-        // old battle and constructs a fresh one; the process and DLL stay alive.
+        // old battle asynchronously; titleOnProcess waits for that destruction
+        // before loading the next one. The process and DLL stay alive.
         g_episodeResetRequested = false;
         g_vsBootstrapComplete = false;
         g_battleActive = false;
@@ -1133,7 +1131,6 @@ bool createMapping()
 
 void closeMapping()
 {
-    SokuRLBridge::closeCrashReport();
     SokuRLBridge::closeImageCapture();
     if (g_control)
         store32(&g_control->connected, 0);
@@ -1170,10 +1167,7 @@ bool installHooks()
         &SokuLib::VTable_Select.onProcess, selectOnProcess);
     g_originalTitleProcess = SokuLib::TamperDword(
         &SokuLib::VTable_Title.onProcess, titleOnProcess);
-    const bool resetBarrierEnabled = environmentValue(L"SOKURL_RESET_WAIT_DESTRUCTION", 0) != 0;
-    const auto diagnosticDestructorDelay = environmentValue(L"SOKURL_DEBUG_DESTRUCTOR_DELAY_MS", 0);
-    const bool resetBarrierInstalled = (!resetBarrierEnabled && !diagnosticDestructorDelay) ||
-        SokuRLBridge::installSceneResetBarrier(resetBarrierEnabled, diagnosticDestructorDelay);
+    const bool resetBarrierInstalled = SokuRLBridge::installSceneResetBarrier();
     if (g_captureImages)
         g_originalBattleRender = SokuLib::TamperDword(
             &SokuLib::VTable_Battle.onRender, battleOnRender);
@@ -1200,10 +1194,6 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     g_history.reserve(SokuRLBridge::INPUT_HISTORY_CAPACITY);
     if (!createMapping())
         return false;
-    if (environmentValue(L"SOKURL_CRASH_TRACE", 0) == 1 && !SokuRLBridge::installCrashReport()) {
-        closeMapping();
-        return false;
-    }
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
     if (environmentValue(L"SOKURL_MUTE_AUDIO", g_headlessRender ? 1U : 0U) == 1 &&
         !SokuRLBridge::installAudioMute()) {
