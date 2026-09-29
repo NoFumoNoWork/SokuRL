@@ -1,9 +1,11 @@
 """Check that hidden renderer values cannot change projected observations."""
 from dataclasses import replace
 import unittest
+import random
 
 from soku_rl.render_state import RenderEntity, RenderSnapshot
 from soku_rl.visibility import VisibilityConfig, screen_entity, visible_entities, quantize_gauge
+from soku_rl.contours import Contour, SAMPLES, visible_fraction
 
 
 class VisibilityTests(unittest.TestCase):
@@ -65,6 +67,27 @@ class VisibilityTests(unittest.TestCase):
         players, objects = visible_entities(scene, self.config)
         self.assertTrue(all(player.visible for player in players))
         self.assertEqual(objects, ((), ()))
+
+    def test_visibility_shortcuts_match_the_original_quadrature_exactly(self):
+        rng = random.Random(92817)
+        for _ in range(1000):
+            target = Contour(rng.uniform(-100, 740), rng.uniform(-100, 580),
+                             rng.uniform(1, 50), rng.uniform(1, 100), 1.)
+            blockers = tuple(Contour(target.x + rng.uniform(-100, 100),
+                target.y + rng.uniform(-100, 100), rng.uniform(1, 50), rng.uniform(1, 100),
+                rng.choice((.5, .75, 1.))) for _ in range(rng.randrange(10)))
+            nearby = tuple(other for other in blockers if target.overlaps(other))
+            remaining = 0.
+            for dx, dy in SAMPLES:
+                x, y = target.x + dx * target.radius_x, target.y + dy * target.radius_y
+                if not (0 <= x < 640 and 0 <= y < 480):
+                    continue
+                weight = 1.
+                for other in nearby:
+                    if other.contains(x, y):
+                        weight *= 1 - other.alpha
+                remaining += weight
+            self.assertEqual(visible_fraction(target, blockers), remaining / len(SAMPLES))
 
 
 if __name__ == "__main__":
