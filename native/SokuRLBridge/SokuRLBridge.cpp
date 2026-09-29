@@ -1021,6 +1021,7 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
     if (!g_vsBootstrapArmed || g_vsBootstrapComplete)
         return result;
 
+    SokuRLBridge::traceResetStage("title_bootstrap", title);
     *reinterpret_cast<signed char *>(INPUT_MANAGER_CLUSTER_DEVICE) = -1;
     SokuLib::setBattleMode(SokuLib::BATTLE_MODE_VSPLAYER,
         SokuLib::BATTLE_SUBMODE_PLAYING1);
@@ -1046,6 +1047,7 @@ int __fastcall battleOnProcess(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleProcess)();
     if (g_episodeResetRequested) {
+        SokuRLBridge::traceResetStage("retire_battle", battle);
         SokuRLBridge::retireBattleScene(battle);
         // Return through the engine's normal scene lifecycle. It destroys the
         // old battle and constructs a fresh one; the process and DLL stay alive.

@@ -1,4 +1,5 @@
 #include "SceneReset.hpp"
+#include "CrashReport.hpp"
 #include <Scenes.hpp>
 #include <Tamper.hpp>
 #include <VTables.hpp>
@@ -14,7 +15,9 @@ SokuLib::Battle *__fastcall destroyBattle(SokuLib::Battle *battle, void *, char 
 {
     // The engine runs scene destructors on its cleanup thread. Do not touch the
     // object after calling its original destructor: release may free it.
+    traceResetStage("battle_destructor_begin", battle);
     auto *result = (battle->*originalDestructor)(release);
+    traceResetStage("battle_destructor_end", battle);
     InterlockedCompareExchangePointer(&retiredBattle, nullptr, battle);
     return result;
 }

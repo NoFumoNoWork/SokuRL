@@ -5,6 +5,7 @@
 namespace SokuRLBridge {
 namespace {
 PVOID handler = nullptr;
+HANDLE logFile = INVALID_HANDLE_VALUE;
 volatile LONG reported = 0;
 
 LONG CALLBACK report(EXCEPTION_POINTERS *exception)
@@ -37,15 +38,40 @@ LONG CALLBACK report(EXCEPTION_POINTERS *exception)
         used += sprintf_s(buffer + used, sizeof(buffer) - used, "[DEBUG-reset-crash] unreadable stack boundary\n");
     }
     DWORD written = 0;
-    WriteFile(GetStdHandle(STD_ERROR_HANDLE), buffer, static_cast<DWORD>(used), &written, nullptr);
+    WriteFile(logFile, buffer, static_cast<DWORD>(used), &written, nullptr);
+    FlushFileBuffers(logFile);
     return EXCEPTION_CONTINUE_SEARCH;
 }
 }
 
 bool installCrashReport()
 {
+    // The game is a GUI process. Python can close inherited Win32 standard
+    // handles even though Wine still prints its own messages on Unix stderr.
+    wchar_t path[128]{};
+    swprintf_s(path, L"modules\\SokuRLBridge\\crash-%lu.log", GetCurrentProcessId());
+    logFile = CreateFileW(path, GENERIC_WRITE, FILE_SHARE_READ, nullptr, CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
+    if (logFile == INVALID_HANDLE_VALUE)
+        return false;
     handler = AddVectoredExceptionHandler(0, report);
+    traceResetStage("installed", nullptr);
     return handler != nullptr;
+}
+
+void traceResetStage(const char *stage, const void *scene)
+{
+    if (logFile == INVALID_HANDLE_VALUE)
+        return;
+    char buffer[256]{};
+    const auto length = sprintf_s(buffer,
+        "[DEBUG-reset-crash] pid=%lu tid=%lu stage=%s object=%p live_scene=%lu next_scene=%lu cleanup_count=%lu\n",
+        GetCurrentProcessId(), GetCurrentThreadId(), stage, scene,
+        *reinterpret_cast<volatile DWORD *>(0x008A0044),
+        *reinterpret_cast<volatile DWORD *>(0x008A0040),
+        *reinterpret_cast<volatile DWORD *>(0x008A001C));
+    DWORD written = 0;
+    WriteFile(logFile, buffer, static_cast<DWORD>(length), &written, nullptr);
 }
 
 void closeCrashReport()
@@ -53,5 +79,8 @@ void closeCrashReport()
     if (handler)
         RemoveVectoredExceptionHandler(handler);
     handler = nullptr;
+    if (logFile != INVALID_HANDLE_VALUE)
+        CloseHandle(logFile);
+    logFile = INVALID_HANDLE_VALUE;
 }
 }
