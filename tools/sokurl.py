@@ -354,28 +354,28 @@ def _launch_vs_group_from_title(
         if replacements != 1:
             raise RuntimeError("SkipIntro scene_id setting was not found")
         SKIPINTRO_INI.write_bytes(title_config)
+        deadline = time.monotonic() + timeout
         for index in range(worker_count):
             process_env = env.copy()
             if seeds is not None:
                 process_env["SOKURL_VS_SEED"] = str(seeds[index])
             process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=process_env).pid)
             processes.append(process)
-        pending = list(processes)
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            for process in pending[:]:
+            # Game initialization touches shared runtime resources. Serialize
+            # bootstrap only; all ready games still step in parallel.
+            while time.monotonic() < deadline:
                 if not process.is_running():
                     raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
                 try:
                     _, mode, _, _, _, _ = _read_process_values(process.pid)
                     if mode == BATTLE_MODE_VSPLAYER:
-                        pending.remove(process)
+                        break
                 except OSError:
                     pass
-            if not pending:
-                return processes
-            time.sleep(0.01)
-        raise RuntimeError(f"Title bootstrap timeout for PIDs {[p.pid for p in pending]}")
+                time.sleep(0.01)
+            else:
+                raise RuntimeError(f"Title bootstrap timeout for PID {process.pid}")
+        return processes
     except Exception:
         for process in processes:
             if process.is_running():
