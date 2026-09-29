@@ -1,0 +1,9 @@
+defaults:
+  - train
+  - _self_
+replay_validation:
+  evaluation_directory: ???
+  trial_indices: ???
+  cycles: 1
+  next_seed: ???
+output: logs/validation/replay-reset-${now:%Y%m%d-%H%M%S}
