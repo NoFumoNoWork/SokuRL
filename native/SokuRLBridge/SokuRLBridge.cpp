@@ -2,6 +2,7 @@
 #include "ImageCapture.hpp"
 #include "AudioMute.hpp"
 #include "CrashReport.hpp"
+#include "SceneReset.hpp"
 
 #include <BattleManager.hpp>
 #include <BattleMode.hpp>
@@ -1011,6 +1012,11 @@ int __fastcall selectOnProcess(SokuLib::Select *select)
 
 int __fastcall titleOnProcess(SokuLib::Title *title)
 {
+    // Scene deletion is asynchronous. A new battle must not reuse global
+    // resources while the previous battle is still destroying them.
+    if (g_vsBootstrapArmed && !g_vsBootstrapComplete &&
+        !SokuRLBridge::retiredBattleSceneDestroyed())
+        return SokuLib::SCENE_TITLE;
     const auto result = (title->*g_originalTitleProcess)();
     if (!g_vsBootstrapArmed || g_vsBootstrapComplete)
         return result;
@@ -1040,6 +1046,7 @@ int __fastcall battleOnProcess(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleProcess)();
     if (g_episodeResetRequested) {
+        SokuRLBridge::retireBattleScene(battle);
         // Return through the engine's normal scene lifecycle. It destroys the
         // old battle and constructs a fresh one; the process and DLL stay alive.
         g_episodeResetRequested = false;
@@ -1161,6 +1168,8 @@ bool installHooks()
         &SokuLib::VTable_Select.onProcess, selectOnProcess);
     g_originalTitleProcess = SokuLib::TamperDword(
         &SokuLib::VTable_Title.onProcess, titleOnProcess);
+    const bool resetBarrierInstalled = environmentValue(L"SOKURL_RESET_WAIT_DESTRUCTION", 0) == 0 ||
+        SokuRLBridge::installSceneResetBarrier();
     if (g_captureImages)
         g_originalBattleRender = SokuLib::TamperDword(
             &SokuLib::VTable_Battle.onRender, battleOnRender);
@@ -1172,7 +1181,7 @@ bool installHooks()
     return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
         g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess &&
         (!g_captureImages || g_originalBattleRender) &&
-        g_originalBattleProcess;
+        g_originalBattleProcess && resetBarrierInstalled;
 }
 }
 
