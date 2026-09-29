@@ -11,9 +11,10 @@ LONG CALLBACK report(EXCEPTION_POINTERS *exception)
 {
     const auto *record = exception->ExceptionRecord;
     const auto address = reinterpret_cast<DWORD>(record->ExceptionAddress);
-    // These are the two observed container faults during persistent reset.
+    // Reset faults have occurred in several game resource containers.
+    // Keep Wine and system DLL exceptions outside this temporary probe.
     if (record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION ||
-        (address != 0x0045B93A && address != 0x00433A87) ||
+        (address < 0x00401000 || address >= 0x00858000) ||
         InterlockedCompareExchange(&reported, 1, 0))
         return EXCEPTION_CONTINUE_SEARCH;
     const auto &context = *exception->ContextRecord;
