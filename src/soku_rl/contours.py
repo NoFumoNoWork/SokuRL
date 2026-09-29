@@ -30,6 +30,9 @@ def visible_fraction(target, blockers):
     does not yet provide draw order. Alpha attenuates covered sample points.
     """
     nearby = tuple(other for other in blockers if target.overlaps(other))
+    if (not nearby and 0 <= target.x - target.radius_x and target.x + target.radius_x < 640
+            and 0 <= target.y - target.radius_y and target.y + target.radius_y < 480):
+        return 1.
     remaining = 0.
     for dx, dy in SAMPLES:
         x, y = target.x + dx * target.radius_x, target.y + dy * target.radius_y
@@ -39,5 +42,7 @@ def visible_fraction(target, blockers):
         for other in nearby:
             if other.contains(x, y):
                 weight *= 1 - other.alpha
+                if weight == 0.:
+                    break
         remaining += weight
     return remaining / len(SAMPLES)

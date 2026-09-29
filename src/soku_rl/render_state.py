@@ -21,6 +21,11 @@ class RenderEntity:
     drawable: int
 
 
+def decode_entities(data, start, count):
+    return tuple(RenderEntity(*ENTITY.unpack_from(data, CAMERA.size + i * ENTITY.size))
+                 for i in range(start, start + count))
+
+
 @dataclass(frozen=True, slots=True)
 class RenderSnapshot:
     camera_x: float
@@ -36,13 +41,11 @@ class RenderSnapshot:
         if len(data) != RENDER_STATE_SIZE:
             raise ValueError("invalid render metadata length")
         camera = CAMERA.unpack_from(data)
-        entities = tuple(RenderEntity(*ENTITY.unpack_from(data, CAMERA.size + i * ENTITY.size))
-                         for i in range(2 + 2 * MAX_OBJECTS))
         count0, count1, overflow = COUNTS.unpack_from(data, len(data) - COUNTS.size)
         if count0 > MAX_OBJECTS or count1 > MAX_OBJECTS or overflow not in (0, 1):
             raise ValueError("invalid render object counts")
-        return cls(*camera, entities[:2],
-                   (entities[2:2 + count0], entities[2 + MAX_OBJECTS:2 + MAX_OBJECTS + count1]),
+        return cls(*camera, decode_entities(data, 0, 2),
+                   (decode_entities(data, 2, count0), decode_entities(data, 2 + MAX_OBJECTS, count1)),
                    bool(overflow))
 
 
