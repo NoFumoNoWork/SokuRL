@@ -33,6 +33,8 @@ class VectorNFSP:
             raise ValueError("unsupported NFSP best-response update")
         if not np.isfinite(return_bound) or return_bound < 1:
             raise ValueError("the finite-horizon return bound must be finite and at least one")
+        if response_update == "bounded_double_q" and not 0 <= agent_config["discount_factor"] <= 1:
+            raise ValueError("bounded responses require a discount in [0,1]")
         self.response_update, self.return_bound = response_update, return_bound
         self.response_metrics = {name: {} for name in AGENTS}
         if isinstance(num_actions, (bool, np.bool_)) or not isinstance(num_actions, (int, np.integer)) or num_actions < 1:

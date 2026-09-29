@@ -10,6 +10,12 @@ from soku_rl.env.encoding import AGENTS
 @unittest.skipUnless(importlib.util.find_spec("open_spiel"), "install the nfsp extra")
 class SpielNFSPTests(unittest.TestCase):
     def test_explicit_transitions_and_learning(self):
+        self.check_learning("openspiel")
+
+    def test_bounded_double_q_learning(self):
+        self.check_learning("bounded_double_q")
+
+    def check_learning(self, response_update):
         import torch
         from soku_rl.spiel_nfsp import VectorNFSP
         from gymnasium import spaces
@@ -24,7 +30,8 @@ class SpielNFSPTests(unittest.TestCase):
                       discount_factor=1., epsilon_start=.1, epsilon_end=.01,
                       epsilon_decay_duration=100, epsilon_decay_schedule_str="linear",
                       optimizer_str="adam", loss_str="huber", gradient_clipping=10.)
-        learner = VectorNFSP((4,), spaces.Discrete(90).n, config, torch.device("cuda:0"), 127)
+        learner = VectorNFSP((4,), spaces.Discrete(90).n, config, torch.device("cuda:0"),
+                             127, response_update, 1.)
         learner.begin((0, 1))
         initial = {name: next(agent._avg_network.parameters()).detach().clone()
                    for name, agent in learner.agents.items()}
@@ -34,7 +41,8 @@ class SpielNFSPTests(unittest.TestCase):
             current = {slot: {name: value + 1 for name, value in players.items()}
                        for slot, players in previous.items()}
             actions = learner.act(previous)
-            rewards = {slot: dict(zip(AGENTS, (1., -1.))) for slot in previous}
+            terminal = (1., -1.) if frame == 31 else (0., 0.)
+            rewards = {slot: dict(zip(AGENTS, terminal)) for slot in previous}
             terms = {slot: dict.fromkeys(AGENTS, frame == 31) for slot in previous}
             truncs = {slot: dict.fromkeys(AGENTS, False) for slot in previous}
             learner.feed(previous, actions, current, rewards, terms, truncs)
@@ -46,6 +54,10 @@ class SpielNFSPTests(unittest.TestCase):
             self.assertFalse(torch.equal(initial[name], next(agent._avg_network.parameters())))
             self.assertIsNone(agent._prev_timestep)
             self.assertIsNone(agent._rl_agent.prev_timestep)
+            if response_update == "bounded_double_q":
+                metrics = learner.metrics()[name]["response"]
+                self.assertGreaterEqual(metrics["target_min"], -1.)
+                self.assertLessEqual(metrics["target_max"], 1.)
         mode = learner.modes[1, AGENTS[0]]
         learner.begin((0,))
         self.assertEqual(learner.modes[1, AGENTS[0]], mode)
