@@ -11,12 +11,10 @@ volatile LONG reported = 0;
 LONG CALLBACK report(EXCEPTION_POINTERS *exception)
 {
     const auto *record = exception->ExceptionRecord;
-    const auto address = reinterpret_cast<DWORD>(record->ExceptionAddress);
-    // Reset faults have occurred in several game resource containers.
-    // Keep Wine and system DLL exceptions outside this temporary probe.
+    // Corrupt game resources can also fault inside a runtime DLL. Record a
+    // bounded number of first-chance faults without changing their handling.
     if (record->ExceptionCode != EXCEPTION_ACCESS_VIOLATION ||
-        (address < 0x00401000 || address >= 0x00858000) ||
-        InterlockedCompareExchange(&reported, 1, 0))
+        InterlockedIncrement(&reported) > 4)
         return EXCEPTION_CONTINUE_SEARCH;
     const auto &context = *exception->ContextRecord;
     char buffer[8192]{};
