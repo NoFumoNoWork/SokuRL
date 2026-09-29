@@ -130,6 +130,15 @@ NFSP 第 64 局模型的评测在重置时报告 `Restarting`，但未到达新�
 - `recurrent-ppo-human-pool15-release-v2`：拟人赛道循环 PPO，每个座位 524288 个决策，15 个固定规则对手。
 - `nfsp-superhuman-pool15-release-v2`：超人赛道 NFSP 自我对弈，1024 局。目录名中的 `pool15` 不表示训练使用规则对手；本算法的训练对手是另一名学习玩家。
 - `ippo-human-learning-release-v3`：拟人赛道 BenchMARL IPPO 自我对弈，262144 个环境决策。
-- `psro-superhuman-release-v1`：超人赛道 OpenSpiel PSRO，4 轮种群扩展，每次响应训练 262144 个决策。
+- `psro-superhuman-memory-v4`：超人赛道 OpenSpiel PSRO，4 轮种群扩展，每次响应训练 262144 个决策。此前三个运行在游戏启动阶段失败，未进入响应训练。
+- `recurrent-ppo-superhuman-continued-v2`：从旧超人循环 PPO 的双座位模型继续，每座位增加 1048576 个决策，保留网络及优化器状态。
 
 提交 `b90fae4` 在服务器全量 pytest 通过 **163 项**，耗时 19.37 秒。新增检查覆盖 PSRO 种群模型保存、混合策略加载、座位区分、每局固定成员和文件指纹验证。检查还发现并修复了 OpenSpiel PSRO 导入所需的 `matplotlib` 依赖缺失，以及 Gymnasium 的 NumPy 整数无法直接保存为 JSON 的问题。四条提示仍来自 TorchRL 对 PettingZoo 版本的兼容提醒。这些检查不构成策略胜率证据。
+
+## 新增实例的启动诊断
+
+新增训练在标题场景前退出，退出码为 `0xC0000005`。`startup-diagnosis-eight-v2/worker.log` 记录到桥接模块加载后初始化共享映射时发生写入异常。服务器系统盘只剩 11 MB；进程映射表确认 Wine 把匿名共享映射保存到了该磁盘，而不是配置的临时内存目录。[Wine 10.0 的实现](https://github.com/wine-mirror/wine/blob/wine-10.0/server/mapping.c)使用服务目录创建这些临时文件。
+
+独立运行环境将这些映射改为内存文件后，`startup-memory-eight-v4` 的 8 实例启动诊断通过，耗时 46.122610 秒，每实例仅推进 1 帧。该检查用于定位启动错误，不能作为完整对局证据。逐个启动的候选改动没有解决错误，已撤回。
+
+随后增加完整对局检查时，又在原生资源读取函数的 `0x0040B39B` 出现空指针异常。独立 Wine 服务当时的文件描述符软上限为 1024，已有任务占用了 930 个描述符。提高该服务的软上限至 65536 后，重新运行 `state-memory-eight-full-v2`；它要求 8 个实例各完成 2 局，每局最多 7200 帧。该运行的最终结果仍需检查。上述运行环境修正未修改游戏程序和策略接口。
