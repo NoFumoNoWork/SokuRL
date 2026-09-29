@@ -15,6 +15,30 @@ INPUT_HISTORY_CAPACITY = 4096
 MAX_OBJECTS_PER_PLAYER = 64
 NO_FRAME = (1 << 64) - 1
 
+
+def wait_for_steps(clients, sequences, frames, timeout):
+    """Wait for exact completed frames, including independently reset slots."""
+    if not (len(clients) == len(sequences) == len(frames)) or timeout <= 0:
+        raise ValueError("invalid step wait arguments")
+    pending = set(range(len(clients)))
+    snapshots = [None] * len(clients)
+    deadline = time.monotonic() + timeout
+    while pending:
+        for index in tuple(pending):
+            block = clients[index].block
+            if block.currentFrame > frames[index]:
+                raise RuntimeError("game advanced past requested frame")
+            if (block.ackSeq == sequences[index] and block.currentFrame == frames[index]
+                    and block.runState == 1):
+                snapshot = clients[index].snapshot()
+                if (snapshot.ack_seq == sequences[index] and snapshot.game_frame == frames[index]
+                        and snapshot.run_state_name == "PAUSED"):
+                    snapshots[index] = snapshot
+                    pending.remove(index)
+        if pending and time.monotonic() >= deadline:
+            raise TimeoutError(f"simulation step timed out for workers {sorted(pending)}")
+    return snapshots
+
 COMMAND_INPUT = 1
 COMMAND_RELEASE = 2
 COMMAND_RUN = 3
@@ -25,6 +49,7 @@ COMMAND_GOTO_FRAME = 7
 COMMAND_MENU_CONFIRM = 8
 COMMAND_STEP_WITH_INPUTS = 9
 COMMAND_APPLY_SIMPLE_STATE = 10
+COMMAND_RESET_EPISODE = 11
 
 RESULT_NAMES = {
     0: "IDLE", 1: "ACCEPTED", 2: "COMPLETE", 3: "RELEASED",
@@ -366,6 +391,37 @@ class BridgeClient:
         sequence = (block.commandSeq + 1) & 0xFFFFFFFF or 1
         block.commandSeq = sequence
         return sequence
+
+    def reset_episode(self, seed):
+        if type(seed) is not int or not 0 <= seed < 0xFFFFFFFF:
+            raise ValueError("reset seed must be in [0, 0xFFFFFFFF)")
+        return self._send(COMMAND_RESET_EPISODE, argument=seed)
+
+    def wait_for_reset(self, sequence, segment, seed, timeout):
+        if timeout <= 0:
+            raise ValueError("reset timeout must be positive")
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            snapshot = self.snapshot()
+            if snapshot.ack_seq == sequence:
+                if snapshot.result_code not in (2, 8):
+                    raise RuntimeError(f"reset rejected with result {snapshot.result_code}")
+                raw = snapshot.latest
+                if (snapshot.in_gameplay and snapshot.checkpoint_valid and
+                        snapshot.run_state_name == "PAUSED" and snapshot.game_frame == 0 and
+                        raw.frameId == 0 and raw.segmentId == segment and raw.randomSeed == seed):
+                    if raw.stateHash != calculate_state_hash(raw):
+                        raise RuntimeError("reset frame-zero hash mismatch")
+                    self.drain_frames()
+                    return raw
+            time.sleep(.001)
+        raw = snapshot.latest
+        raise TimeoutError(f"PID {self.pid}: reset did not reach a new paused frame zero; "
+                           f"command={sequence} ack={snapshot.ack_seq} result={snapshot.result_code} "
+                           f"gameplay={snapshot.in_gameplay} paused={snapshot.run_state_name} "
+                           f"frame={snapshot.game_frame} segment={raw.segmentId}/{segment} "
+                           f"seed={raw.randomSeed}/{seed} scene={raw.sceneId} "
+                           f"checkpoint={snapshot.checkpoint_valid}")
 
     @staticmethod
     def _write_input(target: LogicalInput, values: tuple[int, ...] | LogicalInput) -> None:

@@ -1,0 +1,37 @@
+defaults:
+  - algorithm: nfsp
+  - rules: default
+  - wrappers: raw
+  - _self_
+  - track: human
+
+seed: 1732
+device: cuda:0
+num_envs: 16
+episode:
+  max_frames: 7200
+  history_frames: 4
+  visibility:
+    pixel_quantum: 8
+    minimum_alpha: 0.5
+    hp_quantum: 0.02
+    spirit_quantum: 0.1
+    # Approximate dimensions in game coordinates at camera scale 1.
+    player_width: 48.0
+    player_height: 96.0
+    object_diameter: 16.0
+    minimum_visible_fraction: 0.25
+runtime:
+  mute_audio: true
+  # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
+  command: ???
+  cwd: ${hydra:runtime.cwd}
+  timeout: 300.0
+  launch_timeout: 180.0
+output: logs/training/${algorithm.name}-${now:%Y%m%d-%H%M%S}
+
+hydra:
+  run:
+    dir: logs/hydra/train-${now:%Y%m%d-%H%M%S}
+  job:
+    chdir: false

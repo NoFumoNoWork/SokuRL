@@ -1,0 +1,23 @@
+name: ppo
+policy_type: mlp
+players: [0, 1]
+initial_policies:
+  player_0: {kind: fresh}
+  player_1: {kind: fresh}
+opponents: ${rules.roster}
+rules: ${rules}
+timesteps_per_player: 262144
+checkpoint_every: 65536
+timeout_payoff: zero_at_horizon
+ppo:
+  learning_rate: 0.0003
+  n_steps: 2048
+  batch_size: 256
+  n_epochs: 10
+  gamma: 1.0
+  gae_lambda: 0.95
+  clip_range: 0.2
+  ent_coef: 0.01
+  policy_kwargs:
+    net_arch: [256, 256]
+  verbose: 1

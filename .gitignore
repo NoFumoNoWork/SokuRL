@@ -16,6 +16,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+.venv-linux/
+config/local/
 venv/
 dist/
 build/

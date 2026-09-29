@@ -1,0 +1,71 @@
+"""Read an exact simulation frame from the native RGB image mapping."""
+import ctypes
+import struct
+import time
+
+from soku_rl.pixels import RGBFrame
+from soku_rl.render_state import CapturedScene, RenderSnapshot, RENDER_STATE_SIZE
+
+import bridge_shared
+
+
+HEADER = struct.Struct("<IIiiQIIII")
+WIDTH, HEIGHT = 320, 240
+PIXEL_OFFSET = HEADER.size + RENDER_STATE_SIZE
+MAPPING_SIZE = PIXEL_OFFSET + WIDTH * HEIGHT * 3
+
+
+class ImageClient:
+    def __init__(self, pid):
+        _kernel32 = bridge_shared._kernel32
+        self.handle = _kernel32.OpenFileMappingW(4, False, rf"Local\SokuRLImage_{pid}")
+        if not self.handle:
+            raise OSError(ctypes.get_last_error(), "image mapping is unavailable")
+        self.view = _kernel32.MapViewOfFile(self.handle, 4, 0, 0, MAPPING_SIZE)
+        if not self.view:
+            error = ctypes.get_last_error()
+            _kernel32.CloseHandle(self.handle)
+            self.handle = None
+            raise OSError(error, "cannot map native images")
+
+    def read(self, frame, timeout):
+        data = self._read(frame, timeout, MAPPING_SIZE)
+        rgb = RGBFrame(frame, WIDTH, HEIGHT, data[PIXEL_OFFSET:])
+        render = RenderSnapshot.decode(data[HEADER.size:PIXEL_OFFSET])
+        return CapturedScene(rgb, render)
+
+    def read_state(self, frame, timeout):
+        data = self._read(frame, timeout, PIXEL_OFFSET)
+        return RenderSnapshot.decode(data[HEADER.size:PIXEL_OFFSET])
+
+    def _read(self, frame, timeout, size):
+        if type(frame) is not int or frame < 0 or timeout <= 0 or not self.view:
+            raise ValueError("read requires an open mapping, frame, and positive timeout")
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            first = ctypes.c_int32.from_address(self.view + 8).value
+            if first > 0 and not first & 1:
+                data = ctypes.string_at(self.view, size)
+                last = ctypes.c_int32.from_address(self.view + 8).value
+                magic, version, sequence, result, captured, width, height, _, _ = HEADER.unpack_from(data)
+                if first == last == sequence:
+                    if magic != 0x474D4953 or version != 2 or (width, height) != (WIDTH, HEIGHT):
+                        raise RuntimeError("unsupported native image mapping")
+                    pending_reset = captured == 2**64 - 1 and result == -2147483638  # E_PENDING
+                    if captured > frame and not pending_reset:
+                        raise RuntimeError("image advanced beyond the requested simulation frame")
+                    if captured == frame:
+                        if result < 0:
+                            raise RuntimeError(f"native image capture failed: HRESULT {result & 0xFFFFFFFF:08X}")
+                        return data
+            time.sleep(0.001)
+        raise TimeoutError(f"no rendered image for simulation frame {frame}")
+
+    def close(self):
+        _kernel32 = bridge_shared._kernel32
+        if self.view:
+            _kernel32.UnmapViewOfFile(self.view)
+            self.view = None
+        if self.handle:
+            _kernel32.CloseHandle(self.handle)
+            self.handle = None

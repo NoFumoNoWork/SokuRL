@@ -9,6 +9,33 @@ authoritative simulator while adding dual-player logical control, structured
 per-frame state, deterministic reconstruction, isolated multi-process workers,
 and accelerated local VS simulation without replacing the game's battle logic.
 
+中文文档：[安装与验收](docs/installation.md) · [架构与能力边界](docs/architecture.md) · [状态决策树基线](docs/baselines.md) · [社区规则策略](docs/community-ai.md) · [双人博弈与胜率评估](docs/strategy-evaluation.md) · [后续开发计划](docs/development-plan.md)。
+
+实测报告：[Linux 并行采样与 RL 施工决策](docs/linux-performance.md)。
+
+`RL` 分支新增 PettingZoo 双人环境、TorchRL、BenchMARL IPPO、OpenSpiel
+NFSP/PSRO、规则策略池和图像观测。ABI 7 的 `ResetEpisode` 通过游戏内部场景
+生命周期重建对局并保留进程；完整训练轨迹、最终策略胜率和联网人机对战仍需
+继续验收。入口与边界见[双人环境文档](docs/multi-agent-env.md)。
+
+AI 工作进程默认静音，配置为 `runtime.mute_audio=true`。模块只在该游戏进程内把音乐和音效的音量设为零，不修改系统总音量、原始游戏文件或保存的游戏音量配置。
+
+训练可选[学习包装层](docs/learning-wrappers.md)：血量势函数奖励、公开相对位置、己方按键历史和 90 种按键组合；完整 576 动作仍可选。固定规则对手训练支持 PPO 和带 LSTM 记忆的 RecurrentPPO，双人训练支持 IPPO、NFSP 和 PSRO。接口检查通过不代表已经达到最终胜率目标。
+
+使用标准 Windows 虚拟环境时，Python 路径为 `.venv\Scripts\python.exe`；
+下文的 `.venv\python.exe` 是原开发环境的路径。请使用实际存在的解释器路径。
+Python 依赖安装不包含游戏本体、SWRSToys 模块或原生桥接 DLL。
+
+SokuRL is a Windows control and state-extraction layer for Touhou Hisoutensoku
+(`th123`) 1.10a. It currently provides deterministic local Practice and VS Player
+automation, per-simulation-frame battle state, logical input control, replay
+seeking, reproducible scenario anchors, multi-instance isolation, and an
+experimentally validated faster-than-real-time VS worker.
+
+The public RL interface is a two-player PettingZoo environment. Training
+adapters cover PPO/RecurrentPPO, BenchMARL IPPO, and OpenSpiel NFSP/PSRO.
+Policy quality and network play still need validation.
+
 ## SokuRL Platform Highlights
 
 - **28,000+ sim-FPS** on one unlocked worker, about 467x real time
@@ -20,10 +47,11 @@ and accelerated local VS simulation without replacing the game's battle logic.
 - Deterministic reconstruction with up to **55 live objects** in one player's
   object list
 - Automated local VS Player startup with independent P1/P2 logical control
+- Two-player PettingZoo API with state and image observation paths
+- PPO, RecurrentPPO, IPPO, NFSP, and PSRO integration scaffolding
 
-The current implementation milestone is SokuRL Platform. The broader SokuRL
-research program will add policy learning, a PPO trainer, population self-play,
-skill and strategy learning, and online opponent adaptation.
+The stable simulation work remains SokuRL Platform. The `RL` branch layers the
+learning stack on top without renaming the bridge, CLI, ABI, or repository.
 
 ## Architecture
 
@@ -36,9 +64,9 @@ SokuRL
   |     +-- PID-isolated accelerated workers
   |
   +-- SokuRL Learning Stack
-        +-- trainer and policy               (next stage)
-        +-- population self-play             (future)
-        +-- opponent adaptation              (future)
+        +-- trainer and policy
+        +-- population/self-play adapters
+        +-- evaluation and opponent strategy tooling
 ```
 
 The platform's runtime topology is:
@@ -77,9 +105,10 @@ SokuRL Platform
 [x] faster-than-real-time local VS simulation
 
 SokuRL Learning Stack
-[ ] trainer-facing observation and action spaces
-[ ] reward design and PPO baseline
-[ ] population self-play
+[x] trainer-facing observation and action spaces
+[x] reward wrappers and PPO/RecurrentPPO adapters
+[x] IPPO, NFSP, and PSRO integration scaffolding
+[ ] validated policy-quality targets
 [ ] online opponent adaptation
 ```
 
@@ -585,7 +614,7 @@ PowerShell with write access to the repository:
 .\.venv\python.exe -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The host-side verification for this revision passed all 17 tests. A failed
+Run this suite on the host after changing native or RL integration code. A failed
 sandbox run can leave its `tests/tmp...` directory behind. List candidate
 directories first, then remove only the exact path confirmed to belong to the
 failed test:
@@ -597,6 +626,10 @@ Remove-Item -LiteralPath .\tests\tmp<confirmed-name> -Recurse -Force
 
 ## Known Limits
 
+The [rule policy pool](docs/rule-policy-pool.md) has 15 active policies, including
+ten stateful tactics. PPO training and policy evaluation use the same roster.
+The new tactics support both public state and diagnostic state observations.
+
 - Only th123 1.10a with the documented executable hash is supported.
 - Headless workers still create a window and initialize D3D, resources, and
   audio. SokuRL Platform is not a standalone reimplementation of the game.
@@ -606,8 +639,12 @@ Remove-Item -LiteralPath .\tests\tmp<confirmed-name> -Recurse -Force
   accepted projectile ScenarioRunner script controls `opponent: p1`.
 - `24C` remains an explicit raw input sequence rather than a named macro.
 - Checkpoints use deterministic short-range reconstruction, not raw savestates.
-- Trainer-facing spaces, rewards, PPO, self-play, and adaptation are not yet
-  implemented.
+- Native `GotoFrame` remains rejected; historical frame navigation is provided
+  by the Python fresh-process reconstruction path, not an in-process savestate.
+- `ResetEpisode` is experimental until long-horizon repeated reset traces pass
+  on the merged runtime.
+- RL interfaces and algorithm adapters exist, but final policy strength,
+  population quality, and network play are not accepted results yet.
 
 ## Repository Layout
 

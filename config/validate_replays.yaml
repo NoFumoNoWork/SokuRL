@@ -1,0 +1,13 @@
+defaults:
+  - train
+  - _self_
+replay_validation:
+  evaluation_directory: ???
+  trial_indices: ???
+  cycles: 1
+  # Use 0 to isolate repeated frame-zero resets during native crash diagnosis.
+  prefix_frames: 7200
+  next_seed: ???
+  # A diagnostic DLL hash permits changing only the bridge, with an explicit record.
+  bridge_artifact: recorded
+output: logs/validation/replay-reset-${now:%Y%m%d-%H%M%S}

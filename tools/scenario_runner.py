@@ -8,7 +8,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from bridge_shared import (
     ACTION_INPUTS,
@@ -19,8 +19,8 @@ from bridge_shared import (
     SimplePlayerState,
     SimpleStatePatch,
 )
-from frame_validation import InputPair, PracticeInstance, launch_checkpoint
-import sokurl
+if TYPE_CHECKING:
+    from frame_validation import PracticeInstance
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -167,6 +167,7 @@ def apply_patch(instance: PracticeInstance, patch: SimpleStatePatch) -> int:
 
 
 def load_anchor(name: str) -> PracticeInstance:
+    from frame_validation import InputPair, launch_checkpoint
     document = read_anchor(name)
     checkpoint = document["checkpoint"]
     instance = launch_checkpoint(checkpoint["random_seed"])
@@ -335,6 +336,7 @@ def compile_steps(steps: list[dict[str, Any]], facing: int) -> list[tuple[int, .
 
 
 def run_script(script: ScenarioScript, pid: int) -> dict[str, object]:
+    from frame_validation import InputPair
     anchor = read_anchor(script.anchor)
     with BridgeClient(pid) as client:
         snapshot = client.snapshot()
@@ -426,6 +428,7 @@ def main() -> int:
             return 0
         if args.command == "anchor" and args.anchor_command == "load":
             if args.pid is not None:
+                import sokurl
                 sokurl.shutdown(5.0, args.pid)
             instance = load_anchor(args.name)
             pid = instance.pid

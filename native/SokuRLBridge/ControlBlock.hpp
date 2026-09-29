@@ -18,6 +18,7 @@ enum class CommandType : std::uint32_t {
     None = 0, Input = 1, Release = 2, Run = 3, Pause = 4,
     StepFrames = 5, EstablishCheckpoint = 6, GotoFrame = 7,
     MenuConfirm = 8, StepWithInputs = 9, ApplySimpleState = 10,
+    ResetEpisode = 11,
 };
 
 enum class ResultCode : std::uint32_t {

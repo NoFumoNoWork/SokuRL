@@ -1,4 +1,7 @@
 #include "ControlBlock.hpp"
+#include "ImageCapture.hpp"
+#include "AudioMute.hpp"
+#include "SceneReset.hpp"
 
 #include <BattleManager.hpp>
 #include <BattleMode.hpp>
@@ -25,6 +28,7 @@ namespace
 {
 using SetInputsMethod = void (SokuLib::KeymapManager::*)();
 using BattleProcessMethod = int (SokuLib::Battle::*)();
+using BattleRenderMethod = int (SokuLib::Battle::*)();
 using BattleManagerProcessMethod = int (SokuLib::BattleManager::*)();
 using SelectProcessMethod = int (SokuLib::Select::*)();
 using TitleProcessMethod = int (SokuLib::Title::*)();
@@ -54,6 +58,10 @@ SokuRLBridge::BridgeMapping *g_mapping = nullptr;
 SokuRLBridge::ControlBlock *g_control = nullptr;
 SetInputsMethod g_originalSetInputs = nullptr;
 BattleProcessMethod g_originalBattleProcess = nullptr;
+BattleRenderMethod g_originalBattleRender = nullptr;
+bool g_captureImages = false;
+bool g_captureStateOnly = false;
+bool g_renderPending = true;
 BattleManagerProcessMethod g_originalBattleManagerProcess = nullptr;
 SelectProcessMethod g_originalSelectProcess = nullptr;
 TitleProcessMethod g_originalTitleProcess = nullptr;
@@ -83,6 +91,7 @@ bool g_activeInputEnabled = false;
 bool g_neutralPending = false;
 bool g_vsBootstrapArmed = false;
 bool g_vsBootstrapComplete = false;
+bool g_episodeResetRequested = false;
 bool g_headlessRender = false;
 bool g_unlimitedPacing = false;
 bool g_vsPauseAtStart = false;
@@ -212,9 +221,13 @@ void __declspec(naked) renderBranchDispatch()
     __asm {
         // Preserve the original JNE first. The injected JMP does not alter EFLAGS.
         jne originalSkip
-        cmp byte ptr [g_headlessRender], 0
-        je originalRender
         cmp dword ptr ds:[008A0044h], 5
+        jne originalRender
+        cmp byte ptr [g_headlessRender], 0
+        jne originalSkip
+        cmp byte ptr [g_captureImages], 0
+        je originalRender
+        cmp byte ptr [g_renderPending], 0
         je originalSkip
     originalRender:
         push 00407FB4h
@@ -227,7 +240,7 @@ void __declspec(naked) renderBranchDispatch()
 
 bool installHeadlessRenderHook()
 {
-    if (!g_headlessRender)
+    if (!g_headlessRender && !g_captureImages)
         return true;
 
     auto *branch = reinterpret_cast<unsigned char *>(RENDER_BRANCH);
@@ -632,6 +645,14 @@ void consumeCommand(bool gameplay)
         clearControlledInput(SokuRLBridge::ResultCode::Released, gameplay);
     } else if (!gameplay) {
         publishResult(SokuRLBridge::ResultCode::NotInGameplay);
+    } else if (type == SokuRLBridge::CommandType::ResetEpisode &&
+        g_vsBootstrapArmed && isLocalVersusGameplay() && argument < 0xFFFFFFFFULL) {
+        g_vsSeed = static_cast<std::uint32_t>(argument);
+        g_vsSeedRequested = true;
+        g_episodeResetRequested = true;
+        g_paused = true;
+        g_stepsRemaining = 0;
+        clearControlledInput(SokuRLBridge::ResultCode::Restarting, true);
     } else if (type == SokuRLBridge::CommandType::Input && isValidInput(input, duration)) {
         g_activeInputs[0] = toKeyInput(input);
         g_activeInputMask = 1;
@@ -907,6 +928,8 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
     const bool gameplay = isSupportedGameplay();
     store32(&g_control->inGameplay, gameplay ? 1U : 0U);
     consumeCommand(gameplay);
+    if (g_episodeResetRequested)
+        return 0;
     if (!gameplay) {
         g_battleActive = false;
         invalidateCheckpoint(SokuRLBridge::ResultCode::CheckpointInvalidated);
@@ -970,6 +993,7 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
         result = callSimulationUpdate(manager);
         ++g_currentFrame;
         appendRecordedFrame(captureState(manager, g_currentFrame));
+        g_renderPending = true;
         if (g_stepsRemaining)
             --g_stepsRemaining;
         if (result > 0 && result < 4)
@@ -996,6 +1020,11 @@ int __fastcall selectOnProcess(SokuLib::Select *select)
 
 int __fastcall titleOnProcess(SokuLib::Title *title)
 {
+    // Scene deletion is asynchronous. A new battle must not reuse global
+    // resources while the previous battle is still destroying them.
+    if (g_vsBootstrapArmed && !g_vsBootstrapComplete &&
+        !SokuRLBridge::retiredBattleSceneDestroyed())
+        return SokuLib::SCENE_TITLE;
     const auto result = (title->*g_originalTitleProcess)();
     if (!g_vsBootstrapArmed || g_vsBootstrapComplete)
         return result;
@@ -1024,12 +1053,60 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
 int __fastcall battleOnProcess(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleProcess)();
+    if (g_episodeResetRequested) {
+        SokuRLBridge::retireBattleScene(battle);
+        // Return through the engine's normal scene lifecycle. It destroys the
+        // old battle asynchronously; titleOnProcess waits for that destruction
+        // before loading the next one. The process and DLL stay alive.
+        g_episodeResetRequested = false;
+        g_vsBootstrapComplete = false;
+        g_battleActive = false;
+        g_checkpointArmed = false;
+        g_checkpointSeedRequested = false;
+        g_restartRequested = false;
+        g_awaitingRestart = false;
+        g_reconstructing = false;
+        g_currentFrame = 0;
+        ++g_segmentId;
+        g_history.clear();
+        g_effectiveInputs[0] = {};
+        g_effectiveInputs[1] = {};
+        g_neutralPending = false;
+        g_renderPending = true;
+        beginStatusWrite();
+        g_control->inGameplay = 0;
+        g_control->checkpointValid = 0;
+        g_control->reconstructing = 0;
+        g_control->currentFrame = 0;
+        g_control->recordedFrames = 0;
+        g_control->stepsRemaining = 0;
+        g_control->ringReadSeq = 0;
+        g_control->ringWriteSeq = 0;
+        g_control->droppedFrames = 0;
+        g_control->lastVerifiedFrame = SokuRLBridge::NO_FRAME;
+        g_control->firstDivergentFrame = SokuRLBridge::NO_FRAME;
+        endStatusWrite();
+        SokuRLBridge::resetImageCapture();
+        return SokuLib::SCENE_TITLE;
+    }
+    if (g_captureStateOnly && g_battleActive && g_control && isSupportedGameplay())
+        SokuRLBridge::captureImage(g_currentFrame);
     if (!g_restartRequested)
         return result;
     g_restartRequested = false;
     g_awaitingRestart = true;
     SokuLib::gameParams.randomSeed = g_checkpoint.randomSeed;
     return SokuLib::SCENE_LOADING;
+}
+
+int __fastcall battleOnRender(SokuLib::Battle *battle)
+{
+    const auto result = (battle->*g_originalBattleRender)();
+    if (g_battleActive && g_control && isSupportedGameplay()) {
+        SokuRLBridge::captureImage(g_currentFrame);
+        g_renderPending = false;
+    }
+    return result;
 }
 
 bool createMapping()
@@ -1063,6 +1140,7 @@ bool createMapping()
 
 void closeMapping()
 {
+    SokuRLBridge::closeImageCapture();
     if (g_control)
         store32(&g_control->connected, 0);
     if (g_mapping)
@@ -1098,11 +1176,19 @@ bool installHooks()
         &SokuLib::VTable_Select.onProcess, selectOnProcess);
     g_originalTitleProcess = SokuLib::TamperDword(
         &SokuLib::VTable_Title.onProcess, titleOnProcess);
+    const bool resetBarrierInstalled = SokuRLBridge::installSceneResetBarrier();
+    if (g_captureImages)
+        g_originalBattleRender = SokuLib::TamperDword(
+            &SokuLib::VTable_Battle.onRender, battleOnRender);
+    g_originalBattleProcess = SokuLib::TamperDword(
+        &SokuLib::VTable_Battle.onProcess, battleOnProcess);
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
     return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
-        g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess;
+        g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess &&
+        (!g_captureImages || g_originalBattleRender) &&
+        g_originalBattleProcess && resetBarrierInstalled;
 }
 }
 
@@ -1118,6 +1204,22 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     if (!createMapping())
         return false;
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
+    if (environmentValue(L"SOKURL_MUTE_AUDIO", g_headlessRender ? 1U : 0U) == 1 &&
+        !SokuRLBridge::installAudioMute()) {
+        closeMapping();
+        return false;
+    }
+    const auto captureMode = environmentValue(L"SOKURL_CAPTURE_IMAGES", 0);
+    g_captureImages = captureMode != 0;
+    g_captureStateOnly = captureMode == 2;
+    if (g_captureImages) {
+        // Images require the original renderer, even when the window is unattended.
+        g_headlessRender = g_captureStateOnly;
+        if (!SokuRLBridge::initializeImageCapture(captureMode == 1)) {
+            closeMapping();
+            return false;
+        }
+    }
     g_unlimitedPacing = environmentValue(L"SOKURL_UNLIMITED_PACING", 0) == 1;
     g_vsBootstrapArmed = environmentValue(L"SOKURL_VS_BOOTSTRAP", 0) == 1;
     if (g_vsBootstrapArmed) {

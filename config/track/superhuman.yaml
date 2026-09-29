@@ -1,0 +1,6 @@
+# @package _global_
+track: superhuman
+episode:
+  decision_frames: 1
+  latency_frames: 0
+  observation_mode: diagnostic_state

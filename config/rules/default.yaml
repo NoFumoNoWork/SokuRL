@@ -1,0 +1,86 @@
+roster:
+  - rush
+  - zoning
+  - counter
+  - community_combo
+  - community_guard
+  - pressure
+  - footsies
+  - anti_air
+  - air_rush
+  - bullet_wall
+  - graze_hunter
+  - hit_and_run
+  - corner_trap
+  - spirit_siege
+  - skill_cycle
+tree:
+  melee_range: 85.0
+  desired_min: 150.0
+  desired_max: 260.0
+  vertical_tolerance: 90.0
+  spirit_reserve: 0.2
+  attack_interval: 8
+  projectile_horizon: 12.0
+  projectile_radius: 75.0
+  arena_min: 0.0
+  arena_max: 1280.0
+  wall_margin: 100.0
+overrides:
+  idle: {}
+  rush: {}
+  zoning:
+    desired_min: 260.0
+    desired_max: 440.0
+    attack_interval: 24
+  counter:
+    desired_min: 160.0
+    desired_max: 260.0
+    attack_interval: 12
+community:
+  community_combo:
+    movement: rush
+    guard_range: 180.0
+    special_min: 160.0
+    special_max: 420.0
+    special_cooldown: 90
+    wakeup_frames: 20
+  community_guard:
+    movement: counter
+    guard_range: 180.0
+    special_min: 180.0
+    special_max: 420.0
+    special_cooldown: 120
+    wakeup_frames: 20
+tactical_defaults:
+  guard_frames: 12
+  retreat_frames: 36
+  burst_frames: 18
+  special_cooldown: 90
+  spirit_recover: 0.6
+  shot_interval: 24
+  cycle_frames: 96
+tactical:
+  pressure:
+    movement: rush
+  footsies:
+    movement: counter
+  anti_air:
+    movement: counter
+  air_rush:
+    movement: rush
+  bullet_wall:
+    movement: zoning
+  graze_hunter:
+    movement: counter
+  hit_and_run:
+    movement: counter
+  corner_trap:
+    movement: rush
+  spirit_siege:
+    movement: zoning
+  skill_cycle:
+    movement: zoning
+screen:
+  distance_scale: 0.5
+  damage_guard_frames: 12

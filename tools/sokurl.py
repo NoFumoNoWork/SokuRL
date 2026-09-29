@@ -189,10 +189,22 @@ def _read_process_values(pid: int) -> tuple[int, int, int, int, int | None, int 
 
 
 def _expected_characters() -> tuple[int, int]:
-    config = configparser.ConfigParser()
-    if not config.read(SKIPINTRO_INI, encoding="ascii"):
-        raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
-    return config.getint("P1", "character"), config.getint("P2", "character")
+    mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
+    if not mutex:
+        raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
+    acquired = False
+    try:
+        acquired = kernel32.WaitForSingleObject(mutex, 180000) == WAIT_OBJECT_0
+        if not acquired:
+            raise TimeoutError("timed out reading the game launch configuration")
+        config = configparser.ConfigParser()
+        if not config.read(SKIPINTRO_INI, encoding="ascii"):
+            raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
+        return config.getint("P1", "character"), config.getint("P2", "character")
+    finally:
+        if acquired:
+            kernel32.ReleaseMutex(mutex)
+        kernel32.CloseHandle(mutex)
 
 
 def _runtime_state(process: psutil.Process) -> RuntimeState:
@@ -284,31 +296,34 @@ def practice(timeout: float, pid: int | None) -> int:
     raise RuntimeError(f"timed out after {timeout:.1f}s waiting for PRACTICE_READY")
 
 
-def _launch_vs_from_title(
+def _launch_vs_group_from_title(
+    worker_count: int,
     timeout: float,
     *,
     headless: bool = False,
     unlimited: bool = False,
     seed: int | None = None,
     pause_at_start: bool = False,
-) -> psutil.Process:
+    seeds: tuple[int, ...] | None = None,
+    capture_images: bool = False,
+    capture_state: bool = False,
+) -> list[psutil.Process]:
+    if worker_count < 1:
+        raise ValueError("worker_count must be positive")
     if unlimited and not headless:
         raise ValueError("--unlimited requires --headless")
-    config = configparser.ConfigParser()
-    if not config.read(SKIPINTRO_INI, encoding="ascii"):
-        raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
+    if seeds is not None:
+        if seed is not None or len(seeds) != worker_count:
+            raise ValueError("provide one seed per worker, without a common seed")
+        if any(type(s) is not int or not 0 <= s < 0xFFFFFFFF for s in seeds):
+            raise ValueError("native seeds must be in [0, 0xFFFFFFFF)")
     env = os.environ.copy()
     env.update({
         "SOKURL_VS_BOOTSTRAP": "1",
-        "SOKURL_VS_P1_CHARACTER": str(config.getint("P1", "character")),
-        "SOKURL_VS_P2_CHARACTER": str(config.getint("P2", "character")),
-        "SOKURL_VS_P1_PALETTE": str(config.getint("P1", "palette")),
-        "SOKURL_VS_P2_PALETTE": str(config.getint("P2", "palette")),
-        "SOKURL_VS_P1_DECK": str(config.getint("P1", "deck")),
-        "SOKURL_VS_P2_DECK": str(config.getint("P2", "deck")),
         "SOKURL_VS_STAGE": "0",
         "SOKURL_VS_MUSIC": "0",
         "SOKURL_HEADLESS_RENDER": "1" if headless else "0",
+        "SOKURL_CAPTURE_IMAGES": "1" if capture_images else "2" if capture_state else "0",
         "SOKURL_UNLIMITED_PACING": "1" if unlimited else "0",
         "SOKURL_VS_PAUSE_AT_START": "1" if pause_at_start else "0",
     })
@@ -322,36 +337,72 @@ def _launch_vs_from_title(
     mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
     if not mutex:
         raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
-    process = None
+    processes: list[psutil.Process] = []
     original = b""
     try:
         if kernel32.WaitForSingleObject(mutex, INFINITE) != WAIT_OBJECT_0:
             raise OSError(ctypes.get_last_error(), "WaitForSingleObject failed")
         original = SKIPINTRO_INI.read_bytes()
+        config = configparser.ConfigParser()
+        config.read_string(original.decode("ascii"))
+        for player in ("P1", "P2"):
+            for field in ("character", "palette", "deck"):
+                env[f"SOKURL_VS_{player}_{field.upper()}"] = str(config.getint(player, field))
         title_config, replacements = re.subn(
             rb"(?m)^(\s*scene_id\s*=\s*)\d+(\s*)$", rb"\g<1>2\g<2>", original, count=1
         )
         if replacements != 1:
             raise RuntimeError("SkipIntro scene_id setting was not found")
         SKIPINTRO_INI.write_bytes(title_config)
-        process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=env).pid)
-        deadline = time.monotonic() + min(timeout, 10.0)
+        for index in range(worker_count):
+            process_env = env.copy()
+            if seeds is not None:
+                process_env["SOKURL_VS_SEED"] = str(seeds[index])
+            process = psutil.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=process_env)
+            processes.append(process)
+        pending = list(processes)
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            if not process.is_running():
-                raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
-            try:
-                _, mode, _, _, _, _ = _read_process_values(process.pid)
-                if mode == BATTLE_MODE_VSPLAYER:
-                    return process
-            except OSError:
-                pass
+            for process in pending[:]:
+                exit_code = process.poll()
+                if exit_code is not None:
+                    raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid}, "
+                                       f"exit=0x{exit_code & 0xFFFFFFFF:08X})")
+                try:
+                    _, mode, _, _, _, _ = _read_process_values(process.pid)
+                    if mode == BATTLE_MODE_VSPLAYER:
+                        pending.remove(process)
+                except OSError:
+                    pass
+            if not pending:
+                return processes
             time.sleep(0.01)
-        raise RuntimeError(f"Title bootstrap timeout for PID {process.pid}")
+        raise RuntimeError(f"Title bootstrap timeout for PIDs {[p.pid for p in pending]}")
+    except Exception:
+        for process in processes:
+            if process.is_running():
+                process.terminate()
+                process.wait(timeout=5.0)
+        raise
     finally:
         if original:
             SKIPINTRO_INI.write_bytes(original)
         kernel32.ReleaseMutex(mutex)
         kernel32.CloseHandle(mutex)
+
+
+def _launch_vs_from_title(
+    timeout: float,
+    *,
+    headless: bool = False,
+    unlimited: bool = False,
+    seed: int | None = None,
+    pause_at_start: bool = False,
+) -> psutil.Process:
+    return _launch_vs_group_from_title(
+        1, timeout, headless=headless, unlimited=unlimited,
+        seed=seed, pause_at_start=pause_at_start,
+    )[0]
 
 
 def versus(timeout: float, headless: bool = False, unlimited: bool = False) -> int:

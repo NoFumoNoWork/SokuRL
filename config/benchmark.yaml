@@ -1,0 +1,14 @@
+defaults:
+  - train
+  - evaluation: validation
+  - _self_
+candidate:
+  name: learned
+  player_0: ???
+  player_1: ???
+benchmark:
+  opponents: ${rules.roster}
+  world_seeds: ${evaluation.world_seeds}
+  policy_seed: ${evaluation.policy_seed}
+  alpha: 0.05
+output: logs/benchmark/${candidate.name}-${track}-${evaluation.name}-${now:%Y%m%d-%H%M%S}

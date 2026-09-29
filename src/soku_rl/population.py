@@ -1,0 +1,113 @@
+"""Immutable policy snapshots and vector payoff sampling for a strategy population."""
+from dataclasses import dataclass
+import hashlib
+
+import numpy as np
+import torch
+
+from .env.encoding import AGENTS
+
+
+@dataclass(frozen=True)
+class UniformPolicy:
+    name: str
+    num_actions: int
+
+    @property
+    def fingerprint(self):
+        return f"uniform-{self.num_actions}-v1"
+
+    def spawn(self, seed):
+        return UniformEpisode(np.random.default_rng(seed), self.num_actions)
+
+
+@dataclass
+class UniformEpisode:
+    rng: object
+    num_actions: int
+
+    def act(self, observation):
+        return int(self.rng.integers(self.num_actions))
+
+
+class PPOPolicy:
+    def __init__(self, name, model, path):
+        self.name, self.model, self.path = name, model, path
+        self.model.policy.set_training_mode(False)
+        self.fingerprint = hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def spawn(self, seed):
+        return PPOEpisode(self.model, np.random.default_rng(seed))
+
+
+@dataclass
+class PPOEpisode:
+    model: object
+    rng: object
+
+    def act(self, observation):
+        with torch.no_grad():
+            tensor, _ = self.model.policy.obs_to_tensor(observation)
+            distribution = self.model.policy.get_distribution(tensor).distribution
+            probabilities = distribution.probs[0].detach().cpu().numpy().astype(np.float64)
+        probabilities /= probabilities.sum()
+        return int(self.rng.choice(len(probabilities), p=probabilities))
+
+
+class MixturePolicy:
+    """Select one frozen population member for the whole episode."""
+    def __init__(self, name, members, probabilities, identity):
+        weights = np.asarray(probabilities, dtype=np.float64)
+        if (not members or weights.shape != (len(members),) or not np.isfinite(weights).all()
+                or (weights < 0).any() or not np.isclose(weights.sum(), 1.)):
+            raise ValueError("population weights must form a probability distribution")
+        self.name, self.members, self.fingerprint = name, tuple(members), identity
+        self.probabilities = weights / weights.sum()
+        self.probabilities.setflags(write=False)
+
+    def spawn(self, seed):
+        rng = np.random.default_rng(seed)
+        member = self.members[int(rng.choice(len(self.members), p=self.probabilities))]
+        return member.spawn(int(rng.integers(0, 0xFFFFFFFF)))
+
+
+class PopulationEvaluator:
+    """Evaluate role-specific policies; never swap player populations implicitly."""
+    def __init__(self, env, seed, timeout_payoff):
+        if timeout_payoff != "zero_at_horizon":
+            raise ValueError("PSRO requires the declared finite-horizon payoff")
+        self.env = env
+        self.rng = np.random.default_rng(seed)
+        self.records = []
+
+    def evaluate(self, policies, num_episodes):
+        if len(policies) != 2 or type(num_episodes) is not int or num_episodes < 1:
+            raise ValueError("two policies and a positive episode count required")
+        total = np.zeros(2)
+        for start in range(0, num_episodes, self.env.num_envs):
+            count = min(self.env.num_envs, num_episodes - start)
+            seeds = {s: int(self.rng.integers(0, 0xFFFFFFFF)) for s in range(count)}
+            private_seeds = {s: tuple(int(self.rng.integers(0, 0xFFFFFFFF)) for _ in AGENTS)
+                             for s in seeds}
+            actors = {s: tuple(p.spawn(z) for p, z in zip(policies, private_seeds[s], strict=True))
+                      for s in seeds}
+            observations, _ = self.env.reset(seeds)
+            returns = {s: np.zeros(2) for s in seeds}
+            while observations:
+                actions = {s: {a: actors[s][i].act(obs[a]) for i, a in enumerate(AGENTS)}
+                           for s, obs in observations.items()}
+                next_obs, rewards, terms, truncs, infos = self.env.step(actions)
+                for slot in list(next_obs):
+                    returns[slot] += [rewards[slot][a] for a in AGENTS]
+                    if terms[slot][AGENTS[0]] or truncs[slot][AGENTS[0]]:
+                        total += returns[slot]
+                        self.records.append({
+                            "policies": [p.name for p in policies],
+                            "fingerprints": [p.fingerprint for p in policies],
+                            "world_seed": seeds[slot], "policy_seeds": private_seeds[slot],
+                            "returns": returns[slot].tolist(),
+                            "final": infos[slot][AGENTS[0]],
+                        })
+                        del next_obs[slot]
+                observations = next_obs
+        return total / num_episodes

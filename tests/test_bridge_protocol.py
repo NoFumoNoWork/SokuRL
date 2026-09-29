@@ -82,7 +82,14 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(bridge_shared.COMMAND_MENU_CONFIRM, 8)
         self.assertEqual(bridge_shared.COMMAND_STEP_WITH_INPUTS, 9)
         self.assertEqual(bridge_shared.COMMAND_APPLY_SIMPLE_STATE, 10)
+        self.assertEqual(bridge_shared.COMMAND_RESET_EPISODE, 11)
         self.assertEqual(bridge_shared.RESULT_NAMES[12], "CHECKPOINT_RESTORE_UNSUPPORTED")
+
+    def test_invalid_reset_seed_is_rejected_before_accessing_process_memory(self):
+        client = bridge_shared.BridgeClient.__new__(bridge_shared.BridgeClient)
+        for seed in (-1, 0xFFFFFFFF, True, 1.5):
+            with self.assertRaises(ValueError):
+                client.reset_episode(seed)
 
     def test_required_actions_and_axis_convention(self) -> None:
         self.assertEqual(bridge_shared.ACTION_INPUTS["LEFT"][:2], (-1, 0))

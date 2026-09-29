@@ -1,0 +1,25 @@
+name: nfsp
+episodes: 256
+checkpoint_every: 64
+timeout_payoff: zero_at_horizon
+response_update: bounded_double_q
+agent:
+  hidden_layers_sizes: [256, 256]
+  reservoir_buffer_capacity: 20000
+  anticipatory_param: 0.1
+  batch_size: 128
+  learn_every: 32
+  rl_learning_rate: 0.0003
+  sl_learning_rate: 0.0003
+  min_buffer_size_to_learn: 1024
+  replay_buffer_capacity: 20000
+  update_target_network_every: 1000
+  weight_update_coeff: 0.995
+  discount_factor: 1.0
+  epsilon_start: 0.1
+  epsilon_end: 0.01
+  epsilon_decay_duration: 1000000
+  epsilon_decay_schedule_str: linear
+  optimizer_str: adam
+  loss_str: huber
+  gradient_clipping: 10.0
