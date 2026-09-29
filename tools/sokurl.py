@@ -358,14 +358,16 @@ def _launch_vs_group_from_title(
             process_env = env.copy()
             if seeds is not None:
                 process_env["SOKURL_VS_SEED"] = str(seeds[index])
-            process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=process_env).pid)
+            process = psutil.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=process_env)
             processes.append(process)
         pending = list(processes)
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             for process in pending[:]:
-                if not process.is_running():
-                    raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
+                exit_code = process.poll()
+                if exit_code is not None:
+                    raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid}, "
+                                       f"exit=0x{exit_code & 0xFFFFFFFF:08X})")
                 try:
                     _, mode, _, _, _, _ = _read_process_values(process.pid)
                     if mode == BATTLE_MODE_VSPLAYER:
