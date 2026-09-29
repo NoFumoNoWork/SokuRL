@@ -30,6 +30,8 @@ def main(cfg):
         raise ValueError("distinct valid plan indices are required")
     if type(validation["cycles"]) is not int or validation["cycles"] < 1:
         raise ValueError("cycles must be a positive integer")
+    if type(validation["prefix_frames"]) is not int or validation["prefix_frames"] < 0:
+        raise ValueError("prefix_frames must be a nonnegative integer")
     if type(validation["next_seed"]) is not int or not 0 <= validation["next_seed"] < 0xFFFFFFFF:
         raise ValueError("next_seed must be a supported native seed")
     source_config = OmegaConf.to_container(OmegaConf.load(source / "config.yaml"), resolve=True)
@@ -97,26 +99,32 @@ def main(cfg):
                 report["stage"] = {"cycle": cycle, "operation": "replay"}
                 save()
                 while states:
-                    for slot, state in states.items():
-                        if state.frame % episode.decision_frames == 0:
-                            decision = actions[slot][state.frame // episode.decision_frames]
-                            controls[slot].submit(state.frame,
-                                {agent: interface.command(decision[i]) for i, agent in enumerate(AGENTS)})
-                    states = backend.step({slot: controls[slot].inputs(state.frame) for slot, state in states.items()})
                     for slot in list(states):
                         state = states[slot]
-                        digests[slot].update(state.diagnostics["hash"].encode())
-                        outcome = state.outcome.value if state.ended else "time_limit"
-                        if state.ended or state.frame >= trials[slot]["frames"]:
-                            if state.frame != trials[slot]["frames"] or outcome != trials[slot]["outcome"]:
+                        limit = min(trials[slot]["frames"], validation["prefix_frames"])
+                        if state.ended or state.frame >= limit:
+                            complete = limit == trials[slot]["frames"]
+                            outcome = state.outcome.value if state.ended or not complete else "time_limit"
+                            if state.frame != limit or (complete and outcome != trials[slot]["outcome"]):
                                 raise RuntimeError(f"trial {selected[slot]} changed outcome or length: {state.frame}, {outcome}")
                             digest = digests[slot].hexdigest()
                             if cycle and digest != reference[slot]:
                                 raise RuntimeError(f"trial {selected[slot]} changed its native state trajectory")
                             reference[slot] = digest
                             current["episodes"].append({"slot": slot, "frames": state.frame, "outcome": outcome,
-                                "state_trajectory_sha256": digest, "final": dict(state.diagnostics)})
+                                "complete_replay": complete, "state_trajectory_sha256": digest,
+                                "final": dict(state.diagnostics)})
                             del states[slot]
+                    if not states:
+                        break
+                    for slot, state in states.items():
+                        if state.frame % episode.decision_frames == 0:
+                            decision = actions[slot][state.frame // episode.decision_frames]
+                            controls[slot].submit(state.frame,
+                                {agent: interface.command(decision[i]) for i, agent in enumerate(AGENTS)})
+                    states = backend.step({slot: controls[slot].inputs(state.frame) for slot, state in states.items()})
+                    for slot, state in states.items():
+                        digests[slot].update(state.diagnostics["hash"].encode())
                 report["cycles"].append(current)
                 report["stage"] = {"cycle": cycle, "operation": "reset_after_replay"}
                 save()
