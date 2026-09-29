@@ -55,7 +55,9 @@ canonical FNV-1a-64 hash and a field-by-field diff after each frame.
 
 ## Shared memory ABI
 
-ABI version 6 uses 4-byte packing:
+ABI version 7 uses 4-byte packing. Spirit fields are signed 32-bit ABI values
+that preserve the game's signed 16-bit resource semantics, including transient
+negative values. The structure sizes are unchanged from version 6:
 
 - 10884-byte `ControlBlock` with sequenced commands and a seqlock-protected live
   `RawFrameState`.

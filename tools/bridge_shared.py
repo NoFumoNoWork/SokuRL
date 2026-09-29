@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 MAPPING_NAME_FORMAT = r"Local\SokuRLBridge_{}"
 CONTROL_MAGIC = 0x554B4F53
-CONTROL_VERSION = 6
+CONTROL_VERSION = 7
 MAX_DURATION_FRAMES = 10_000
 FRAME_RING_CAPACITY = 512
 INPUT_HISTORY_CAPACITY = 4096
@@ -78,7 +78,7 @@ class PlayerState(ctypes.Structure):
         ("x", ctypes.c_float), ("y", ctypes.c_float),
         ("speedX", ctypes.c_float), ("speedY", ctypes.c_float),
         ("facing", ctypes.c_int32), ("hp", ctypes.c_int32),
-        ("spirit", ctypes.c_uint32), ("maxSpirit", ctypes.c_uint32),
+        ("spirit", ctypes.c_int32), ("maxSpirit", ctypes.c_int32),
         ("cardGauge", ctypes.c_uint32), ("cardCount", ctypes.c_uint32),
         ("handIds", ctypes.c_int32 * 5),
         ("actionId", ctypes.c_uint32), ("sequenceId", ctypes.c_uint32),
@@ -112,7 +112,7 @@ class SimplePlayerState(ctypes.Structure):
         ("x", ctypes.c_float), ("y", ctypes.c_float),
         ("speedX", ctypes.c_float), ("speedY", ctypes.c_float),
         ("facing", ctypes.c_int32), ("hp", ctypes.c_int32),
-        ("spirit", ctypes.c_uint32), ("maxSpirit", ctypes.c_uint32),
+        ("spirit", ctypes.c_int32), ("maxSpirit", ctypes.c_int32),
         ("cardGauge", ctypes.c_uint32), ("cardCount", ctypes.c_uint32),
     ]
 
@@ -251,6 +251,14 @@ def _copy_struct(value: ctypes.Structure, kind: type[ctypes.Structure]):
     result = kind()
     ctypes.memmove(ctypes.addressof(result), ctypes.addressof(value), ctypes.sizeof(kind))
     return result
+
+
+def validate_simple_patch(patch: SimpleStatePatch) -> None:
+    for label, player in (("p1", patch.p1), ("p2", patch.p2)):
+        for field in ("spirit", "maxSpirit"):
+            value = getattr(player, field)
+            if not -(1 << 15) <= value < (1 << 15):
+                raise ValueError(f"{label}.{field} must fit signed 16-bit game storage")
 
 
 class BridgeClient:
@@ -425,6 +433,7 @@ class BridgeClient:
         return self.apply_simple_patch(patch)
 
     def apply_simple_patch(self, patch: SimpleStatePatch) -> int:
+        validate_simple_patch(patch)
         ctypes.memmove(
             ctypes.addressof(self.block.commandPatch),
             ctypes.addressof(patch),

@@ -174,8 +174,10 @@ def replay_to_target(
         if differences:
             return current, 0, differences
 
+        if len(inputs) < target:
+            raise ValueError("recorded input trace is shorter than the reconstruction target")
         for frame in range(1, target + 1):
-            simulated = instance.step(inputs[frame - 1])
+            simulated = instance.step_native()
             differences = complex_state_diff(recorded[frame], simulated)
             if differences:
                 return simulated, frame, differences

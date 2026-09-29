@@ -1,0 +1,66 @@
+{
+  "schema": "SokuRLValidationSummary/v1",
+  "milestone": "Spell-card and signed-spirit validation",
+  "bridge_abi": {
+    "version": 7,
+    "spirit_semantics": "signed int16 game value sign-extended into int32 ABI storage",
+    "structure_sizes_changed_from_v6": false,
+    "tested_values": [-32768, -88, 0, 32767]
+  },
+  "expert_replay": {
+    "sha256": "3C08B5AFD23DF5ACDF80F058E05E8C6323EB554C5FF8D59BD610CEB0F91A32F7",
+    "captured_frames": 14954,
+    "last_frame": 14953,
+    "dropped_frames": 0,
+    "first_non_contiguous_frame": null,
+    "minimum_spirit": {
+      "p1_marisa": 50,
+      "p2_reisen": 16
+    },
+    "naturally_negative_spirit_observed": false,
+    "spell_events": [
+      {
+        "action": 609,
+        "card_id": 209,
+        "start_frame": 3659,
+        "consumption_frame": 3663,
+        "card_count": [5, 2],
+        "selected_card_matched_action": true,
+        "reconstructed_hash": "D58FF29FEF889864",
+        "field_differences": 0
+      },
+      {
+        "action": 609,
+        "card_id": 209,
+        "start_frame": 5818,
+        "consumption_frame": 5822,
+        "card_count": [5, 2],
+        "selected_card_matched_action": true,
+        "reconstructed_hash": "AEB42F40EE943963",
+        "field_differences": 0
+      }
+    ]
+  },
+  "signed_spirit_probe": {
+    "source": "documented simple-state injection followed by original-engine simulation",
+    "injected_value": -88,
+    "injection_frame": 203,
+    "negative_frames": [203, 217],
+    "per_frame_recovery": 6,
+    "final_value": 1000,
+    "deterministic_trace_matches": 3,
+    "attempts": 3,
+    "dropped_frames": 0,
+    "note": "This proves ABI round-trip and engine recovery semantics; it is not claimed as a naturally occurring event in the supplied replay."
+  },
+  "replay_reconstruction_input": {
+    "method": "native ReplayInputManager stream from the same .rep checkpoint",
+    "observed_key_input_only_is_sufficient": false,
+    "first_divergence_when_reinjecting_observed_input": 998,
+    "divergence": {
+      "expected_p1_action": 152,
+      "actual_p1_action": 224
+    }
+  },
+  "success": true
+}

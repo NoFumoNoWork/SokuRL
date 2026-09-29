@@ -1,6 +1,7 @@
 {
   "schema": "SokuRLValidationSummary/v1",
   "milestone": "Replay capture and deterministic seek",
+  "bridge_abi": 7,
   "game_version": "1.10a",
   "source_replay": {
     "distributed": false,
@@ -29,19 +30,22 @@
   },
   "reconstruction_targets": [
     {
-      "frame": 1558,
-      "expected_hash": "46E863FFE6CFE2F8",
-      "actual_hash": "46E863FFE6CFE2F8",
+      "frame": 3663,
+      "context": "Marisa card 209 three-card consumption",
+      "expected_hash": "D58FF29FEF889864",
+      "actual_hash": "D58FF29FEF889864",
       "first_divergent_frame": null,
       "field_differences": 0
     },
     {
-      "frame": 5190,
-      "expected_hash": "82691C791E70C351",
-      "actual_hash": "82691C791E70C351",
+      "frame": 5822,
+      "context": "Marisa card 209 three-card consumption",
+      "expected_hash": "AEB42F40EE943963",
+      "actual_hash": "AEB42F40EE943963",
       "first_divergent_frame": null,
       "field_differences": 0
     }
   ],
+  "reconstruction_input": "native ReplayInputManager stream from the same .rep checkpoint",
   "success": true
 }

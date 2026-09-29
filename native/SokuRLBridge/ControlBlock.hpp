@@ -6,7 +6,7 @@
 namespace SokuRLBridge
 {
 constexpr std::uint32_t CONTROL_MAGIC = 0x554B4F53;
-constexpr std::uint32_t CONTROL_VERSION = 6;
+constexpr std::uint32_t CONTROL_VERSION = 7;
 constexpr wchar_t MAPPING_NAME_FORMAT[] = L"Local\\SokuRLBridge_%lu";
 constexpr std::uint32_t MAX_DURATION_FRAMES = 10000;
 constexpr std::uint32_t FRAME_RING_CAPACITY = 512;
@@ -56,8 +56,8 @@ struct PlayerState {
     float speedY;
     std::int32_t facing;
     std::int32_t hp;
-    std::uint32_t spirit;
-    std::uint32_t maxSpirit;
+    std::int32_t spirit;
+    std::int32_t maxSpirit;
     std::uint32_t cardGauge;
     std::uint32_t cardCount;
     std::int32_t handIds[5];
@@ -105,8 +105,8 @@ struct SimplePlayerState {
     float speedY;
     std::int32_t facing;
     std::int32_t hp;
-    std::uint32_t spirit;
-    std::uint32_t maxSpirit;
+    std::int32_t spirit;
+    std::int32_t maxSpirit;
     std::uint32_t cardGauge;
     std::uint32_t cardCount;
 };

@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cwchar>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 namespace
@@ -423,8 +424,7 @@ void captureObjects(const SokuLib::CharacterManager &manager, std::uint32_t owne
 void captureHand(const SokuLib::CharacterManager &manager, SokuRLBridge::PlayerState &state)
 {
     std::fill(std::begin(state.handIds), std::end(state.handIds), -1);
-    const auto count = std::min<unsigned>(manager.hand.handCardCount < 0 ? 0U :
-        static_cast<unsigned>(manager.hand.handCardCount), 5U);
+    const auto count = std::min<unsigned>(manager.cardCount, 5U);
     if (!manager.hand.handCardBase || manager.hand.handCardMax <= 0)
         return;
     for (unsigned i = 0; i < count; ++i) {
@@ -446,8 +446,8 @@ void capturePlayer(const SokuLib::CharacterManager &manager, const SokuRLBridge:
     state.speedY = manager.objectBase.speed.y;
     state.facing = manager.objectBase.direction;
     state.hp = manager.objectBase.hp;
-    state.spirit = manager.currentSpirit;
-    state.maxSpirit = manager.maxSpirit;
+    state.spirit = static_cast<std::int16_t>(manager.currentSpirit);
+    state.maxSpirit = static_cast<std::int16_t>(manager.maxSpirit);
     state.cardGauge = manager.cardGauge;
     state.cardCount = manager.cardCount;
     captureHand(manager, state);
@@ -539,10 +539,18 @@ void applySimplePlayerState(SokuLib::CharacterManager &manager,
     manager.objectBase.speed.y = state.speedY;
     manager.objectBase.direction = static_cast<SokuLib::Direction>(state.facing);
     manager.objectBase.hp = static_cast<short>(state.hp);
-    manager.currentSpirit = static_cast<unsigned short>(state.spirit);
-    manager.maxSpirit = static_cast<unsigned short>(state.maxSpirit);
+    manager.currentSpirit = static_cast<unsigned short>(static_cast<std::int16_t>(state.spirit));
+    manager.maxSpirit = static_cast<unsigned short>(static_cast<std::int16_t>(state.maxSpirit));
     manager.cardGauge = static_cast<unsigned short>(state.cardGauge);
     manager.cardCount = static_cast<unsigned char>(state.cardCount);
+}
+
+bool isValidSimplePlayerState(const SokuRLBridge::SimplePlayerState &state)
+{
+    constexpr auto minimum = std::numeric_limits<std::int16_t>::min();
+    constexpr auto maximum = std::numeric_limits<std::int16_t>::max();
+    return state.spirit >= minimum && state.spirit <= maximum &&
+        state.maxSpirit >= minimum && state.maxSpirit <= maximum;
 }
 
 void applySimpleState(SokuLib::BattleManager &manager,
@@ -657,7 +665,8 @@ void consumeCommand(bool gameplay)
         store32(&g_control->inputFramesRemaining, 1);
         publishResult(SokuRLBridge::ResultCode::Accepted);
     } else if (type == SokuRLBridge::CommandType::ApplySimpleState && g_paused &&
-        !g_stepsRemaining) {
+        !g_stepsRemaining && isValidSimplePlayerState(g_control->commandPatch.p1) &&
+        isValidSimplePlayerState(g_control->commandPatch.p2)) {
         auto &manager = SokuLib::getBattleMgr();
         applySimpleState(manager, g_control->commandPatch);
         const auto patched = captureState(&manager, g_currentFrame);

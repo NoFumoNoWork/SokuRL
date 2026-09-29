@@ -127,6 +127,31 @@ class PracticeInstance:
             time.sleep(0.005)
         raise RuntimeError(f"PID {self.pid}: timed out stepping frame {before + 1}")
 
+    def step_native(self, timeout: float = 3.0) -> RawFrameState:
+        before = self.client.snapshot().game_frame
+        sequence = self.client.step(1)
+        acknowledged = self.client.wait_for_ack(sequence, timeout=timeout)
+        if acknowledged.ack_seq != sequence:
+            raise RuntimeError(f"PID {self.pid}: native step command was not acknowledged")
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            snapshot = self.client.snapshot()
+            if snapshot.game_frame == before + 1 and snapshot.run_state_name == "PAUSED":
+                state = copy_state(snapshot.latest)
+                if state.stateHash != calculate_state_hash(state):
+                    raise RuntimeError(
+                        f"PID {self.pid}: native/Python hash mismatch at frame {state.frameId}"
+                    )
+                self.client.drain_frames()
+                return state
+            if snapshot.game_frame > before + 1:
+                raise RuntimeError(
+                    f"PID {self.pid}: native one-frame command advanced "
+                    f"{snapshot.game_frame - before} frames"
+                )
+            time.sleep(0.005)
+        raise RuntimeError(f"PID {self.pid}: timed out native-stepping frame {before + 1}")
+
     def apply_simple(self, expected: RawFrameState, timeout: float = 3.0) -> RawFrameState:
         sequence = self.client.apply_simple_state(expected)
         acknowledged = self.client.wait_for_ack(sequence, timeout=timeout)

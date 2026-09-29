@@ -1,32 +1,50 @@
 # SokuRL
 
-A deterministic, faster-than-real-time reinforcement-learning environment
-backend for Touhou Hisoutensoku (Touhou 12.3 / `th123`).
+SokuRL is a research project for reinforcement-learning agents in Touhou
+Hisoutensoku (Touhou 12.3 / `th123`).
 
-SokuRL runs the original game engine as the authoritative simulator. It adds
-dual-player logical control, structured per-frame state, deterministic
-reconstruction, isolated multi-process workers, and accelerated local VS
-simulation without replacing the game's battle logic.
+SokuRL Platform is its deterministic, faster-than-real-time training and
+simulation backend. The platform runs the original game engine as the
+authoritative simulator while adding dual-player logical control, structured
+per-frame state, deterministic reconstruction, isolated multi-process workers,
+and accelerated local VS simulation without replacing the game's battle logic.
 
-## Highlights
+## SokuRL Platform Highlights
 
 - **28,000+ sim-FPS** on one unlocked worker, about 467x real time
 - **150,000+ aggregate sim-FPS** with 8 recording-stable workers
 - **10,000-frame deterministic equivalence** across rendered, headless, and
   unlimited execution
 - **14,954-frame expert replay capture** with zero dropped records
+- Replay-verified spell-card selection/consumption and signed spirit observation
 - Deterministic reconstruction with up to **55 live objects** in one player's
   object list
 - Automated local VS Player startup with independent P1/P2 logical control
 
-Current development covers the environment and simulation backend. Policy
-learning, population self-play, and online opponent adaptation are the next
-stage.
+The current implementation milestone is SokuRL Platform. The broader SokuRL
+research program will add policy learning, a PPO trainer, population self-play,
+skill and strategy learning, and online opponent adaptation.
 
 ## Architecture
 
 ```text
-                 Python / RL trainer
+SokuRL
+  +-- SokuRL Platform
+  |     +-- SokuRLBridge
+  |     +-- replay and deterministic reconstruction
+  |     +-- ScenarioRunner
+  |     +-- PID-isolated accelerated workers
+  |
+  +-- SokuRL Learning Stack
+        +-- trainer and policy               (next stage)
+        +-- population self-play             (future)
+        +-- opponent adaptation              (future)
+```
+
+The platform's runtime topology is:
+
+```text
+                 trainer / controller
                          |
                 observations / actions
                          |
@@ -41,13 +59,15 @@ stage.
             engine     engine     engine
 ```
 
-Each worker runs the original th123 simulation. SokuRL observes and controls the
-game at its logical frame boundary, so collision, animation, hitstop, weather,
-cards, projectiles, and character-specific behavior still come from the game.
+Each worker runs the original th123 simulation. SokuRL Platform observes and
+controls the game at its logical frame boundary, so collision, animation,
+hitstop, weather, cards, projectiles, and character-specific behavior still
+come from the game.
 
 ## Project Status
 
 ```text
+SokuRL Platform
 [x] native simulation backend
 [x] per-frame structured state and deterministic hashes
 [x] dual-player logical input
@@ -55,6 +75,8 @@ cards, projectiles, and character-specific behavior still come from the game.
 [x] PID-isolated parallel workers
 [x] battle render skipping
 [x] faster-than-real-time local VS simulation
+
+SokuRL Learning Stack
 [ ] trainer-facing observation and action spaces
 [ ] reward design and PPO baseline
 [ ] population self-play
@@ -160,7 +182,7 @@ Manage running workers by PID:
 .\.venv\python.exe tools\sokurl.py shutdown --pid 1234
 ```
 
-## What SokuRL Exposes
+## What the Platform Exposes
 
 ### Structured battle state
 
@@ -174,13 +196,18 @@ Every actual simulation update produces a `RawFrameState` containing:
   hitstop, hit/hurt boxes, and active state
 - A canonical FNV-1a-64 state hash
 
+Spirit is exposed with the game's signed 16-bit semantics in bridge ABI v7.
+Transient values such as `-88` therefore remain negative instead of appearing
+as `65448`. Hand-card IDs follow the game's selected-card order.
+
 The shared-memory ABI uses a 512-frame SPSC ring. A consumer can detect any
 recording loss through `dropped_frames`; overflow is never hidden.
 
 ### Logical actions and frame control
 
-SokuRL injects the game's logical `KeyInput`, not Windows keyboard events. This
-removes window focus, keyboard layout, and IME from the control path.
+SokuRL Platform injects the game's logical `KeyInput`, not Windows keyboard
+events. This removes window focus, keyboard layout, and IME from the control
+path.
 
 Available controls include:
 
@@ -190,14 +217,14 @@ Available controls include:
 - Deterministic `Goto frame N` and freeze
 - `-1F` through `Goto(current - 1)`
 
-One SokuRL frame is one call to the original `BattleManager::onProcess`. The
-unlimited worker does not batch multiple updates into one main-loop iteration or
-substitute a custom timestep.
+One platform simulation frame is one call to the original
+`BattleManager::onProcess`. The unlimited worker does not batch multiple updates
+into one main-loop iteration or substitute a custom timestep.
 
 ### Deterministic reconstruction
 
-SokuRL does not copy raw process memory. It reconstructs a target state through
-the original simulation:
+The platform does not copy raw process memory. It reconstructs a target state
+through the original simulation:
 
 ```text
 deterministic frame-zero checkpoint
@@ -212,10 +239,15 @@ spirit, and card counters. Actions, animation, hitstop, projectiles, and object
 lists must match through re-simulation. A mismatch reports the first divergent
 simulation frame and a field/object diff.
 
+For local VS and Practice traces, reconstruction injects the recorded P1/P2
+logical inputs. For a `.rep`, the checkpoint reuses ReplayInputManager's native
+input stream: observed `KeyInput` alone does not encode every replay command
+decision. Complex state is still simulated and compared on every frame.
+
 ### Replay capture and seek
 
-ReplayDnD starts a `.rep` directly. SokuRL freezes replay frame zero and can
-play normally or simulate to a requested frame:
+ReplayDnD starts a `.rep` directly. The platform freezes replay frame zero and
+can play normally or simulate to a requested frame:
 
 ```powershell
 .\.venv\python.exe tools\sokurl.py replay path\match.rep
@@ -280,6 +312,7 @@ results:
 - [M2-B determinism and throughput](docs/validation/m2b-summary.json)
 - [Expert replay capture and seek](docs/validation/replay-summary.json)
 - [Practice reconstruction and ScenarioRunner](docs/validation/reconstruction-summary.json)
+- [Spell-card and signed-spirit validation](docs/validation/resources-summary.json)
 
 ### Determinism
 
@@ -315,7 +348,11 @@ accepted lossless configuration.
 - Scenario anchors: 20/20 fresh-process loads
 - Scenario projectile runs: 3/3 identical traces and final hashes
 - Expert replay: 14,954 contiguous frames, zero drops, up to 55 live objects
-- Unit tests: 17/17 passed
+- Expert replay spell-card consumption: frame 3663 and 5822 reconstructions
+  matched complete state hashes with zero field differences
+- Signed spirit: `-88` round-trip and recovery matched across 3/3 deterministic
+  VS runs; the supplied replay itself remained positive (minimum 50/16)
+- Unit tests: 19/19 passed
 - Two-process frame stepping: PID-isolated
 
 ## Runtime Modules
@@ -336,9 +373,9 @@ installation remains outside version control.
 
 ## SkipIntro Reproducibility
 
-SokuRL does not build an unmodified upstream SkipIntro. The pinned upstream
-source is patched so that a launch with one command-line argument leaves startup
-to ReplayDnD:
+SokuRL Platform does not build an unmodified upstream SkipIntro. The pinned
+upstream source is patched so that a launch with one command-line argument
+leaves startup to ReplayDnD:
 
 ```cpp
 // ReplayDnD owns command-line file/directory launches and needs Logo to run.
@@ -562,7 +599,7 @@ Remove-Item -LiteralPath .\tests\tmp<confirmed-name> -Recurse -Force
 
 - Only th123 1.10a with the documented executable hash is supported.
 - Headless workers still create a window and initialize D3D, resources, and
-  audio. SokuRL is not a standalone reimplementation of the game.
+  audio. SokuRL Platform is not a standalone reimplementation of the game.
 - Eight workers were lossless on the validation machine; 16 workers saturated
   CPU and overflowed two frame rings.
 - Practice currently accepts P2 movement input but filters P2 B/C attacks. The

@@ -138,7 +138,7 @@ def _read_bridge(pid: int) -> BridgeState | None:
             raw = ctypes.string_at(view, 160)
             frame = struct.unpack_from("<Q", raw, 112)[0]
             connected, in_gameplay = struct.unpack_from("<II", raw, 84)
-        elif version in (4, 5, 6) and struct_size >= 192:
+        elif version in (4, 5, 6, 7) and struct_size >= 192:
             kernel32.UnmapViewOfFile(view)
             view = kernel32.MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 192)
             if not view:

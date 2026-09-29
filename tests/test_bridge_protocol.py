@@ -26,6 +26,7 @@ from scenario_runner import compile_steps, token_input
 
 class BridgeProtocolTests(unittest.TestCase):
     def test_cpp_python_layout_agreement(self) -> None:
+        self.assertEqual(bridge_shared.CONTROL_VERSION, 7)
         self.assertEqual(ctypes.sizeof(bridge_shared.LogicalInput), 32)
         self.assertEqual(ctypes.sizeof(bridge_shared.PlayerState), 140)
         self.assertEqual(ctypes.sizeof(bridge_shared.ObjectState), 80)
@@ -47,6 +48,30 @@ class BridgeProtocolTests(unittest.TestCase):
             "offsetof(ControlBlock, currentFrame) == 144",
         ):
             self.assertIn(assertion, header)
+        launcher = (ROOT / "tools" / "sokurl.py").read_text(encoding="utf-8")
+        self.assertIn("version in (4, 5, 6, 7)", launcher)
+
+    def test_spirit_uses_signed_game_semantics(self) -> None:
+        player_fields = dict(bridge_shared.PlayerState._fields_)
+        simple_fields = dict(bridge_shared.SimplePlayerState._fields_)
+        self.assertIs(player_fields["spirit"], ctypes.c_int32)
+        self.assertIs(player_fields["maxSpirit"], ctypes.c_int32)
+        self.assertIs(simple_fields["spirit"], ctypes.c_int32)
+        for raw, expected in ((0, 0), (32767, 32767), (0x8000, -32768), (0xFFA8, -88)):
+            state = bridge_shared.PlayerState()
+            state.spirit = ctypes.c_int16(raw).value
+            self.assertEqual(state.spirit, expected)
+
+    def test_simple_patch_rejects_spirit_outside_game_storage(self) -> None:
+        patch = bridge_shared.SimpleStatePatch()
+        for value in (-32768, 32767):
+            patch.p1.spirit = value
+            patch.p1.maxSpirit = value
+            bridge_shared.validate_simple_patch(patch)
+        for value in (-32769, 32768):
+            patch.p1.spirit = value
+            with self.assertRaises(ValueError):
+                bridge_shared.validate_simple_patch(patch)
 
     def test_command_protocol_values(self) -> None:
         self.assertEqual(bridge_shared.COMMAND_RUN, 3)

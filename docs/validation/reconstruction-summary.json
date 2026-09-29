@@ -1,8 +1,9 @@
 {
   "schema": "SokuRLValidationSummary/v1",
   "milestone": "Practice reconstruction and ScenarioRunner v1",
+  "bridge_abi": 7,
   "practice_trace": {
-    "seed": 3415020633,
+    "seed": 282496492,
     "recorded_frames": 1043,
     "max_live_objects": {
       "p1": 21,
