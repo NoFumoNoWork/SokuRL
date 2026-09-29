@@ -66,8 +66,18 @@ def main(cfg):
         with closing(WorkerBackend(log_path=output / "worker.log", **config["runtime"])) as backend:
             backend.configure_observation(episode.backend_observation())
             report["runtime"] = backend.identity
+            game_id = backend.identity["fingerprints"]["game_id"]
+            if validation["bridge_artifact"] != "recorded":
+                original = json.loads((source / "result.json").read_text())["runtime"]["fingerprints"]
+                actual = backend.identity["fingerprints"]["artifact_hashes"]
+                expected = original["artifact_hashes"] | {
+                    "modules/SokuRLBridge/SokuRLBridge.dll": validation["bridge_artifact"]}
+                if actual != expected:
+                    raise ValueError("diagnostic replay may change only the explicitly pinned bridge DLL")
+                report["diagnostic_bridge_artifact"] = validation["bridge_artifact"]
+                game_id = original["game_id"]
             for trial in trials.values():
-                check_trial_identity(trial, backend.identity["fingerprints"]["game_id"],
+                check_trial_identity(trial, game_id,
                                      source_config["benchmark"]["policy_seed"])
             reference = {}
             pids = {}

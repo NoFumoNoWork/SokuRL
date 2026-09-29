@@ -1,6 +1,7 @@
 #include "ControlBlock.hpp"
 #include "ImageCapture.hpp"
 #include "AudioMute.hpp"
+#include "CrashReport.hpp"
 
 #include <BattleManager.hpp>
 #include <BattleMode.hpp>
@@ -1123,6 +1124,7 @@ bool createMapping()
 
 void closeMapping()
 {
+    SokuRLBridge::closeCrashReport();
     SokuRLBridge::closeImageCapture();
     if (g_control)
         store32(&g_control->connected, 0);
@@ -1185,6 +1187,10 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     g_history.reserve(SokuRLBridge::INPUT_HISTORY_CAPACITY);
     if (!createMapping())
         return false;
+    if (environmentValue(L"SOKURL_CRASH_TRACE", 0) == 1 && !SokuRLBridge::installCrashReport()) {
+        closeMapping();
+        return false;
+    }
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
     if (environmentValue(L"SOKURL_MUTE_AUDIO", g_headlessRender ? 1U : 0U) == 1 &&
         !SokuRLBridge::installAudioMute()) {
