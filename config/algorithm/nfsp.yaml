@@ -2,6 +2,7 @@ name: nfsp
 episodes: 256
 checkpoint_every: 64
 timeout_payoff: zero_at_horizon
+response_update: bounded_double_q
 agent:
   hidden_layers_sizes: [256, 256]
   reservoir_buffer_capacity: 20000

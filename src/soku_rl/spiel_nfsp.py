@@ -7,6 +7,7 @@ from open_spiel.python import rl_agent, rl_environment
 from open_spiel.python.pytorch.nfsp import NFSP
 
 from .env.encoding import AGENTS
+from .nfsp_response import learn_response
 
 
 def time_step(observations, rewards, done, legal_actions):
@@ -24,10 +25,16 @@ class VectorNFSP:
     DQN replay/loss. Collection is external: one mode per player per episode;
     every transition updates the common DQN clock, including average-policy play.
     """
-    def __init__(self, observation_shape, num_actions, agent_config, device, seed):
+    def __init__(self, observation_shape, num_actions, agent_config, device, seed, response_update, return_bound):
         if len(observation_shape) != 1:
             raise ValueError("OpenSpiel NFSP currently requires a numeric state vector")
         self.config = dict(agent_config)
+        if response_update not in {"openspiel", "bounded_double_q"}:
+            raise ValueError("unsupported NFSP best-response update")
+        if not np.isfinite(return_bound) or return_bound < 1:
+            raise ValueError("the finite-horizon return bound must be finite and at least one")
+        self.response_update, self.return_bound = response_update, return_bound
+        self.response_metrics = {name: {} for name in AGENTS}
         if isinstance(num_actions, (bool, np.bool_)) or not isinstance(num_actions, (int, np.integer)) or num_actions < 1:
             raise ValueError("num_actions must be a positive integer")
         self.num_actions = int(num_actions)
@@ -83,8 +90,11 @@ class VectorNFSP:
                 q._iteration += 1
                 agent._iteration += 1
                 if q._iteration % q._learn_every == 0:
-                    q._last_loss_value = q.learn()
-                    if q._last_loss_value is not None:
+                    if len(q._replay_buffer) >= max(q._batch_size, q._min_buffer_size_to_learn):
+                        if self.response_update == "bounded_double_q":
+                            q._last_loss_value, self.response_metrics[name] = learn_response(q, self.return_bound)
+                        else:
+                            q._last_loss_value = q.learn()
                         self._record_loss(name, "rl", q._last_loss_value)
                     if agent._reservoir_buffer is not None:
                         agent._last_sl_loss_value = agent._learn()
@@ -100,6 +110,8 @@ class VectorNFSP:
 
     def metrics(self):
         return {name: {"updates": self.updates[name], "losses": agent.loss,
+                       "response_update": self.response_update, "return_bound": self.return_bound,
+                       "response": self.response_metrics[name],
                        "transitions": agent.step_counter,
                        "reservoir_samples": (len(agent._reservoir_buffer)
                                              if agent._reservoir_buffer is not None else 0)}
