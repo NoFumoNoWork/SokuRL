@@ -54,6 +54,23 @@ class PPOEpisode:
         return int(self.rng.choice(len(probabilities), p=probabilities))
 
 
+class MixturePolicy:
+    """Select one frozen population member for the whole episode."""
+    def __init__(self, name, members, probabilities, identity):
+        weights = np.asarray(probabilities, dtype=np.float64)
+        if (not members or weights.shape != (len(members),) or not np.isfinite(weights).all()
+                or (weights < 0).any() or not np.isclose(weights.sum(), 1.)):
+            raise ValueError("population weights must form a probability distribution")
+        self.name, self.members, self.fingerprint = name, tuple(members), identity
+        self.probabilities = weights / weights.sum()
+        self.probabilities.setflags(write=False)
+
+    def spawn(self, seed):
+        rng = np.random.default_rng(seed)
+        member = self.members[int(rng.choice(len(self.members), p=self.probabilities))]
+        return member.spawn(int(rng.integers(0, 0xFFFFFFFF)))
+
+
 class PopulationEvaluator:
     """Evaluate role-specific policies; never swap player populations implicitly."""
     def __init__(self, env, seed, timeout_payoff):

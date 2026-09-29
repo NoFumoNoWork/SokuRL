@@ -10,7 +10,7 @@ from torch import nn
 from omegaconf import OmegaConf
 
 from .learning_wrappers import LearningConfig
-from .population import PPOPolicy
+from .population import PPOPolicy, UniformPolicy, MixturePolicy
 
 
 class NetworkPolicy:
@@ -77,11 +77,39 @@ def read_training_contract(path, interface):
     return training
 
 
+def load_population(name, spec, interface, device, path, identity):
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    if saved["format"] != "sokurl-psro-population-v1" or spec["player"] not in {"player_0", "player_1"}:
+        raise ValueError("PSRO population format or seat differs")
+    if len(saved["populations"]) != 2 or len(saved["meta_strategies"]) != 2:
+        raise ValueError("PSRO population must contain both seats")
+    player = ("player_0", "player_1").index(spec["player"])
+    members = []
+    for entry in saved["populations"][player]:
+        if entry["kind"] == "uniform":
+            if entry["num_actions"] != interface.action_space.n:
+                raise ValueError("PSRO member action space differs")
+            member = UniformPolicy(entry["name"], entry["num_actions"])
+        elif entry["kind"] == "sb3":
+            member = load_policy(entry["name"], {
+                "kind": "sb3", "path": str(path.parent / entry["path"]),
+                "training_config": spec["training_config"]}, interface, device)
+        else:
+            raise ValueError("unsupported PSRO population member")
+        if member.fingerprint != entry["fingerprint"]:
+            raise ValueError("PSRO member fingerprint differs from the saved population")
+        members.append(member)
+    identity = hashlib.sha256((identity + spec["player"]).encode()).hexdigest()
+    return MixturePolicy(name, members, saved["meta_strategies"][player], identity)
+
+
 def load_policy(name, spec, interface, device):
     read_training_contract(spec["training_config"], interface)
     path = Path(spec["path"]).resolve(strict=True)
     identity = hashlib.sha256(path.read_bytes()).hexdigest()
     shape, num_actions = interface.observation_space.shape, interface.action_space.n
+    if spec["kind"] == "psro_mixture":
+        return load_population(name, spec, interface, device, path, identity)
     if spec["kind"] in {"sb3", "sb3_recurrent"}:
         if spec["kind"] == "sb3_recurrent":
             from sb3_contrib import RecurrentPPO as Algorithm

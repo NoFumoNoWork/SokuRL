@@ -4,7 +4,7 @@ from pathlib import Path
 
 from open_spiel.python.algorithms.psro_v2.psro_v2 import PSROSolver
 
-from .population import PopulationEvaluator, UniformPolicy
+from .population import PopulationEvaluator, UniformPolicy, PPOPolicy
 from .ppo_response import PPOResponseOracle
 
 
@@ -12,6 +12,15 @@ class PlayerRoles:
     """Metadata required by the sampled meta-solver, not a pyspiel game tree."""
     def num_players(self):
         return 2
+
+
+def policy_artifact(policy, directory):
+    metadata = {"name": policy.name, "fingerprint": policy.fingerprint}
+    if isinstance(policy, UniformPolicy):
+        return metadata | {"kind": "uniform", "num_actions": policy.num_actions}
+    if isinstance(policy, PPOPolicy):
+        return metadata | {"kind": "sb3", "path": str(policy.path.relative_to(directory))}
+    raise TypeError("unsupported PSRO population member")
 
 
 class SampledPSROSolver(PSROSolver):
@@ -43,10 +52,11 @@ def train_psro(env, config, device, seed, directory):
     for iteration in range(config["iterations"] + 1):
         if iteration:
             solver.iteration()
-        report = {"iteration": iteration, "timeout_payoff": config["timeout_payoff"],
+        report = {"format": "sokurl-psro-population-v1",
+                  "iteration": iteration, "timeout_payoff": config["timeout_payoff"],
                   "meta_game": [v.tolist() for v in solver.get_meta_game()],
                   "meta_strategies": [v.tolist() for v in solver.get_meta_strategies()],
-                  "populations": [[{"name": p.name, "fingerprint": p.fingerprint}
+                  "populations": [[policy_artifact(p, directory)
                                    for p in role] for role in solver.get_policies()],
                   "evaluation_games": evaluator.records}
         destination = Path(directory) / "population.json"
