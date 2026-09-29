@@ -17,7 +17,7 @@ class PlayerRoles:
 def policy_artifact(policy, directory):
     metadata = {"name": policy.name, "fingerprint": policy.fingerprint}
     if isinstance(policy, UniformPolicy):
-        return metadata | {"kind": "uniform", "num_actions": policy.num_actions}
+        return metadata | {"kind": "uniform", "num_actions": int(policy.num_actions)}
     if isinstance(policy, PPOPolicy):
         return metadata | {"kind": "sb3", "path": str(policy.path.relative_to(directory))}
     raise TypeError("unsupported PSRO population member")
