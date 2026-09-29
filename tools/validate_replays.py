@@ -3,6 +3,7 @@ from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
+import shutil
 import time
 
 import hydra
@@ -58,6 +59,7 @@ def main(cfg):
     (output / "config.yaml").write_text(OmegaConf.to_yaml(cfg, resolve=True), encoding="utf-8")
     (output / "source-config.yaml").write_text(OmegaConf.to_yaml(OmegaConf.create(source_config)), encoding="utf-8")
     report = {"success": False, "cycles": [], "trials": trials}
+    pids = {}
     started = time.perf_counter()
 
     def save():
@@ -82,7 +84,6 @@ def main(cfg):
                 check_trial_identity(trial, game_id,
                                      source_config["benchmark"]["policy_seed"])
             reference = {}
-            pids = {}
             for cycle in range(validation["cycles"]):
                 report["stage"] = {"cycle": cycle, "operation": "reset_before_replay"}
                 save()
@@ -139,6 +140,15 @@ def main(cfg):
         report["error"] = repr(error)
         raise
     finally:
+        # Preserve only this run's process traces before Wine can reuse a PID.
+        native_logs = Path(config["runtime"]["cwd"]) / "th123_jp/modules/SokuRLBridge"
+        report["native_traces"] = []
+        for pid in sorted(set(pids.values())):
+            name = f"crash-{pid}.log"
+            source_log = native_logs / name
+            if source_log.exists():
+                shutil.copyfile(source_log, output / name)
+                report["native_traces"].append(name)
         save()
 
 
