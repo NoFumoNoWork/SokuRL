@@ -1,6 +1,7 @@
 """Train one SB3 PPO policy per seat against a fixed rule population."""
 import hashlib
 import json
+from pathlib import Path
 
 import numpy as np
 from stable_baselines3 import PPO
@@ -11,6 +12,7 @@ from .observed_rules import RulePolicy
 from .strategies import rule_implementation
 from .learning_wrappers import LearningRulePolicy
 from .ppo_response import OpponentMixtureVecEnv
+from .checkpoint_policy import read_training_contract
 
 
 def parameter_hash(policy):
@@ -19,6 +21,20 @@ def parameter_hash(policy):
         digest.update(name.encode())
         digest.update(parameter.detach().cpu().contiguous().numpy().tobytes())
     return digest.hexdigest()
+
+
+def initialize_ppo(algorithm, policy_type, env, interface, config, source, device, seed):
+    if source == {"kind": "fresh"}:
+        return algorithm(policy_type, env, seed=seed, device=device, **config["ppo"]), source
+    if set(source) != {"kind", "path", "training_config"} or source["kind"] != "checkpoint":
+        raise ValueError("initial policy must be fresh or an explicit training checkpoint")
+    previous = read_training_contract(source["training_config"], interface)["algorithm"]
+    if any(previous[key] != config[key] for key in ("name", "policy_type", "ppo", "timeout_payoff")):
+        raise ValueError("continued PPO must retain its algorithm and optimizer configuration")
+    path = Path(source["path"]).resolve(strict=True)
+    model = algorithm.load(path, env=env, device=device)
+    model.set_random_seed(seed)
+    return model, source | {"sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
 class EpisodeRecords(BaseCallback):
@@ -66,21 +82,25 @@ def train_ppo(env, config, device, seed, directory):
         destination.mkdir()
         view = OpponentMixtureVecEnv(env, player, opponents, weights, seed + player)
         try:
-            model = algorithm(policy_type, view, seed=seed + player, device=device, **config["ppo"])
+            model, source = initialize_ppo(algorithm, policy_type, view, env.interface, config,
+                config["initial_policies"][f"player_{player}"], device, seed + player)
             model.set_logger(configure(str(destination / "scalars"), ["csv", "stdout"]))
             initial = parameter_hash(model.policy)
+            start_steps = model.num_timesteps
             callbacks = CallbackList([
                 EpisodeRecords(destination),
                 CheckpointCallback(save_freq=config["checkpoint_every"] // env.num_envs,
                                    save_path=str(destination / "checkpoints"), name_prefix="ppo"),
             ])
-            model.learn(total_timesteps=config["timesteps_per_player"], callback=callbacks)
+            model.learn(total_timesteps=config["timesteps_per_player"], callback=callbacks,
+                        reset_num_timesteps=False)
             final = parameter_hash(model.policy)
             if initial == final:
                 raise RuntimeError("PPO completed without a policy update")
             path = destination / "final.zip"
             model.save(path)
-            results[f"player_{player}"] = {"steps": model.num_timesteps,
+            results[f"player_{player}"] = {"steps": model.num_timesteps, "start_steps": start_steps,
+                "additional_steps": model.num_timesteps - start_steps, "initial_policy": source,
                 "initial_policy_hash": initial, "final_policy_hash": final,
                 "checkpoint": str(path), "opponents": {p.name: p.fingerprint for p in opponents}}
         finally:

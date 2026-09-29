@@ -64,9 +64,9 @@ def _mlp(widths, activation):
     return nn.Sequential(*layers)
 
 
-def load_policy(name, spec, interface, device):
+def read_training_contract(path, interface):
     episode = interface.episode
-    training = OmegaConf.to_container(OmegaConf.load(spec["training_config"]), resolve=True)
+    training = OmegaConf.to_container(OmegaConf.load(path), resolve=True)
     if training["episode"] != asdict(episode):
         raise ValueError("checkpoint and evaluation episode configurations differ")
     # Artifacts from before the wrapper feature have the original identity contract.
@@ -74,6 +74,11 @@ def load_policy(name, spec, interface, device):
                 LearningConfig("full", False, 0, 0.))
     if expected != interface.config:
         raise ValueError("checkpoint and evaluation learning wrappers differ")
+    return training
+
+
+def load_policy(name, spec, interface, device):
+    read_training_contract(spec["training_config"], interface)
     path = Path(spec["path"]).resolve(strict=True)
     identity = hashlib.sha256(path.read_bytes()).hexdigest()
     shape, num_actions = interface.observation_space.shape, interface.action_space.n

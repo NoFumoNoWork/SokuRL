@@ -1,6 +1,9 @@
 name: ppo
 policy_type: mlp
 players: [0, 1]
+initial_policies:
+  player_0: {kind: fresh}
+  player_1: {kind: fresh}
 opponents: ${rules.roster}
 rules: ${rules}
 timesteps_per_player: 262144
