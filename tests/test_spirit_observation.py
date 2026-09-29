@@ -14,7 +14,7 @@ def recorded_frame(spirit):
     raw = SimpleNamespace(frameId=3185, p1=fighters[0], p2=fighters[1])
     render = RenderSnapshot(-700., 470., 1., 21,
         (RenderEntity(1201., 312.70535, 1., 1, 1),
-         RenderEntity(1240., 370.81131, 1., 1, -1)), ((), ()), False)
+         RenderEntity(1240., 370.81131, 1., -1, 1)), ((), ()), False)
     return raw, render
 
 
@@ -29,5 +29,5 @@ def test_guard_break_negative_spirit_is_an_empty_visible_gauge():
 @pytest.mark.parametrize("invalid", [-88, 65536, 1001])
 def test_malformed_spirit_words_and_positive_overflow_still_fail(invalid):
     raw, render = recorded_frame(invalid)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="spirit|gauge"):
         observe_visible_states(raw, render, VISIBILITY)
