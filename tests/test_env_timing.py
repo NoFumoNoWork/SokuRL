@@ -59,7 +59,7 @@ class EnvTimingTests(unittest.TestCase):
         env.close()
 
     def test_single_and_vector_have_identical_transitions(self):
-        config = EpisodeConfig(17, 4, 3, 12, "diagnostic_state", VISIBILITY)
+        config = EpisodeConfig(17, 4, 3, 5, "diagnostic_state", VISIBILITY)
         single_backend, vector_backend = RecordingBackend(), RecordingBackend()
         single = HisoutenParallelEnv(single_backend, config)
         vector = TwoPlayerVectorEnv(vector_backend, 2, config)
@@ -73,8 +73,8 @@ class EnvTimingTests(unittest.TestCase):
         self.assertEqual(single_backend.frames[0], 17)
         self.assertEqual(vector_backend.frames[1], 0)
         self.assertEqual(single_backend.inputs[0], vector_backend.inputs[0])
-        self.assertEqual(single_backend.inputs[0][:12], [(decode_action(256),) * 2] * 12)
-        self.assertEqual(single_backend.inputs[0][12:], [(decode_action(0),) * 2] * 5)
+        self.assertEqual(single_backend.inputs[0][:5], [(decode_action(256),) * 2] * 5)
+        self.assertEqual(single_backend.inputs[0][5:], [(decode_action(0),) * 2] * 12)
         self.assertTrue(left[3][AGENTS[0]])
         self.assertEqual(single.agents, [])
 

@@ -2,5 +2,5 @@
 track: human
 episode:
   decision_frames: 3
-  latency_frames: 12
+  latency_frames: 5
   observation_mode: state
