@@ -27,13 +27,18 @@ Ken43 是一个固定 **Ken vs Ken、版边、压起身** 场景的 Street Fight
 - posture-dependent effective range；
 - block 后 spacing、pushback、完整/取消 recovery 的不同 \(D_{min}\)；
 - 主动放帧误差 \(\epsilon \sim Uniform\{-2,-1,0,1,2\}\)；
-- 最小 `FrameState`、动作 mask、帧推进接口；
-- 24 个时序、射程和 spacing 回归测试。
+- 对称双人 `CombatState`、动作 mask 和统一 `resolve_frame()`；
+- 同快照生成双方 contact、统一提交 trade 的逐帧事件结算；
+- strike/throw、guard、invulnerability、stun、damage、knockdown；
+- DI 的最小闭环：反 DI、多段破甲和投绕过护甲；
+- 轻旋风 2 hit、中升龙 2 hit、重升龙 3 hit、KK 升龙 6 hit 的聚合多段语义；
+- contact cancel、显式 branch、action end 和经验时序 override；
+- 固定第 43F 起身、起身首帧投无敌和首帧 reversal；
+- endpoint-compatible aggregate spacing，以及供未来实测数据使用的可选 `MovementProfile`；
+- 62 个时序、射程、spacing 和逐帧 resolver 回归测试。
 
 尚未实现：
 
-- 完整的双方同步动作 resolver；
-- hit/block/whiff、伤害、Drive、DI、Parry、reversal 等端到端结算；
 - round、KO、best-of-3 match 生命周期；
 - Gymnasium/PettingZoo 标准接口和向量化环境；
 - 固定 bot、self-play population、PPO 训练和 checkpoint 管理；
@@ -46,9 +51,10 @@ Ken43 是一个固定 **Ken vs Ken、版边、压起身** 场景的 Street Fight
 V0 有意保持狭窄和可解释：
 
 - 仅 Ken vs Ken；
-- 固定版边压起身 microgame；
+- 固定版边、固定 +43F 压起身 microgame；
 - 只开放与压起身攻防相关的动作；
 - 未建模动作通过 action mask 禁用；
+- 迅雷、Quick Dash 和 target combo 派生不接受独立 `action` 输入，只能通过合法 branch/cancel window 进入；
 - 不模拟 juggle、完整弹道飞行、Super、hitstop 和 Perfect Parry 时停；
 - jHP 使用已校准的合法跳跃轨迹，不重建完整空中 hitbox；
 - 未测量的蹲姿射程会在 JSON 中明确标为暂用站姿射程，而不是伪装成实测值。
@@ -60,6 +66,20 @@ ken_oki_microgame_v0_4b_verified_spacing.json
 ```
 
 该文件同时记录帧数、姿态射程、移动、spacing、经验校准和数据质量说明。计算器不得读取 `validation_cases.expected` 作为答案，测试结果必须从规则字段重新推导。
+
+### Deferred by Design
+
+以下机制不是 V0 的遗留缺口，而是当前研究范围内明确推迟：
+
+- projectile 对象与完整飞行生命周期；
+- Parry、Drive Rush、burnout 和完整 Drive 资源经济；
+- 通用 knockdown duration 与不同击倒技的起身优势；
+- 逐动作、逐帧 animation movement trajectory；
+- 多段技逐 hit 的 hitbox、stun 与空间轨迹。
+
+因此 `drive_parry` 和 `cancel_drive_rush` 在 V0 action mask 中关闭，Drive 数值暂不消耗；DI 和 OD 动作仍可用于验证核心攻防。若这些机制成为后续研究变量，应作为一个完整版本重新启用，而不是在 V0 中半实现。
+
+多段技采用聚合规则：第一段在允许打满的距离成功接触后，整招按固定 hit count 参与 DI 护甲计算，伤害使用 JSON 中的整招总伤害，最终一段负责 knockdown/end state。KK 升龙目前只有 6 hit 语义，没有独立帧表，所以对应 Quick Dash branch 仍会被拒绝，不能作为可执行动作。
 
 ## 核心时序语义
 
@@ -105,6 +125,41 @@ d'=\max(D_{min},d+\Delta)
 \]
 
 whiff 不应用 block pushback。
+
+## Unified Frame Resolver
+
+逐帧仿真的主要入口是：
+
+```python
+next_state, events = resolver.resolve_frame(
+    state,
+    (player_0_input, player_1_input),
+)
+```
+
+`CombatState.players[0/1]` 是对称的，不永久绑定“进攻方/防守方”。每个 global frame 按固定阶段执行：
+
+```text
+推进已有动作帧
+→ 启动 queued action / 读取双方输入
+→ 处理本帧 branch
+→ 应用显式 movement（V0 默认无逐帧动画位移）
+→ 从同一个 pre-commit snapshot 生成 contact candidates
+→ 解决 strike/throw、invulnerability、armor 和 trade
+→ 统一提交 damage / stun / knockdown / spacing
+→ 处理 contact cancel
+→ 处理 action end
+→ 递减 stun / throw invulnerability
+```
+
+resolver 返回结构化 `FrameEvent`，包括 `ActionStarted`、`Hit`、`Block`、`RangeMiss`、`ArmorAbsorb`、`ArmorBreak`、`CounterDI`、`ThrowWhiff`、`CancelQueued`、`BranchStarted`、`Movement` 和 `ActionEnded`。训练 reward、调试 trace 和 replay 应从事件流派生，不在 resolver 内写入策略偏好。
+
+当前 JSON 大多只有动作结束时的 spacing endpoint，不能唯一反推出动画每帧位移。V0 以 aggregate spacing 为标准语义；resolver 仍保留两种移动来源，方便未来接入确有必要的实测轨迹：
+
+- `per_frame`：来自已知或注入的 `MovementProfile`，在 contact 判定前应用；
+- `aggregate_*_fallback`：缺少逐帧数据时使用现有 endpoint，并在事件中明确标记。
+
+对于同时具有 full/cancelled \(D_{min}\) 的动作，fallback 在 contact 时应用 cancelled endpoint；若动作完整结束，再补到 full endpoint。取消会丢弃尚未发生的 recovery displacement。只有当某个 startup/active/recovery 中途位移被实测证明会改变当帧射程胜负时，才需要为该动作增加 `MovementProfile`。
 
 ## 预期环境层级
 
@@ -176,8 +231,10 @@ HP, Drive and previous outcome context
 
 目标：排除 simulator exploit，建立确定性规则基线。
 
-- 扩展完整动作 resolver；
-- 验证 simultaneous interaction、counter-hit、throw/strike、DI armor 和取消窗口；
+- 验证固定第 43F 起身、首帧投无敌、wakeup reversal、safe jump 和 meaty 使用同一时间轴；
+- 验证 DI 可被反 DI、足够 hit count 的多段技和投有效处理；
+- 验证简化多段技的 hit count、聚合伤害与最终 knockdown；
+- 验证 simultaneous interaction、throw/strike、invulnerability、spacing 和取消窗口；
 - 检查 range check 与 spacing update 顺序；
 - 固定随机种子，验证相同输入轨迹产生相同结果；
 - 建立每个核心机制的人工可解释测试。
@@ -327,13 +384,17 @@ Ken43/
       active、advantage、cancel、branch、safe-jump 和执行误差计算
     spacing.py
       posture range、block spacing、backwalk 和连续距离演化
+    resolver.py
+      对称 CombatState、FrameInput/FrameEvent、MovementProfile 与 resolve_frame
     env.py
-      当前最小 FrameState 与逐帧环境骨架
+      兼容旧 FrameState，并将 step/resolve_frame 接到统一 resolver
   tests/
     test_validation_cases.py
       时序与系统规则回归
     test_spacing_validation_cases.py
       12 项射程与 spacing 回归
+    test_frame_resolver.py
+      同步接触、trade、投、无敌、armor、cancel、branch 和 movement 回归
   run_validations.py
     输出时序命题
   run_oki_scenarios.py
@@ -353,7 +414,7 @@ Ken43/
 .\.venv\python.exe Ken43\run_spacing_validations.py
 ```
 
-最近一次验证结果为 `24 passed`。
+最近一次验证结果为 `43 passed`。
 
 ## 研究成功标准
 

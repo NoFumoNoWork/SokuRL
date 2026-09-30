@@ -27,10 +27,11 @@
   },
   "advantage_formula": {
     "ground_move": "advantage(contact_at_active_frame k) = stun - (remaining_active_frames_after_k + recovery)",
-    "cancel_combo": "after cancel at contact with delay d, gap = child_startup + d - defender_stun; gap<=0 means continuous stun/combo/blockstring under this simulator convention",
+    "cancel_combo": "after cancel at contact with delay d, gap = child_startup + d - defender_stun; gap<0 means stun overlap and a true combo/blockstring, while gap=0 has no free frame but no overlap",
     "jump_attack": "advantage = fixed_stun - (remaining_usable_air_attack_frames_after_contact + landing_recovery)"
   },
   "system_rules": {
+    "fixed_wakeup_frame": 43,
     "wakeup_throw_invulnerability": 1,
     "post_hitstun_throw_invulnerability": 2,
     "post_blockstun_throw_invulnerability": 2,
@@ -38,6 +39,18 @@
     "strike_vs_throw_same_frame": "strike_wins",
     "unsupported_actions": "masked",
     "supers_enabled": false,
+    "drive_resource_enabled": false,
+    "masked_actions_v0": [
+      "drive_parry",
+      "cancel_drive_rush"
+    ],
+    "simplified_multi_hit_counts": {
+      "tatsu_L": 2,
+      "shoryuken_M": 2,
+      "shoryuken_H": 3,
+      "quick_dash_shoryuken": 6
+    },
+    "simplified_multi_hit_rule": "After first contact in a valid full-hit range, use the aggregate move damage, count all listed hits against DI armor, and apply the final hit's knockdown/end state. Per-hit spatial trajectories are not simulated.",
     "air_normals_enabled": [
       "jHP"
     ],

@@ -60,7 +60,10 @@ class FrameCalculator:
     def active_frames(self, move_id: str) -> list[int]:
         move = self.data.move(move_id)
         frames: list[int] = []
-        active_windows = move.get("active", move.get("active_relative_to_branch", []))
+        active_windows = move.get(
+            "active",
+            move.get("active_relative_to_branch", move.get("active_relative_to_input", [])),
+        )
         for start, end in active_windows:
             frames.extend(range(int(start), int(end) + 1))
         return frames
@@ -85,7 +88,10 @@ class FrameCalculator:
             return int(move["total"])
         active = self.active_frames(move_id)
         if active:
-            return max(active) + int(move["recovery"])
+            if "recovery" in move:
+                return max(active) + int(move["recovery"])
+            if "landing_recovery" in move:
+                return max(active) + int(move["landing_recovery"])
         if "startup" in move and "recovery" in move:
             return int(move["startup"]) + int(move["recovery"])
         raise ValueError(f"{move_id} has no total-frame model")
@@ -335,10 +341,33 @@ class FrameCalculator:
                 successes += 1
         return successes / 5
 
-    def legal_action_ids(self) -> list[str]:
-        legal: list[str] = []
+    def enabled_action_ids(self) -> list[str]:
+        """Moves with enough V0 data to execute, including contextual children."""
+        explicitly_masked = set(
+            self.data.system_rules.get("masked_actions_v0", [])
+        )
+        enabled: list[str] = []
         for move_id, move in self.data.moves.items():
+            if move_id in explicitly_masked:
+                continue
             if str(move.get("range_policy", "")).startswith("masked_in_V0"):
                 continue
-            legal.append(move_id)
-        return legal
+            enabled.append(move_id)
+        return enabled
+
+    def legal_action_ids(self) -> list[str]:
+        """Moves that may be submitted independently through ``action``."""
+        contextual_kinds = {
+            "jinrai_followup",
+            "quick_dash_followup",
+            "target_combo_followup",
+        }
+        return [
+            move_id
+            for move_id in self.enabled_action_ids()
+            if self.data.move(move_id).get("kind") not in contextual_kinds
+        ]
+
+    def simplified_hit_count(self, move_id: str) -> int:
+        counts = self.data.system_rules.get("simplified_multi_hit_counts", {})
+        return int(counts.get(move_id, 1))
