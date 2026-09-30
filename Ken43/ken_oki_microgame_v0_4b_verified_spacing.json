@@ -1,0 +1,1933 @@
+{
+  "schema_version": "0.4.1",
+  "game": "Street Fighter 6",
+  "character": "Ken",
+  "ruleset": "Ken Oki Microgame V0 — verified timing + empirical spacing",
+  "reference": {
+    "frame_data": "SF6 Lab official-reference table, referenced 2026-08-27; cross-checked with Ultimate Frame Data",
+    "user_calibration": [
+      "effective ranges",
+      "backwalk first-frame displacement",
+      "jHP safe-jump block timing"
+    ]
+  },
+  "frame_semantics": {
+    "frame_numbering": "1-based within an action",
+    "startup_rule": "startup N means frames 1..N-1 are startup-only and frame N is the first active frame",
+    "stun_definition": "hitstun/blockstun counts the contact frame itself as stun frame 1",
+    "raw_advantage_formula": "adv = stun - (remaining_active_after_contact + recovery + 1)",
+    "derive_stun_formula": "stun = remaining_active_after_reference_contact + recovery + published_advantage + 1",
+    "late_contact_rule": "stun is fixed; each later active-frame contact increases raw advantage by 1F",
+    "cancel_rule": "cancel discards all remaining active/recovery of the current move",
+    "cancel_transition": "for a contact cancel, child action frame 1 starts on the next global frame",
+    "branch_transition": "for an explicitly available follow-up branch, child action frame 1 starts on the branch-input global frame unless an empirical override exists",
+    "true_blockstring_rule": "true blockstring requires at least 1F overlap with defender blockstun; a next hit on the defender's first actionable frame is 0F gap but NOT a true blockstring",
+    "no_juggle": true,
+    "hitstop": false
+  },
+  "advantage_formula": {
+    "ground_move": "advantage(contact_at_active_frame k) = stun - (remaining_active_frames_after_k + recovery)",
+    "cancel_combo": "after cancel at contact with delay d, gap = child_startup + d - defender_stun; gap<=0 means continuous stun/combo/blockstring under this simulator convention",
+    "jump_attack": "advantage = fixed_stun - (remaining_usable_air_attack_frames_after_contact + landing_recovery)"
+  },
+  "system_rules": {
+    "wakeup_throw_invulnerability": 1,
+    "post_hitstun_throw_invulnerability": 2,
+    "post_blockstun_throw_invulnerability": 2,
+    "throw_resolution": "failed first active capture attempt resolves the throw as whiff",
+    "strike_vs_throw_same_frame": "strike_wins",
+    "unsupported_actions": "masked",
+    "supers_enabled": false,
+    "air_normals_enabled": [
+      "jHP"
+    ],
+    "projectile_travel_frames": 0,
+    "hit_level_semantics": {
+      "overhead": "must be blocked standing",
+      "mid": "blockable standing or crouching",
+      "low": "must be blocked crouching",
+      "throw": "throw/capture, not strike-blockable",
+      "non_attack": "movement/state/system action with no direct strike hit level"
+    },
+    "throw_invulnerability": {
+      "after_wakeup_frames": 1,
+      "after_hitstun_frames": 2,
+      "after_blockstun_frames": 2,
+      "frame_counting": "begins on the first actionable frame after the corresponding state ends"
+    },
+    "execution_delay_noise": {
+      "fastest_delay_0_is_exact": true,
+      "for_target_delay_gt_0": {
+        "noise_values": [
+          -2,
+          -1,
+          0,
+          1,
+          2
+        ],
+        "probabilities": [
+          0.2,
+          0.2,
+          0.2,
+          0.2,
+          0.2
+        ],
+        "actual_delay": "max(0, target_delay + noise)"
+      }
+    }
+  },
+  "movement": {
+    "distance_unit": "abstract_backwalk_unit",
+    "backwalk": {
+      "first_frame": 0.25,
+      "subsequent_frame": 1.0
+    },
+    "measured_ranges": {
+      "throw_forward": 13.5,
+      "throw_back": 13.5,
+      "5LP": 24.0,
+      "2LP": 21.0,
+      "5MP": 21.0,
+      "2MP": 28.5,
+      "5HP": 38.5,
+      "2HP": 28.5,
+      "5LK": 34.0,
+      "2LK": 25.0,
+      "2MK": 38.5
+    }
+  },
+  "jump": {
+    "forward_jump_total_to_actionable": 46,
+    "jHP_setup_calibration": {
+      "plus42_safe_jump": {
+        "input_at_jump_frame_34": {
+          "contact": "last_usable_active_frame",
+          "block_advantage": 11
+        },
+        "input_at_jump_frame_32": {
+          "contact": "two_usable_active_frames_earlier",
+          "block_advantage": 9
+        },
+        "too_early_whiff": {
+          "raw_disadvantage": -4,
+          "derivation": "42-46"
+        }
+      }
+    }
+  },
+  "moves": {
+    "5LP": {
+      "kind": "normal",
+      "startup": 4,
+      "active": [
+        [
+          4,
+          6
+        ]
+      ],
+      "recovery": 7,
+      "damage": 300,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 141.76,
+        "crouching": 146.51
+      },
+      "stun": {
+        "hit": 14,
+        "block": 9,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 4,
+        "block": -1
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0
+          ]
+        },
+        "chain": {
+          "enabled": true,
+          "targets": [
+            "5LP",
+            "2LP",
+            "2LK"
+          ],
+          "requires_contact": true,
+          "delayable": true,
+          "delay_policy": "within_remaining_active_frames"
+        }
+      },
+      "hurtbox_note": "Ken crouching hurtbox is horizontally longer; user measured 5LP crouch-contact range 146.51 vs standing 141.76.",
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 33.34,
+        "D_min_full": 103.33,
+        "source": "user empirical measurements"
+      }
+    },
+    "5LK": {
+      "kind": "normal",
+      "startup": 5,
+      "active": [
+        [
+          5,
+          6
+        ]
+      ],
+      "recovery": 12,
+      "damage": 300,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 172.4,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 14,
+        "block": 12,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 0,
+        "block": -2
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0
+          ]
+        }
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 54.16,
+        "D_min_full": 149.17,
+        "source": "user empirical measurements; corrected repeated-distance series confirmed as 5LK"
+      }
+    },
+    "5MP": {
+      "kind": "normal",
+      "startup": 5,
+      "active": [
+        [
+          5,
+          8
+        ]
+      ],
+      "recovery": 14,
+      "damage": 600,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 131.6,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 22,
+        "block": 16,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 4,
+        "block": -2
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0
+          ]
+        },
+        "target_combo": {
+          "targets": [
+            "chin_buster_2"
+          ],
+          "delayable": false
+        }
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 42.5,
+        "D_min_full": 128.93,
+        "source": "user empirical measurements"
+      }
+    },
+    "5HP": {
+      "kind": "normal",
+      "startup": 10,
+      "active": [
+        [
+          10,
+          14
+        ]
+      ],
+      "recovery": 17,
+      "damage": 800,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 189.2,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 25,
+        "block": 20,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": -2
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0,
+            1
+          ]
+        }
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 9.89,
+        "D_min_full": 157.52,
+        "D_min_cancelled_recovery": 133.0,
+        "source": "user empirical measurements"
+      }
+    },
+    "2LP": {
+      "kind": "normal",
+      "startup": 4,
+      "active": [
+        [
+          4,
+          5
+        ]
+      ],
+      "recovery": 9,
+      "damage": 300,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 128.4,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 16,
+        "block": 10,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 5,
+        "block": -1
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0
+          ]
+        },
+        "chain": {
+          "enabled": true,
+          "targets": [
+            "5LP",
+            "2LP",
+            "2LK"
+          ],
+          "requires_contact": true,
+          "delayable": true,
+          "delay_policy": "within_remaining_active_frames"
+        }
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 33.0,
+        "D_min_full": 103.0,
+        "source": "user empirical measurements"
+      }
+    },
+    "2LK": {
+      "kind": "normal",
+      "startup": 5,
+      "active": [
+        [
+          5,
+          7
+        ]
+      ],
+      "recovery": 10,
+      "damage": 200,
+      "hit_level": "low",
+      "effective_range": {
+        "standing": 144.4,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 14,
+        "block": 10,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 1,
+        "block": -3
+      },
+      "cancel": {
+        "chain": {
+          "enabled": true,
+          "targets": [
+            "5LP",
+            "2LP",
+            "2LK"
+          ],
+          "requires_contact": true,
+          "delayable": true,
+          "delay_policy": "within_remaining_active_frames"
+        }
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 38.5,
+        "D_min_full": 108.5,
+        "source": "user empirical measurements"
+      }
+    },
+    "2MP": {
+      "kind": "normal",
+      "startup": 6,
+      "active": [
+        [
+          6,
+          8
+        ]
+      ],
+      "recovery": 14,
+      "damage": 600,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 152.4,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 22,
+        "block": 17,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 5,
+        "block": 0
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0,
+            1
+          ]
+        }
+      },
+      "whiff_recovery_extra": 2,
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 52.94,
+        "D_min_full": 122.94,
+        "source": "user empirical measurements"
+      }
+    },
+    "2MK": {
+      "kind": "normal",
+      "startup": 7,
+      "active": [
+        [
+          7,
+          9
+        ]
+      ],
+      "recovery": 19,
+      "damage": 500,
+      "hit_level": "low",
+      "effective_range": {
+        "standing": 186.0,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 20,
+        "block": 16,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": -2,
+        "block": -6
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0
+          ]
+        }
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 53.13,
+        "D_min_full": 156.09,
+        "source": "user empirical measurements"
+      }
+    },
+    "2HP": {
+      "kind": "normal",
+      "startup": 8,
+      "active": [
+        [
+          8,
+          11
+        ]
+      ],
+      "recovery": 24,
+      "damage": 800,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 155.6,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "stun": {
+        "hit": 31,
+        "block": 21,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": -7
+      },
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true,
+          "default_delay_frames": [
+            0
+          ],
+          "contact_active_indices_allowed": [
+            1,
+            2
+          ]
+        }
+      },
+      "spacing_empirical_partial": {
+        "D_min_cancelled_recovery_observed": 146.86
+      }
+    },
+    "jHP": {
+      "kind": "air_normal",
+      "startup": 9,
+      "active_relative_to_input": [
+        [
+          9,
+          14
+        ]
+      ],
+      "landing_recovery": 3,
+      "damage": 800,
+      "hit_level": "overhead",
+      "range_model": "valid_jump_trajectory_implies_contact_range",
+      "stun": {
+        "block": 14,
+        "hit": null,
+        "source": "user calibration from +42 safe-jump timing",
+        "note": "blockstun fixed; hitstun left unset because V0 does not need an airborne/juggle model"
+      },
+      "cancel": {},
+      "spacing_empirical_partial": {
+        "end_distance_from_70": 102.67
+      }
+    },
+    "throw_forward": {
+      "kind": "throw",
+      "startup": 5,
+      "active": [
+        [
+          5,
+          7
+        ]
+      ],
+      "recovery": 23,
+      "damage": 1200,
+      "effective_range": {
+        "standing": 113.2,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "knockdown": true,
+      "capture_resolution": "if first throw-active collision attempt occurs while target is throw-invulnerable/unthrowable, resolve as whiff; do not reacquire on later listed active frames",
+      "hit_level": "throw"
+    },
+    "throw_back": {
+      "kind": "throw",
+      "startup": 5,
+      "active": [
+        [
+          5,
+          7
+        ]
+      ],
+      "recovery": 23,
+      "damage": 1200,
+      "effective_range": {
+        "standing": 113.2,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "knockdown": true,
+      "capture_resolution": "if first throw-active collision attempt occurs while target is throw-invulnerable/unthrowable, resolve as whiff; do not reacquire on later listed active frames",
+      "hit_level": "throw"
+    },
+    "quick_dash": {
+      "kind": "state_move",
+      "total": 45,
+      "branch_clock_origin": "quick_dash_frame_1",
+      "branches": {
+        "emergency_stop": {
+          "input_frame": 10,
+          "result_action": "quick_dash_emergency_stop"
+        },
+        "forward_step_kick": {
+          "input_frame": 10,
+          "result_action": "quick_dash_forward_step_kick"
+        },
+        "thunder_kick": {
+          "input_frame": 10,
+          "result_action": "quick_dash_thunder_kick"
+        },
+        "shoryuken": {
+          "input_frame": 12,
+          "result_action": "quick_dash_shoryuken"
+        },
+        "tatsu": {
+          "input_frame": 12,
+          "result_action": "quick_dash_tatsu"
+        },
+        "dragonlash": {
+          "input_frame": 12,
+          "result_action": "quick_dash_dragonlash"
+        }
+      },
+      "hit_level": "non_attack",
+      "empirical_or_public_aggregate_timing": {
+        "fastest_emergency_stop_actionable": 27,
+        "thunder_kick_first_active_from_quick_dash_start": 28
+      }
+    },
+    "quick_dash_emergency_stop": {
+      "kind": "quick_dash_followup",
+      "hit_level": "non_attack",
+      "actionable_on_quick_dash_frame": 27
+    },
+    "quick_dash_thunder_kick": {
+      "kind": "quick_dash_followup",
+      "hit_level": "overhead",
+      "startup_from_branch": 18,
+      "active_relative_to_branch": [
+        [
+          18,
+          20
+        ]
+      ],
+      "recovery": 20,
+      "damage": 1000,
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": -3
+      },
+      "stun": {
+        "hit": 26,
+        "block": 20,
+        "reference_contact_active_index": 1
+      },
+      "first_active_from_quick_dash_start": 28,
+      "source_note": "SF6 Lab gives 18-20 active / +3 / -3; UFD currently disagrees (-4 and 4 active), so this V0 follows SF6 Lab plus the user's 3rd-active +5 calibration.",
+      "spacing_empirical_partial": {
+        "observed_end_distance": 119.0
+      }
+    },
+    "quick_dash_forward_step_kick": {
+      "kind": "quick_dash_followup",
+      "startup": 8,
+      "active": [
+        [
+          8,
+          11
+        ]
+      ],
+      "recovery": 20,
+      "damage": 800,
+      "hit_level": "mid",
+      "stun": {
+        "hit": 24,
+        "block": 19,
+        "derivation": "fixed from first-active-frame published advantage when numeric"
+      },
+      "published_advantage_validation": {
+        "hit": 1,
+        "block": -4
+      },
+      "whiff_recovery_extra": 4,
+      "parent_branch": {
+        "parent": "quick_dash",
+        "input_frame": 10,
+        "first_active_from_quick_dash_start": 18
+      },
+      "spacing_empirical_partial": {
+        "observed_end_distance": 122.5
+      }
+    },
+    "hadoken_L": {
+      "kind": "projectile_special",
+      "startup": 16,
+      "projectile_spawn_frame": 16,
+      "total": 49,
+      "recovery_after_spawn": 33,
+      "damage": 600,
+      "drive_cost": 0,
+      "projectile_travel_frames": 0,
+      "contact_condition": "defender is currently strike-vulnerable or block-capable",
+      "stun": {
+        "hit": 32,
+        "block": 26,
+        "derivation": "total-startup plus published first-contact advantage"
+      },
+      "published_advantage_validation": {
+        "hit": -1,
+        "block": -7
+      },
+      "hit_level": "mid",
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 0.0,
+        "D_min_full": 118.68,
+        "source": "user empirical: standalone/TC cancel values plus 2MP-cancel preserving larger pre-existing distance"
+      }
+    },
+    "hadoken_M": {
+      "kind": "projectile_special",
+      "startup": 14,
+      "projectile_spawn_frame": 14,
+      "total": 49,
+      "recovery_after_spawn": 35,
+      "damage": 600,
+      "drive_cost": 0,
+      "projectile_travel_frames": 0,
+      "contact_condition": "defender is currently strike-vulnerable or block-capable",
+      "stun": {
+        "hit": 32,
+        "block": 26,
+        "derivation": "total-startup plus published first-contact advantage"
+      },
+      "published_advantage_validation": {
+        "hit": -3,
+        "block": -9
+      },
+      "hit_level": "mid",
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 0.0,
+        "D_min_full": 117.18,
+        "source": "user empirical: standalone/TC cancel values plus 2MP-cancel preserving larger pre-existing distance"
+      }
+    },
+    "hadoken_H": {
+      "kind": "projectile_special",
+      "startup": 12,
+      "projectile_spawn_frame": 12,
+      "total": 49,
+      "recovery_after_spawn": 37,
+      "damage": 600,
+      "drive_cost": 0,
+      "projectile_travel_frames": 0,
+      "contact_condition": "defender is currently strike-vulnerable or block-capable",
+      "stun": {
+        "hit": 32,
+        "block": 26,
+        "derivation": "total-startup plus published first-contact advantage"
+      },
+      "published_advantage_validation": {
+        "hit": -5,
+        "block": -11
+      },
+      "hit_level": "mid",
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 0.0,
+        "D_min_full": 116.95,
+        "source": "user empirical: standalone/TC cancel values plus 2MP-cancel preserving larger pre-existing distance"
+      }
+    },
+    "hadoken_OD": {
+      "kind": "projectile_special",
+      "startup": 12,
+      "projectile_spawn_frame": 12,
+      "total": 40,
+      "recovery_after_spawn": 28,
+      "damage": 800,
+      "drive_cost": 2,
+      "projectile_travel_frames": 0,
+      "contact_condition": "defender is currently strike-vulnerable or block-capable",
+      "stun": {
+        "hit": 30,
+        "block": 26,
+        "derivation": "total-startup plus published first-contact advantage"
+      },
+      "published_advantage_validation": {
+        "hit": 2,
+        "block": -2
+      },
+      "hit_level": "mid",
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 0.0,
+        "D_min_full": 116.95,
+        "source": "user empirical: standalone/TC cancel values plus 2MP-cancel preserving larger pre-existing distance"
+      }
+    },
+    "dragonlash_L": {
+      "kind": "special",
+      "startup": 18,
+      "active": [
+        [
+          18,
+          23
+        ]
+      ],
+      "recovery": 21,
+      "damage": 1000,
+      "hit_level": "mid",
+      "stun": {
+        "hit": 26,
+        "block": 20,
+        "reference_contact_active_index": 4,
+        "source": "public frame table + user measured practical contact index"
+      },
+      "published_advantage_validation": {
+        "hit": 2,
+        "block": -4
+      },
+      "contact_by_posture": {
+        "standing": {
+          "active_index": 4,
+          "block_advantage": -4
+        },
+        "crouching": {
+          "active_index": 4,
+          "block_advantage": -4
+        }
+      }
+    },
+    "dragonlash_M": {
+      "kind": "special",
+      "startup": 23,
+      "active": [
+        [
+          23,
+          27
+        ]
+      ],
+      "recovery": 25,
+      "damage": 1100,
+      "hit_level": "mid",
+      "stun": {
+        "hit": 30,
+        "block": 19,
+        "reference_contact_active_index": 4,
+        "source": "public frame table + user measured practical contact index"
+      },
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": -8
+      },
+      "contact_by_posture": {
+        "standing": {
+          "active_index": 4,
+          "block_advantage": -8
+        },
+        "crouching": {
+          "active_index": 5,
+          "block_advantage": -7
+        }
+      }
+    },
+    "dragonlash_H": {
+      "kind": "special",
+      "startup": 28,
+      "active": [
+        [
+          28,
+          32
+        ]
+      ],
+      "recovery": 21,
+      "damage": 1200,
+      "hit_level": "mid",
+      "stun": {
+        "hit": 27,
+        "block": 25,
+        "reference_contact_active_index": 3,
+        "source": "public frame table + user measured practical contact index"
+      },
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": 1
+      },
+      "contact_by_posture": {
+        "standing": {
+          "active_index": 3,
+          "block_advantage": 1
+        },
+        "crouching": {
+          "active_index": 4,
+          "block_advantage": 2
+        }
+      }
+    },
+    "dragonlash_OD": {
+      "kind": "special",
+      "startup": 9,
+      "active": [
+        [
+          9,
+          10
+        ],
+        [
+          18,
+          24
+        ]
+      ],
+      "recovery": 24,
+      "damage": 1200,
+      "drive_cost": 2,
+      "published_advantage_validation": {
+        "hit": 1,
+        "block": -9
+      },
+      "note": "multi-hit timing retained; per-hit stun not reconstructed in V0",
+      "hit_level": "mid",
+      "stun": {
+        "block": 20,
+        "hit": null,
+        "source": "user practical block calibration on final active segment; hit stun left unresolved for multi-hit V0"
+      },
+      "contact_by_posture": {
+        "standing": {
+          "final_segment_active_index": 5,
+          "block_advantage": -7
+        },
+        "crouching": {
+          "final_segment_active_index": 6,
+          "block_advantage": -6
+        }
+      }
+    },
+    "shoryuken_L": {
+      "kind": "special",
+      "startup": 5,
+      "active": [
+        [
+          5,
+          14
+        ]
+      ],
+      "recovery": 21,
+      "landing_recovery": 12,
+      "knockdown": true,
+      "block_advantage": -23,
+      "damage": 1100,
+      "invulnerability": [
+        {
+          "type": "air_strike",
+          "frames": [
+            1,
+            14
+          ]
+        }
+      ],
+      "hit_level": "mid"
+    },
+    "shoryuken_M": {
+      "kind": "special",
+      "startup": 6,
+      "active": [
+        [
+          6,
+          8
+        ],
+        [
+          9,
+          15
+        ]
+      ],
+      "recovery": 28,
+      "landing_recovery": 12,
+      "knockdown": true,
+      "block_advantage": -28,
+      "damage": 1300,
+      "invulnerability": [
+        {
+          "type": "air_strike",
+          "frames": [
+            1,
+            8
+          ]
+        }
+      ],
+      "hit_level": "mid"
+    },
+    "shoryuken_H": {
+      "kind": "special",
+      "startup": 7,
+      "active": [
+        [
+          7,
+          8
+        ],
+        [
+          9,
+          10
+        ],
+        [
+          11,
+          16
+        ]
+      ],
+      "recovery": 35,
+      "landing_recovery": 15,
+      "knockdown": true,
+      "block_advantage": -36,
+      "damage": 1400,
+      "invulnerability": [
+        {
+          "type": "air_strike",
+          "frames": [
+            1,
+            9
+          ]
+        },
+        {
+          "type": "projectile",
+          "frames": [
+            5,
+            11
+          ]
+        }
+      ],
+      "hit_level": "mid"
+    },
+    "shoryuken_OD": {
+      "kind": "special",
+      "startup": 6,
+      "active": [
+        [
+          6,
+          7
+        ],
+        [
+          8,
+          15
+        ],
+        [
+          30,
+          31
+        ],
+        [
+          32,
+          32
+        ],
+        [
+          33,
+          34
+        ],
+        [
+          35,
+          39
+        ]
+      ],
+      "recovery": 35,
+      "landing_recovery": 15,
+      "knockdown": true,
+      "block_advantage": -40,
+      "damage": 1600,
+      "drive_cost": 2,
+      "invulnerability": [
+        {
+          "type": "full",
+          "frames": [
+            1,
+            10
+          ]
+        }
+      ],
+      "hit_level": "mid"
+    },
+    "tatsu_L": {
+      "kind": "special",
+      "startup": 4,
+      "active": [
+        [
+          4,
+          5
+        ],
+        [
+          12,
+          14
+        ]
+      ],
+      "recovery": 32,
+      "knockdown": true,
+      "block_advantage": -14,
+      "damage": 700,
+      "drive_cost": 0,
+      "note": "multi-hit; per-hit blockstun not reconstructed in V0",
+      "hit_level": "mid"
+    },
+    "tatsu_M": {
+      "kind": "special",
+      "startup": 14,
+      "active": [
+        [
+          14,
+          15
+        ],
+        [
+          29,
+          30
+        ]
+      ],
+      "recovery": 31,
+      "knockdown": true,
+      "block_advantage": -12,
+      "damage": 900,
+      "drive_cost": 0,
+      "note": "multi-hit; per-hit blockstun not reconstructed in V0",
+      "hit_level": "mid"
+    },
+    "tatsu_H": {
+      "kind": "special",
+      "startup": 16,
+      "active": [
+        [
+          16,
+          17
+        ],
+        [
+          31,
+          32
+        ],
+        [
+          46,
+          47
+        ]
+      ],
+      "recovery": 31,
+      "knockdown": true,
+      "block_advantage": -12,
+      "damage": 1000,
+      "drive_cost": 0,
+      "note": "multi-hit; per-hit blockstun not reconstructed in V0",
+      "hit_level": "mid"
+    },
+    "tatsu_OD": {
+      "kind": "special",
+      "startup": 9,
+      "active": [
+        [
+          9,
+          12
+        ],
+        [
+          18,
+          20
+        ],
+        [
+          27,
+          29
+        ],
+        [
+          36,
+          38
+        ],
+        [
+          54,
+          56
+        ]
+      ],
+      "recovery": 22,
+      "knockdown": true,
+      "block_advantage": -61,
+      "damage": 1700,
+      "drive_cost": 2,
+      "note": "multi-hit; per-hit blockstun not reconstructed in V0",
+      "hit_level": "mid"
+    },
+    "jinrai_L": {
+      "kind": "jinrai_root",
+      "startup": 12,
+      "active": [
+        [
+          12,
+          14
+        ]
+      ],
+      "recovery": 28,
+      "damage": 500,
+      "drive_cost": 0,
+      "knockdown": false,
+      "stun": {
+        "hit": 32,
+        "block": 20,
+        "reference_contact_active_index": 1
+      },
+      "published_advantage_validation": {
+        "hit": 1,
+        "block": -11
+      },
+      "branch_clock_origin": "root_action_frame_1",
+      "branches": {
+        "kazekama": {
+          "input_window": [
+            32,
+            35
+          ],
+          "child": "kazekama"
+        },
+        "gorai": {
+          "input_window": [
+            32,
+            35
+          ],
+          "child": "gorai"
+        },
+        "senka": {
+          "input_window": [
+            30,
+            35
+          ],
+          "child": "senka"
+        }
+      },
+      "hit_level": "mid",
+      "empirical_branch_timing": {
+        "fastest_LK_followup_first_active_root_frame": 37,
+        "source": "user-validated 4F-mash comparison"
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 0.0,
+        "D_min_full": 122.5,
+        "source": "user empirical cancel sequences"
+      }
+    },
+    "jinrai_M": {
+      "kind": "jinrai_root",
+      "startup": 16,
+      "active": [
+        [
+          16,
+          18
+        ]
+      ],
+      "recovery": 24,
+      "damage": 600,
+      "drive_cost": 0,
+      "knockdown": false,
+      "stun": {
+        "hit": 29,
+        "block": 20,
+        "reference_contact_active_index": 1
+      },
+      "published_advantage_validation": {
+        "hit": 2,
+        "block": -7
+      },
+      "branch_clock_origin": "root_action_frame_1",
+      "branches": {
+        "kazekama": {
+          "input_window": [
+            32,
+            35
+          ],
+          "child": "kazekama"
+        },
+        "gorai": {
+          "input_window": [
+            32,
+            35
+          ],
+          "child": "gorai"
+        },
+        "senka": {
+          "input_window": [
+            30,
+            35
+          ],
+          "child": "senka"
+        }
+      },
+      "hit_level": "mid",
+      "empirical_branch_timing": {
+        "fastest_LK_followup_first_active_root_frame": 36,
+        "source": "user +38 oki measurement: third Kazekama active contacts on wakeup"
+      },
+      "spacing_on_block": {
+        "model": "max(D_min, d_contact + delta)",
+        "delta": 0.0,
+        "D_min_full": 122.5,
+        "source": "user empirical cancel sequences"
+      }
+    },
+    "jinrai_H": {
+      "kind": "jinrai_root",
+      "startup": 25,
+      "active": [
+        [
+          25,
+          27
+        ]
+      ],
+      "recovery": 19,
+      "damage": 700,
+      "drive_cost": 0,
+      "knockdown": true,
+      "stun": {
+        "hit": null,
+        "block": 20,
+        "reference_contact_active_index": 1
+      },
+      "published_advantage_validation": {
+        "hit": "KD",
+        "block": -2
+      },
+      "branch_clock_origin": "root_action_frame_1",
+      "branches": {
+        "kazekama": {
+          "input_window": [
+            36,
+            41
+          ],
+          "child": "kazekama"
+        },
+        "gorai": {
+          "input_window": [
+            36,
+            41
+          ],
+          "child": "gorai"
+        },
+        "senka": {
+          "input_window": [
+            34,
+            41
+          ],
+          "child": "senka"
+        }
+      },
+      "hit_level": "mid"
+    },
+    "jinrai_OD": {
+      "kind": "jinrai_root",
+      "startup": 13,
+      "active": [
+        [
+          13,
+          15
+        ]
+      ],
+      "recovery": 25,
+      "damage": 600,
+      "drive_cost": 2,
+      "knockdown": false,
+      "stun": {
+        "hit": 24,
+        "block": 21,
+        "reference_contact_active_index": 1
+      },
+      "published_advantage_validation": {
+        "hit": -4,
+        "block": -7
+      },
+      "branch_clock_origin": "root_action_frame_1",
+      "branches": {
+        "kazekama": {
+          "input_window": [
+            21,
+            27
+          ],
+          "child": "kazekama"
+        },
+        "gorai": {
+          "input_window": [
+            21,
+            27
+          ],
+          "child": "gorai"
+        },
+        "senka": {
+          "input_window": [
+            19,
+            27
+          ],
+          "child": "senka"
+        }
+      },
+      "hit_level": "mid"
+    },
+    "kazekama": {
+      "kind": "jinrai_followup",
+      "startup": 6,
+      "active": [
+        [
+          6,
+          9
+        ]
+      ],
+      "recovery": 19,
+      "damage": 600,
+      "hit_level": "low",
+      "stun": {
+        "hit": 26,
+        "block": 18,
+        "reference_contact_active_index": 1
+      },
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": -5
+      },
+      "spacing_on_block": {
+        "model": "d_after = d_contact + delta in measured range",
+        "delta": 36.67,
+        "source": "122.50->159.17, 127.90->164.57, 128.23->164.90"
+      }
+    },
+    "gorai": {
+      "kind": "jinrai_followup",
+      "startup": 18,
+      "active": [
+        [
+          18,
+          20
+        ]
+      ],
+      "recovery": 20,
+      "damage": 1000,
+      "hit_level": "overhead",
+      "stun": {
+        "hit": 26,
+        "block": 20,
+        "reference_contact_active_index": 1
+      },
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": -3
+      },
+      "spacing_empirical_partial": {
+        "observed_end_distance_after_M_or_H_Jinrai": 115.7
+      }
+    },
+    "senka": {
+      "kind": "jinrai_followup",
+      "startup": 10,
+      "active": [
+        [
+          10,
+          12
+        ]
+      ],
+      "recovery": 25,
+      "damage": 800,
+      "hit_level": "mid",
+      "knockdown": true,
+      "stun": {
+        "block": 24,
+        "hit": null,
+        "derivation": "remaining 2 active + 25 recovery -3 block advantage"
+      },
+      "published_advantage_validation": {
+        "hit": "KD",
+        "block": -3
+      },
+      "spacing_empirical_partial": {
+        "observed_end_distance_after_M_or_H_Jinrai": 167.65
+      }
+    },
+    "chin_buster_2": {
+      "kind": "target_combo_followup",
+      "startup": 11,
+      "active": [
+        [
+          11,
+          13
+        ]
+      ],
+      "recovery": 27,
+      "damage": 400,
+      "knockdown": true,
+      "block_advantage": -14,
+      "cancel": {
+        "special": {
+          "enabled": true,
+          "targets": "all_enabled_specials",
+          "also_allows": [
+            "cancel_drive_rush",
+            "drive_impact"
+          ],
+          "requires_contact": true
+        }
+      },
+      "hit_level": "mid"
+    },
+    "triple_flash_2": {
+      "kind": "target_combo_followup",
+      "startup": 11,
+      "active": [
+        [
+          11,
+          12
+        ]
+      ],
+      "recovery": 27,
+      "damage": 400,
+      "knockdown": true,
+      "block_advantage": -12,
+      "hit_level": "mid"
+    },
+    "triple_flash_3": {
+      "kind": "target_combo_followup",
+      "startup": 13,
+      "active": [
+        [
+          13,
+          15
+        ]
+      ],
+      "recovery": 28,
+      "damage": 700,
+      "knockdown": true,
+      "block_advantage": -11,
+      "hit_level": "mid"
+    },
+    "5MK": {
+      "kind": "normal",
+      "startup": 8,
+      "active": [
+        [
+          8,
+          10
+        ]
+      ],
+      "recovery": 20,
+      "damage": 600,
+      "hit_level": "mid",
+      "effective_range": {
+        "standing": 213.2,
+        "crouching": "assume_same_as_standing_until_measured"
+      },
+      "range_policy": "masked_in_V0_due_to_missing_reliable_range_for_current_oki_scope",
+      "stun": {
+        "hit": 26,
+        "block": 18,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "cancel": {
+        "target_combo": {
+          "targets": [
+            "triple_flash_2"
+          ],
+          "delayable": false
+        }
+      },
+      "published_advantage_validation": {
+        "hit": 3,
+        "block": -5
+      },
+      "spacing_empirical_partial": {
+        "D_min_cancelled_recovery_observed": 122.78
+      }
+    },
+    "drive_impact": {
+      "kind": "system",
+      "startup": 26,
+      "active": [
+        [
+          26,
+          27
+        ]
+      ],
+      "recovery": 35,
+      "damage": 800,
+      "drive_cost": 1,
+      "armor": {
+        "hits": 2,
+        "frames": [
+          1,
+          27
+        ]
+      },
+      "block_advantage": -3,
+      "note": "wall-splat details omitted in V0",
+      "hit_level": "mid"
+    },
+    "drive_parry": {
+      "kind": "system",
+      "startup": 1,
+      "active": [
+        [
+          1,
+          12
+        ]
+      ],
+      "recovery": 33,
+      "hold_extends_active": true,
+      "perfect_parry": {
+        "time_stop": false,
+        "effect": "simplified_drive_gain_only"
+      },
+      "hit_level": "non_attack"
+    },
+    "cancel_drive_rush": {
+      "kind": "system_transition",
+      "total": 46,
+      "attack_available_from": 9,
+      "note": "kept as published system timing; exact animation semantics not expanded further in V0",
+      "hit_level": "non_attack"
+    }
+  },
+  "validation_cases": [
+    {
+      "name": "quick_dash_fastest_emergency_stop",
+      "computed": 27,
+      "expected": 27,
+      "pass": true
+    },
+    {
+      "name": "plus43_5LP_whiff_QD_Thunder",
+      "computed": {
+        "contact_active_index": 3,
+        "hit_advantage": 5
+      },
+      "expected": {
+        "contact_active_index": 3,
+        "hit_advantage": 5
+      },
+      "pass": true
+    },
+    {
+      "name": "plus42_safejump_jHP",
+      "computed": {
+        "input32": 9,
+        "input34": 11,
+        "input35": "no_contact",
+        "input28": "no_contact_raw_-4"
+      },
+      "expected": {
+        "input32": 9,
+        "input34": 11,
+        "input35": "no_contact",
+        "input28": "no_contact_raw_-4"
+      },
+      "pass": true
+    },
+    {
+      "name": "2MP_first_active_block_adv",
+      "computed": 0,
+      "expected": 0,
+      "pass": true
+    },
+    {
+      "name": "2MP_cancel_M_Jinrai",
+      "computed": {
+        "fastest": "1F_overlap_true_blockstring",
+        "delay1": "0F_gap_not_true_blockstring"
+      },
+      "expected": {
+        "fastest": "1F_overlap_true_blockstring",
+        "delay1": "0F_gap_not_true_blockstring"
+      },
+      "pass": true
+    },
+    {
+      "name": "5HP_last_active_cancel_H_Jinrai",
+      "computed": {
+        "raw_advantage": 7,
+        "cancel_result": "0F_gap_not_combo"
+      },
+      "expected": {
+        "raw_advantage": 7,
+        "cancel_result": "0F_gap_not_combo"
+      },
+      "pass": true
+    },
+    {
+      "name": "L_Jinrai_fastest_low_vs_4F",
+      "computed": {
+        "defender_4F_active_root_frame": 35,
+        "low_active_root_frame": 37,
+        "winner": "defender_4F"
+      },
+      "expected": {
+        "defender_4F_active_root_frame": 35,
+        "low_active_root_frame": 37,
+        "winner": "defender_4F"
+      },
+      "pass": true
+    },
+    {
+      "name": "plus6_wakeup_throw",
+      "computed": "whiff_due_to_1F_wakeup_throw_invul",
+      "expected": "whiff_due_to_1F_wakeup_throw_invul",
+      "pass": true
+    },
+    {
+      "name": "late_active_rule",
+      "computed": "raw_advantage +1F per later active; cancel timing unchanged",
+      "expected": "same",
+      "pass": true
+    },
+    {
+      "name": "plus38_M_Jinrai_LK",
+      "computed": {
+        "contact_active_index": 3,
+        "standing_guard": "low_hits_attacker_+5",
+        "crouching_guard": "blocked_attacker_-3"
+      },
+      "expected": {
+        "contact_active_index": 3,
+        "standing_guard": "low_hits_attacker_+5",
+        "crouching_guard": "blocked_attacker_-3"
+      },
+      "pass": true
+    },
+    {
+      "name": "dragonlash_L_posture_block_adv",
+      "computed": {
+        "standing": -4,
+        "crouching": -4
+      },
+      "expected": {
+        "standing": -4,
+        "crouching": -4
+      },
+      "pass": true
+    },
+    {
+      "name": "dragonlash_M_posture_block_adv",
+      "computed": {
+        "standing": -8,
+        "crouching": -7
+      },
+      "expected": {
+        "standing": -8,
+        "crouching": -7
+      },
+      "pass": true
+    },
+    {
+      "name": "dragonlash_H_posture_block_adv",
+      "computed": {
+        "standing": 1,
+        "crouching": 2
+      },
+      "expected": {
+        "standing": 1,
+        "crouching": 2
+      },
+      "pass": true
+    },
+    {
+      "name": "dragonlash_OD_posture_block_adv",
+      "computed": {
+        "standing": -7,
+        "crouching": -6
+      },
+      "expected": {
+        "standing": -7,
+        "crouching": -6
+      },
+      "pass": true
+    }
+  ],
+  "validation_requirements": [
+    "Every move entry must contain hit_level in {overhead, mid, low, throw, non_attack}.",
+    "The first actionable frame after wakeup has 1F throw invulnerability.",
+    "The first two actionable frames after hitstun or blockstun have throw invulnerability."
+  ],
+  "distance_model": {
+    "unit": "game_coordinate_distance",
+    "contact_rule": "contact if current distance <= effective_range[defender_posture] for a supported move",
+    "postures": [
+      "standing",
+      "crouching"
+    ],
+    "block_spacing_transition": "d_after = max(D_min, d_contact + delta) when parameters are identified",
+    "cancel_rule": "if recovery animation is cancelled, do not apply displacement belonging to the cancelled recovery; use a cancel-specific D_min when empirically available",
+    "backwalk": {
+      "first_frame_delta": 0.8,
+      "subsequent_frame_delta": 3.2
+    },
+    "public_crosscheck": {
+      "ken_backwalk_speed": 3.2
+    }
+  },
+  "empirical_composite_spacing": {
+    "DR_5LP": {
+      "start": 70.0,
+      "end": 81.11
+    },
+    "DR_2LP": {
+      "start": 70.0,
+      "end": 82.6
+    },
+    "DR_5MP": {
+      "start": 70.0,
+      "end": 103.62
+    },
+    "DR_5HP": {
+      "start": 70.0,
+      "end": 136.01
+    },
+    "DR_5HP_then_5LP": {
+      "start": 70.0,
+      "end": 144.83
+    },
+    "5HP_then_5LP_whiff": {
+      "start": 70.0,
+      "end": 166.33,
+      "note": "5HP full recovery leaves 157.52 > standing 5LP range 141.76, so the following 5LP is a whiff; the end distance is not a block-pushback measurement."
+    },
+    "throw_escape": {
+      "end_distance": 282.0
+    },
+    "backdash": {
+      "start": 109.74,
+      "end": 202.84
+    },
+    "forward_dash": {
+      "start": 341.79,
+      "end": 208.39
+    },
+    "forward_jump": {
+      "start": 300.0,
+      "end": 190.0
+    },
+    "back_jump": {
+      "start": 70.0,
+      "end": 222.0
+    },
+    "623HK_or_notation_263HK": {
+      "start": 70.0,
+      "end": 70.0,
+      "note": "notation preserved from user table; move identity should be confirmed before using."
+    }
+  },
+  "data_quality_notes": [
+    "The repeated-distance series previously labelled '5LP' (70->149.17, 101.99->156.16, 156.16->210.32, 133.95->188.11, 86.8->149.17, 91.57->149.17) is confirmed by the user to be 5LK. It supports the 5LK spacing model d_after=max(149.17, d_contact+54.16/54.17).",
+    "Thunder Kick public databases disagree: SF6 Lab gives active 18-20 and -3 on block; UFD displays 4 active and -4. This V0 follows SF6 Lab because it matches the user's 3-active +43 calibration.",
+    "Unmeasured crouching ranges default to standing range only as an explicit V0 assumption."
+  ],
+  "verification_summary": {
+    "public_frame_data_checked_against": "SF6 Lab Ken frame table; UFD used as secondary cross-check",
+    "major_corrections_from_v0_3": [
+      "All derived hitstun/blockstun values now include the contact frame, removing the previous +1F error.",
+      "2MP blockstun is 17F under this counting; fastest cancel M Jinrai overlaps by 1F, delay-1 is 0F gap and not a true blockstring.",
+      "5HP last-active raw advantage is +7; cancel to H Jinrai is 0F gap and not a combo.",
+      "Dragonlash practical contact indices and crouch-dependent +1F late contact are explicitly calibrated.",
+      "Distance system now uses actual game-coordinate units and stance-dependent ranges."
+    ],
+    "major_corrections_from_v0_4": [
+      "Corrected the mislabeled repeated spacing series from 5LP to 5LK; 5LP remains 70->103.33, while 5LK uses the 149.17 floor and ~54.16 pushback."
+    ]
+  },
+  "empirical_spacing_series": {
+    "5LK": [
+      {
+        "start": 70.0,
+        "end": 149.17
+      },
+      {
+        "start": 101.99,
+        "end": 156.16
+      },
+      {
+        "start": 156.16,
+        "end": 210.32
+      },
+      {
+        "start": 133.95,
+        "end": 188.11
+      },
+      {
+        "start": 86.8,
+        "end": 149.17
+      },
+      {
+        "start": 91.57,
+        "end": 149.17
+      }
+    ],
+    "5LP": [
+      {
+        "start": 70.0,
+        "end": 103.33
+      }
+    ]
+  }
+}
