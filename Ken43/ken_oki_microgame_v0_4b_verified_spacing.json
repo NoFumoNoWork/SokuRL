@@ -31,6 +31,12 @@
     "jump_attack": "advantage = fixed_stun - (remaining_usable_air_attack_frames_after_contact + landing_recovery)"
   },
   "system_rules": {
+    "hurtbox_geometry": {
+      "standing_width": 79.60,
+      "standing_half_width": 39.80,
+      "crouching_width": 94.00,
+      "crouching_half_width": 47.00
+    },
     "fixed_wakeup_frame": 43,
     "wakeup_throw_invulnerability": 1,
     "post_hitstun_throw_invulnerability": 2,
@@ -39,7 +45,38 @@
     "strike_vs_throw_same_frame": "strike_wins",
     "unsupported_actions": "masked",
     "supers_enabled": false,
-    "drive_resource_enabled": false,
+    "drive_resource_enabled": true,
+    "drive_max": 6.0,
+    "default_recovery_mode": "hold2",
+    "whiff_forward_displacement": {
+      "5LP": 0.0,
+      "2LP": 0.0,
+      "5LK": 0.0,
+      "2LK": 0.0,
+      "5MP": 0.0,
+      "2MP": 0.0,
+      "2MK": 0.0,
+      "2HP": 0.0,
+      "5MK": 65.04,
+      "5HP": {"hold2": 53.10, "non_hold2": 81.69},
+      "drive_impact": 142.88
+    },
+    "range_measurements": {
+      "5LP": {"standing_first_whiff": 141.20, "attack_reach": 101.40},
+      "5LK": {"standing_first_whiff": 172.40, "effective_range": 172.00},
+      "2LP": {"standing_first_whiff": 128.40, "effective_range": 128.00},
+      "2LK": {"standing_first_whiff": 144.40, "effective_range": 144.00},
+      "5MP": {"standing_last_hit": 131.30, "standing_first_whiff": 131.45, "effective_range": 131.375},
+      "5MK": {"standing_first_whiff": 213.20, "effective_range": 212.80},
+      "2MP": {"standing_first_whiff": 152.40, "effective_range": 152.00},
+      "2MK": {"standing_first_whiff": 186.00, "effective_range": 185.60},
+      "5HP": {"standing_first_whiff": 189.20, "effective_range": 188.80},
+      "5HK": {"standing_first_whiff": 232.40, "attack_reach": 192.60},
+      "2HP": {"standing_first_whiff": 155.60, "effective_range": 155.20},
+      "2HK": {"standing_first_whiff": 205.20, "attack_reach": 165.40},
+      "throw_forward": {"standing_first_whiff": 113.20, "effective_range": 112.80},
+      "throw_back": {"standing_first_whiff": 113.20, "effective_range": 112.80}
+    },
     "masked_actions_v0": [
       "drive_parry",
       "cancel_drive_rush"
@@ -141,8 +178,9 @@
       "recovery": 7,
       "damage": 300,
       "hit_level": "mid",
+      "attack_reach": 101.40,
       "effective_range": {
-        "standing": 141.76,
+        "standing": 141.36,
         "crouching": 146.51
       },
       "stun": {
@@ -201,7 +239,7 @@
       "damage": 300,
       "hit_level": "mid",
       "effective_range": {
-        "standing": 172.4,
+        "standing": 172.0,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -248,7 +286,7 @@
       "damage": 600,
       "hit_level": "mid",
       "effective_range": {
-        "standing": 131.6,
+        "standing": 131.375,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -301,7 +339,7 @@
       "damage": 800,
       "hit_level": "mid",
       "effective_range": {
-        "standing": 189.2,
+        "standing": 188.8,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -350,7 +388,7 @@
       "damage": 300,
       "hit_level": "mid",
       "effective_range": {
-        "standing": 128.4,
+        "standing": 128.0,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -408,7 +446,7 @@
       "damage": 200,
       "hit_level": "low",
       "effective_range": {
-        "standing": 144.4,
+        "standing": 144.0,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -454,7 +492,7 @@
       "damage": 600,
       "hit_level": "mid",
       "effective_range": {
-        "standing": 152.4,
+        "standing": 152.0,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -503,7 +541,7 @@
       "damage": 500,
       "hit_level": "low",
       "effective_range": {
-        "standing": 186.0,
+        "standing": 185.6,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -550,7 +588,7 @@
       "damage": 800,
       "hit_level": "mid",
       "effective_range": {
-        "standing": 155.6,
+        "standing": 155.2,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "stun": {
@@ -621,7 +659,7 @@
       "recovery": 23,
       "damage": 1200,
       "effective_range": {
-        "standing": 113.2,
+        "standing": 112.8,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "knockdown": true,
@@ -640,7 +678,7 @@
       "recovery": 23,
       "damage": 1200,
       "effective_range": {
-        "standing": 113.2,
+        "standing": 112.8,
         "crouching": "assume_same_as_standing_until_measured"
       },
       "knockdown": true,
@@ -1590,10 +1628,9 @@
       "damage": 600,
       "hit_level": "mid",
       "effective_range": {
-        "standing": 213.2,
+        "standing": 212.8,
         "crouching": "assume_same_as_standing_until_measured"
       },
-      "range_policy": "masked_in_V0_due_to_missing_reliable_range_for_current_oki_scope",
       "stun": {
         "hit": 26,
         "block": 18,
@@ -1616,6 +1653,83 @@
         "D_min_cancelled_recovery_observed": 122.78
       }
     },
+    "5HK": {
+      "kind": "normal",
+      "startup": 12,
+      "active": [[12, 13]],
+      "recovery": 23,
+      "extra_recovery_on_whiff_or_armor": 2,
+      "damage": 800,
+      "hit_level": "mid",
+      "attack_reach": 192.60,
+      "stun": {
+        "hit": 26,
+        "block": 20,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "hit": 1,
+        "block": -5
+      },
+      "cancel": {"enabled": false}
+    },
+    "2HK": {
+      "kind": "normal",
+      "startup": 8,
+      "active": [[8, 10]],
+      "recovery": 24,
+      "extra_recovery_on_block": 1,
+      "damage": 900,
+      "hit_level": "low",
+      "attack_reach": 165.40,
+      "knockdown": true,
+      "stun": {
+        "block": 18,
+        "reference_contact_active_index": 1,
+        "derived_with_contact_frame_included": true
+      },
+      "published_advantage_validation": {
+        "block": -10
+      },
+      "cancel": {"enabled": false}
+    },
+    "sacrifice_jump": {
+      "kind": "defensive_state",
+      "startup": 5,
+      "hit_level": "non_attack",
+      "horizontal_displacement": 0.0,
+      "landing_recovery": 3,
+      "lifecycle": "threat_relative_airborne_escape"
+    },
+    "drive_reversal_block": {
+      "kind": "contextual_reversal",
+      "startup": 20,
+      "active": [[20, 22]],
+      "recovery": 26,
+      "damage": 500,
+      "drive_cost": 2,
+      "block_advantage": -6,
+      "hit_level": "mid",
+      "invulnerability": [{"type": "full", "frames": [1, 22]}],
+      "armor_breaker": true,
+      "range_status": "pending",
+      "range_policy": "masked_in_spacing_sensitive_training"
+    },
+    "drive_reversal_wakeup": {
+      "kind": "contextual_reversal",
+      "startup": 18,
+      "active": [[18, 20]],
+      "recovery": 26,
+      "damage": 500,
+      "drive_cost": 2,
+      "block_advantage": -6,
+      "hit_level": "mid",
+      "invulnerability": [{"type": "full", "frames": [1, 20]}],
+      "armor_breaker": true,
+      "range_status": "pending",
+      "range_policy": "masked_in_spacing_sensitive_training"
+    },
     "drive_impact": {
       "kind": "system",
       "startup": 26,
@@ -1635,6 +1749,9 @@
           27
         ]
       },
+      "effective_range": null,
+      "supported_domain_max_distance": 188.8,
+      "range_status": "domain_limited_pending_direct_measurement",
       "block_advantage": -3,
       "note": "wall-splat details omitted in V0",
       "hit_level": "mid"

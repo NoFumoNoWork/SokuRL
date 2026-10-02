@@ -1,6 +1,7 @@
 """Simplified SF6 Ken oki microgame utilities."""
 
 from .data import FrameData, load_frame_data
+from .diagnostics import EpisodeDiagnostics
 from .env import FrameState, KenOkiMicrogame
 from .frame_math import CancelTiming, FrameCalculator
 from .resolver import (
@@ -12,12 +13,39 @@ from .resolver import (
     MovementProfile,
     resolve_frame,
 )
+from .parallel_env import Ken43ParallelEnv
+from .gym_env import Ken43GymEnv
+from .bots import (
+    AlwaysBlockBot,
+    AlwaysDIBot,
+    AlwaysJinraiBot,
+    AlwaysMashBot,
+    AlwaysODDPBot,
+    AlwaysThrowBot,
+    BackdashHeavyBot,
+    BlockAssessment,
+    HeuristicDefenderBot,
+    HeuristicOffenseBot,
+    MashBot,
+    MixedBot,
+    RandomBot,
+    ReversalBot,
+    PressureState,
+    ThrowBot,
+    choose_anti_air,
+    choose_challenge,
+    classify_pressure_state,
+    find_guaranteed_punish,
+    select_bot_action,
+    update_bot,
+)
 from .spacing import SpacingCalculator, SpacingResult
 
 __all__ = [
     "CancelTiming",
     "CombatState",
     "FighterState",
+    "EpisodeDiagnostics",
     "FrameCalculator",
     "FrameData",
     "FrameEvent",
@@ -25,6 +53,30 @@ __all__ = [
     "FrameResolver",
     "FrameState",
     "KenOkiMicrogame",
+    "Ken43ParallelEnv",
+    "Ken43GymEnv",
+    "AlwaysBlockBot",
+    "AlwaysDIBot",
+    "AlwaysJinraiBot",
+    "AlwaysMashBot",
+    "AlwaysODDPBot",
+    "AlwaysThrowBot",
+    "BackdashHeavyBot",
+    "BlockAssessment",
+    "HeuristicDefenderBot",
+    "HeuristicOffenseBot",
+    "MashBot",
+    "MixedBot",
+    "RandomBot",
+    "ReversalBot",
+    "PressureState",
+    "ThrowBot",
+    "choose_anti_air",
+    "choose_challenge",
+    "classify_pressure_state",
+    "find_guaranteed_punish",
+    "select_bot_action",
+    "update_bot",
     "MovementProfile",
     "SpacingCalculator",
     "SpacingResult",

@@ -19,8 +19,8 @@ class FrameState:
     distance: float = 0.0
     attacker_hp: int = 10000
     defender_hp: int = 10000
-    attacker_drive: int = 6
-    defender_drive: int = 6
+    attacker_drive: float = 6.0
+    defender_drive: float = 6.0
     attacker_blocking: bool = False
     defender_blocking: bool = False
     attacker_posture: Posture = "standing"
@@ -35,6 +35,11 @@ class FrameState:
     defender_stun_remaining: int = 0
     attacker_throw_invul_remaining: int = 0
     defender_throw_invul_remaining: int = 0
+    attacker_burnout: bool = False
+    defender_burnout: bool = False
+    attacker_special_stun: str | None = None
+    defender_special_stun: str | None = None
+    terminal_reason: str | None = None
 
     def observation(self) -> dict[str, Any]:
         return asdict(self)
@@ -68,14 +73,14 @@ class KenOkiMicrogame:
         distance: float = 0.0,
         attacker_hp: int = 10000,
         defender_hp: int = 10000,
-        attacker_drive: int = 6,
-        defender_drive: int = 6,
+        attacker_drive: float = 6.0,
+        defender_drive: float = 6.0,
     ) -> dict[str, Any]:
-        if knockdown_advantage != self.fixed_wakeup_frame:
+        if knockdown_advantage not in {26, 38, 43}:
             raise ValueError(
-                f"Ken43 V0 uses a fixed +{self.fixed_wakeup_frame} wakeup timeline"
+                "Ken43 corner microgame supports initial advantage +26, +38, or +43"
             )
-        self.knockdown_advantage = self.fixed_wakeup_frame
+        self.knockdown_advantage = int(knockdown_advantage)
         self.state = FrameState(
             distance=distance,
             attacker_hp=attacker_hp,
@@ -100,11 +105,21 @@ class KenOkiMicrogame:
     def action_mask(self) -> dict[str, bool]:
         return {move_id: move_id in self._legal_actions for move_id in self.data.moves}
 
+    def dynamic_action_mask(
+        self, actor: int, *, exact_combat: bool = True
+    ) -> dict[str, bool]:
+        return {
+            move_id: self.resolver.direct_action_available(
+                self.combat_state, actor, move_id, exact_combat=exact_combat
+            )
+            for move_id in self.data.moves
+        }
+
     def resolve_blocked_move(
         self,
         move_id: str,
         defender_posture: Posture,
-        recovery_mode: RecoveryMode = "full",
+        recovery_mode: RecoveryMode = "hold2",
         next_move_id: str | None = None,
         next_posture: Posture | None = None,
     ) -> SpacingResult:
@@ -173,6 +188,11 @@ class KenOkiMicrogame:
         self.state.defender_stun_remaining = defender.stun_remaining
         self.state.attacker_throw_invul_remaining = attacker.throw_invul_remaining
         self.state.defender_throw_invul_remaining = defender.throw_invul_remaining
+        self.state.attacker_burnout = attacker.burnout
+        self.state.defender_burnout = defender.burnout
+        self.state.attacker_special_stun = attacker.special_stun
+        self.state.defender_special_stun = defender.special_stun
+        self.state.terminal_reason = self.combat_state.terminal_reason
 
     def start_attacker_action(self, action_id: str) -> None:
         if not self.action_mask().get(action_id, False):
@@ -201,7 +221,11 @@ class KenOkiMicrogame:
             FrameInput(action=attacker_action),
             FrameInput(action=defender_action),
         )
-        terminated = self.state.attacker_hp <= 0 or self.state.defender_hp <= 0
+        terminated = (
+            self.state.attacker_hp <= 0
+            or self.state.defender_hp <= 0
+            or self.combat_state.terminal_reason is not None
+        )
         reward = (before_defender_hp - self.state.defender_hp) - (
             before_attacker_hp - self.state.attacker_hp
         )

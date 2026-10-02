@@ -141,5 +141,5 @@ def test_environment_state_contains_required_surface_and_masks_unsupported_actio
     ]:
         assert key in obs
 
-    assert mask["5MK"] is False
+    assert mask["5MK"] is True
     assert mask["5LP"] is True

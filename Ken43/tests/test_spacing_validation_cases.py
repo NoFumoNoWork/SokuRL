@@ -12,14 +12,25 @@ def spacing() -> SpacingCalculator:
 
 def test_01_5lp_posture_ranges(spacing: SpacingCalculator):
     expected = {
-        141.5: (True, True),
+        141.5: (False, True),
         143.0: (False, True),
         146.0: (False, True),
-        147.0: (False, False),
+        147.0: (False, True),
+        148.5: (False, False),
     }
     for distance, (standing, crouching) in expected.items():
         assert spacing.in_range("5LP", distance, "standing") is standing
         assert spacing.in_range("5LP", distance, "crouching") is crouching
+
+
+def test_5lp_geometry_uses_hurtbox_half_widths(spacing: SpacingCalculator):
+    assert spacing.attack_reach("5LP") == pytest.approx(101.40)
+    assert spacing.effective_range("5LP", "standing") == pytest.approx(141.20)
+    assert spacing.effective_range("5LP", "crouching") == pytest.approx(148.40)
+    assert (
+        spacing.effective_range("5LP", "crouching")
+        - spacing.effective_range("5LP", "standing")
+    ) == pytest.approx(7.20)
 
 
 def test_02_5mp_spacing_transition(spacing: SpacingCalculator):
@@ -51,7 +62,9 @@ def test_04_5hp_full_vs_cancelled_recovery(spacing: SpacingCalculator):
 
 
 def test_05_5hp_full_recovery_then_5lp_whiffs(spacing: SpacingCalculator):
-    result = spacing.resolve_block("5HP", 70, "standing", next_move_id="5LP")
+    result = spacing.resolve_block(
+        "5HP", 70, "standing", "non_hold2", next_move_id="5LP"
+    )
     assert result.final_distance == pytest.approx(157.52)
     assert result.next_move_legal_or_whiff == "whiff"
 

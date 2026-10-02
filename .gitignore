@@ -9,6 +9,11 @@ logs/*
 experiments/results/*
 !experiments/results/.gitkeep
 
+# Ken43 generated training and evaluation artifacts
+/Ken43/checkpoints/
+/Ken43/results/*
+!/Ken43/results/*.md
+
 # Python
 __pycache__/
 *.py[cod]

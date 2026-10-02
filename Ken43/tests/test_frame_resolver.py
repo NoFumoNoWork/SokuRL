@@ -121,8 +121,8 @@ def test_simultaneous_strikes_trade_from_one_snapshot():
     state, events = resolver.resolve_frame(state)
 
     assert event_types(events).count("Hit") == 2
-    assert state.players[0].hp == 9700
-    assert state.players[1].hp == 9700
+    assert state.players[0].hp == 9640
+    assert state.players[1].hp == 9640
 
 
 def test_guard_input_cannot_block_while_attacking_or_in_hitstun():
@@ -139,7 +139,7 @@ def test_guard_input_cannot_block_while_attacking_or_in_hitstun():
         (FrameInput(), FrameInput(guard="standing")),
     )
     assert "Hit" in event_types(attacking_events)
-    assert attacking.players[1].hp == 9700
+    assert attacking.players[1].hp == 9640
 
     hitstun = CombatState(
         distance=70,
@@ -169,7 +169,7 @@ def test_strike_beats_throw_on_the_same_frame():
 
     assert "ThrowLostToStrike" in event_types(events)
     assert state.players[0].hp == 10000
-    assert state.players[1].hp == 9700
+    assert state.players[1].hp == 9640
 
 
 def test_full_invulnerability_is_evaluated_before_simultaneous_commit():
@@ -184,7 +184,7 @@ def test_full_invulnerability_is_evaluated_before_simultaneous_commit():
     state, events = resolver.resolve_frame(state)
 
     assert "Invulnerable" in event_types(events)
-    assert state.players[0].hp == 8400
+    assert state.players[0].hp == 8080
     assert state.players[1].hp == 10000
 
 
@@ -337,14 +337,18 @@ def test_quick_dash_empirical_override_can_queue_branch_until_next_frame():
 def test_5hp_full_and_cancelled_recovery_split_at_empirical_endpoints():
     resolver = FrameResolver()
 
-    full, _ = advance_to_action_frame(
-        resolver,
+    full, _ = resolver.resolve_frame(
         CombatState(distance=70),
-        "5HP",
-        10,
-        FrameInput(guard="standing"),
+        (
+            FrameInput(action="5HP", recovery_mode="non_hold2"),
+            FrameInput(guard="standing"),
+        ),
     )
-    assert full.distance == pytest.approx(133.0)
+    while full.players[0].action_frame < 10:
+        full, _ = resolver.resolve_frame(
+            full, (FrameInput(), FrameInput(guard="standing"))
+        )
+    assert full.distance == pytest.approx(157.52)
     while full.players[0].action_id is not None:
         full, _ = resolver.resolve_frame(full)
     assert full.distance == pytest.approx(157.52)
@@ -463,15 +467,15 @@ def test_target_combo_followup_remains_available_through_its_parent():
     assert state.players[0].queued_action == "chin_buster_2"
 
 
-def test_drive_resource_is_inert_while_full_drive_system_is_deferred():
+def test_drive_cost_rejects_action_when_resource_is_insufficient():
     resolver = FrameResolver()
     state = CombatState(players=[FighterState(drive=0), FighterState()])
     state, events = resolver.resolve_frame(
         state, (FrameInput(action="shoryuken_OD"), FrameInput())
     )
 
-    assert "ActionStarted" in event_types(events)
-    assert state.players[0].action_id == "shoryuken_OD"
+    assert "InputRejected" in event_types(events)
+    assert state.players[0].action_id is None
     assert state.players[0].drive == 0
 
 
@@ -523,11 +527,11 @@ def test_three_hit_move_breaks_two_hit_di_armor_and_uses_aggregate_result():
 
     assert "ArmorBreak" in event_types(events)
     assert "Hit" in event_types(events)
-    assert state.players[1].hp == 8600
+    assert state.players[1].hp == 8320
     assert state.players[1].knockdown is True
 
 
-def test_drive_impact_bypasses_drive_impact_armor_as_counter_di():
+def test_later_drive_impact_counters_incoming_drive_impact():
     resolver = FrameResolver()
     state = CombatState(
         distance=70,
@@ -543,9 +547,13 @@ def test_drive_impact_bypasses_drive_impact_armor_as_counter_di():
     state, events = resolver.resolve_frame(state)
 
     assert "CounterDI" in event_types(events)
-    assert "Hit" in event_types(events)
+    counter = next(event for event in events if event.type == "CounterDI")
+    assert counter.actor == 1
+    assert counter.target == 0
+    assert "Hit" not in event_types(events)
     assert "ArmorAbsorb" not in event_types(events)
-    assert state.players[1].hp == 9200
+    assert state.players[1].hp == 10000
+    assert state.players[0].action_id is None
 
 
 def test_throw_bypasses_drive_impact_armor():
@@ -586,7 +594,11 @@ def test_v0_wakeup_is_fixed_to_frame_43_and_allows_frame_1_reversal():
     assert state.players[1].action_frame == 1
     assert env.state.defender_invulnerable is True
 
-    with pytest.raises(ValueError, match="fixed \\+43"):
+    env.reset(knockdown_advantage=38)
+    assert env.knockdown_advantage == 38
+    env.reset(knockdown_advantage=26)
+    assert env.knockdown_advantage == 26
+    with pytest.raises(ValueError, match="supports initial advantage"):
         env.reset(knockdown_advantage=42)
 
 

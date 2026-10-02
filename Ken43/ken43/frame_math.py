@@ -358,6 +358,7 @@ class FrameCalculator:
     def legal_action_ids(self) -> list[str]:
         """Moves that may be submitted independently through ``action``."""
         contextual_kinds = {
+            "contextual_reversal",
             "jinrai_followup",
             "quick_dash_followup",
             "target_combo_followup",

@@ -6,7 +6,7 @@ from typing import Literal
 from .data import FrameData, load_frame_data
 
 Posture = Literal["standing", "crouching"]
-RecoveryMode = Literal["full", "cancelled"]
+RecoveryMode = Literal["hold2", "non_hold2", "full", "cancelled"]
 
 
 @dataclass(frozen=True)
@@ -29,15 +29,28 @@ class SpacingCalculator:
         self.data = frame_data or load_frame_data()
 
     def effective_range(self, move_id: str, posture: Posture) -> float:
-        ranges = self.data.move(move_id).get("effective_range")
-        if not isinstance(ranges, dict):
-            raise ValueError(f"{move_id} has no posture-aware effective range")
-        value = ranges.get(posture)
-        if isinstance(value, (int, float)):
-            return float(value)
-        if posture == "crouching" and value == "assume_same_as_standing_until_measured":
-            return float(ranges["standing"])
-        raise ValueError(f"{move_id} has no numeric {posture} effective range")
+        move = self.data.move(move_id)
+        reach = move.get("attack_reach")
+        if not isinstance(reach, (int, float)):
+            measurement = self.data.system_rules.get("range_measurements", {}).get(move_id, {})
+            first_whiff = measurement.get("standing_first_whiff")
+            if not isinstance(first_whiff, (int, float)):
+                ranges = move.get("effective_range")
+                first_whiff = ranges.get("standing") if isinstance(ranges, dict) else None
+            if not isinstance(first_whiff, (int, float)):
+                raise ValueError(f"{move_id} has no measured attack reach")
+            reach = float(first_whiff) - self._hurtbox_half_width("standing")
+        return float(reach) + self._hurtbox_half_width(posture)
+
+    def attack_reach(self, move_id: str) -> float:
+        return self.effective_range(move_id, "standing") - self._hurtbox_half_width("standing")
+
+    def _hurtbox_half_width(self, posture: Posture) -> float:
+        geometry = self.data.system_rules.get("hurtbox_geometry", {})
+        value = geometry.get(f"{posture}_half_width")
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"missing {posture} hurtbox half width")
+        return float(value)
 
     def in_range(self, move_id: str, distance: float, posture: Posture) -> bool:
         return float(distance) <= self.effective_range(move_id, posture)
@@ -46,17 +59,15 @@ class SpacingCalculator:
         self,
         move_id: str,
         distance: float,
-        recovery_mode: RecoveryMode = "full",
+        recovery_mode: RecoveryMode = "hold2",
     ) -> tuple[float, str]:
         spacing = self.data.move(move_id).get("spacing_on_block")
         if not isinstance(spacing, dict):
             raise ValueError(f"{move_id} has no block-spacing model")
         delta = float(spacing["delta"])
         shifted = float(distance) + delta
-        if recovery_mode == "cancelled":
+        if recovery_mode in ("hold2", "cancelled") and "D_min_cancelled_recovery" in spacing:
             key = "D_min_cancelled_recovery"
-            if key not in spacing:
-                raise ValueError(f"{move_id} has no cancelled-recovery D_min")
             floor = float(spacing[key])
             return max(floor, shifted), f"max({floor:.2f}, d + {delta:.2f})"
         if "D_min_full" in spacing:
@@ -69,16 +80,15 @@ class SpacingCalculator:
         move_id: str,
         distance: float,
         posture: Posture,
-        recovery_mode: RecoveryMode = "full",
+        recovery_mode: RecoveryMode = "hold2",
         next_move_id: str | None = None,
         next_posture: Posture | None = None,
     ) -> SpacingResult:
-        ranges = self.data.move(move_id).get("effective_range")
-        if isinstance(ranges, dict):
+        try:
             effective_range = self.effective_range(move_id, posture)
             range_check: bool | None = float(distance) <= effective_range
             contact = range_check
-        else:
+        except ValueError:
             effective_range = None
             range_check = None
             contact = True
@@ -117,3 +127,17 @@ class SpacingCalculator:
             + float(backwalk["first_frame_delta"])
             + (frames - 1) * float(backwalk["subsequent_frame_delta"])
         )
+
+    def spacing_after_whiff(
+        self,
+        move_id: str,
+        distance: float,
+        recovery_mode: RecoveryMode = "hold2",
+    ) -> tuple[float, float]:
+        values = self.data.system_rules.get("whiff_forward_displacement", {})
+        displacement = values.get(move_id, 0.0)
+        if isinstance(displacement, dict):
+            mode = "non_hold2" if recovery_mode in ("non_hold2", "full") else "hold2"
+            displacement = displacement[mode]
+        amount = float(displacement)
+        return max(0.0, float(distance) - amount), amount
