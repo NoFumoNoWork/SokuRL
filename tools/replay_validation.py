@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -29,13 +30,18 @@ BATTLE_MODE_VSPLAYER = 3
 BATTLE_SUBMODE_REPLAY = 2
 
 
-def launch_replay_checkpoint(replay: Path, timeout: float = 35.0) -> PracticeInstance:
+def launch_replay_checkpoint(replay: Path, timeout: float = 35.0, *,
+                             cards_disabled: bool | None = None,
+                             weather: str | None = None) -> PracticeInstance:
     replay = replay.resolve()
     if not replay.is_file() or replay.suffix.casefold() != ".rep":
         raise ValueError(f"not a replay file: {replay}")
     sokurl._validate_game()
+    env = os.environ.copy()
+    if cards_disabled is not None:
+        env["SOKURL_CARDS_DISABLED"] = "1" if cards_disabled else "0"
     process = psutil.Process(
-        subprocess.Popen([str(sokurl.GAME_EXE), str(replay)], cwd=sokurl.GAME_DIR).pid
+        subprocess.Popen([str(sokurl.GAME_EXE), str(replay)], cwd=sokurl.GAME_DIR, env=env).pid
     )
     client: BridgeClient | None = None
     deadline = time.monotonic() + timeout
@@ -69,6 +75,11 @@ def launch_replay_checkpoint(replay: Path, timeout: float = 35.0) -> PracticeIns
                     )
                 if not snapshot.checkpoint_valid:
                     raise RuntimeError("replay frame-zero checkpoint is not valid")
+                if weather is not None:
+                    sequence = client.set_fixed_weather(weather)
+                    acknowledged = client.wait_for_ack(sequence, timeout=3)
+                    if acknowledged.ack_seq != sequence:
+                        raise RuntimeError(f"Replay weather command not acknowledged: {acknowledged.result_name}")
                 client.drain_frames()
                 return PracticeInstance(process, client, 0)
             time.sleep(0.01)

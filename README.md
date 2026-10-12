@@ -1,5 +1,54 @@
 # SokuRL
 
+`main` contains **SokuRL Platform only**: original-engine CPU simulation,
+Bridge, input/recording/replay tools and validation. Trainers, learning nodes,
+policies, training configurations and model artifacts remain on `RL` and are
+not part of this update. Retired GPU simulator work is not an active route.
+
+## Current CPU Platform Baseline
+
+The current Bridge uses ABI12: 12,436-byte pointer-free live frames and a
+7,068,164-byte PID-isolated mapping. Diagnostic geometry is not fabricated.
+Native tracing is opt-in. Default normal/headless/unlimited execution passed
+10,000-frame exported-state equivalence with zero drops on 2026-10-13.
+Performance numbers further below are historical, not current-version promises.
+
+### Fast Fresh-world Reset
+
+Set `SOKURL_FRESH_RESET=1` before launch and call the existing
+`BridgeClient.reset_episode(seed)`. Check `client.fresh_reset_enabled` first.
+For fixed Reimu/Marisa, Clear/cards-disabled, warm reset reuses loaded resources
+and runs original native cleanup and seed/world initialization. It requires
+neither a frame-one global snapshot nor process recreation. Measured warm resets
+were about40-80ms; first cold loading is still necessary.
+
+Eight-instance independent resets and unselected-instance isolation passed.
+Active objects, damage, immediate input, KO and original RNG were also tested.
+Other characters/configuration changes fail explicitly; all-hidden-state and
+external AI internal-state equivalence are not claimed. Fresh reset defaults OFF.
+
+RGB pixels are optional: normal headless state/control use can skip rendering
+and pixel readback. Image parity is NOT VERIFIED and is not part of accepted
+state-only reset. The RL-branch worker rejects image mode with fresh reset.
+
+```powershell
+# Launch with fast reset capability; retain PID for BridgeClient commands.
+$env:SOKURL_FRESH_RESET = '1'
+.\.venv\python.exe tools\sokurl.py vs --headless --unlimited
+
+# Compare independent original new games with repeated warm resets.
+.\.venv\python.exe -B tools\validate_fresh_reset.py --workers 2 --frames 700 --cycles 4 --active-reset --immediate-input --terminal-reset --characters 0 1 --output docs/reports/fresh_reset/recheck.json
+```
+
+Use `.venv\Scripts\python.exe` instead if using a standard Windows venv.
+See [Bridge usage](native/SokuRLBridge/README.md),
+[actual reset evidence](docs/reports/fresh_reset/20261013/report.md), and
+[Platform-only publication scope](docs/reports/platform_main/20261013/report.md).
+Optional host hashing helper: [BridgeTools](native/BridgeTools/README.md).
+
+The older ABI/hash/test counts and blanket checkpoint statements below describe
+previous releases. The current native Bridge README supersedes those details.
+
 SokuRL is a research project for reinforcement-learning agents in Touhou
 Hisoutensoku (Touhou 12.3 / `th123`).
 
@@ -192,11 +241,11 @@ Every actual simulation update produces a `RawFrameState` containing:
 - P1/P2 position, velocity, facing, HP, spirit, cards, action state, animation,
   hitstop, untech, airborne state, flags, and effective logical input
 - Up to 64 objects per player with explicit overflow reporting
-- Object ownership/type, action and animation state, position, velocity, HP,
-  hitstop, hit/hurt boxes, and active state
+- Object type, action and animation state, position, velocity, HP,
+  hitstop, box counts, collision/lifetime fields, and active state
 - A canonical FNV-1a-64 state hash
 
-Spirit is exposed with the game's signed 16-bit semantics in bridge ABI v7.
+Spirit retains the game's signed 16-bit semantics in bridge ABI12.
 Transient values such as `-88` therefore remain negative instead of appearing
 as `65448`. Hand-card IDs follow the game's selected-card order.
 
@@ -605,9 +654,11 @@ Remove-Item -LiteralPath .\tests\tmp<confirmed-name> -Recurse -Force
 - Practice currently accepts P2 movement input but filters P2 B/C attacks. The
   accepted projectile ScenarioRunner script controls `opponent: p1`.
 - `24C` remains an explicit raw input sequence rather than a named macro.
-- Checkpoints use deterministic short-range reconstruction, not raw savestates.
-- Trainer-facing spaces, rewards, PPO, self-play, and adaptation are not yet
-  implemented.
+- Default checkpoints use deterministic reconstruction. The separate opt-in
+  branch-snapshot provider requires an external matching adapter and is not
+  bundled with this Platform-only update. Fresh-world reset needs no snapshot.
+- Trainer-facing spaces, rewards, PPO, self-play, and adaptation belong on the
+  separate RL branch and are not included here.
 
 ## Repository Layout
 

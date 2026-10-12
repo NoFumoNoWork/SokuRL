@@ -1,4 +1,10 @@
 #include "ControlBlock.hpp"
+#include "ImageCapture.hpp"
+#include "NativeTrace.hpp"
+#include "AudioMute.hpp"
+#include "SceneReset.hpp"
+#include "ResetTiming.hpp"
+#include "FreshReset.hpp"
 
 #include <BattleManager.hpp>
 #include <BattleMode.hpp>
@@ -25,11 +31,13 @@ namespace
 {
 using SetInputsMethod = void (SokuLib::KeymapManager::*)();
 using BattleProcessMethod = int (SokuLib::Battle::*)();
+using BattleRenderMethod = int (SokuLib::Battle::*)();
 using BattleManagerProcessMethod = int (SokuLib::BattleManager::*)();
 using SelectProcessMethod = int (SokuLib::Select::*)();
 using TitleProcessMethod = int (SokuLib::Title::*)();
 using ProfileInitializeMethod = void (__thiscall *)(SokuLib::Profile *, char);
 using WaitForSingleObjectFunction = DWORD (WINAPI *)(HANDLE, DWORD);
+using ActivateWeatherFunction = void (__stdcall *)(int, char);
 
 constexpr DWORD KEYMAP_SET_INPUTS_HOOK = 0x0040A45D;
 constexpr DWORD P1_KEYMAP_MANAGER_PTR = 0x008989A0;
@@ -40,6 +48,7 @@ constexpr DWORD P1_INPUT_DEVICE = 0x00898678;
 constexpr DWORD INPUT_MANAGER_CLUSTER_DEVICE = 0x0089A2BC;
 constexpr DWORD FALLBACK_KEY_MANAGER = 0x008986A8;
 constexpr DWORD PROFILE_INITIALIZE = 0x00434BF0;
+constexpr DWORD ACTIVATE_WEATHER = 0x00439770;
 constexpr std::uint32_t LOCAL_BATTLE_SCENE = 5;
 constexpr DWORD RENDER_BRANCH = 0x00407FAE;
 constexpr DWORD RENDER_PATH = 0x00407FB4;
@@ -50,10 +59,17 @@ constexpr std::uint64_t FNV_OFFSET = 14695981039346656037ULL;
 constexpr std::uint64_t FNV_PRIME = 1099511628211ULL;
 
 HANDLE g_fileMapping = nullptr;
+HANDLE g_traceFileMapping = nullptr;
+SokuRLBridge::TraceMapping *g_traceMapping = nullptr;
 SokuRLBridge::BridgeMapping *g_mapping = nullptr;
 SokuRLBridge::ControlBlock *g_control = nullptr;
 SetInputsMethod g_originalSetInputs = nullptr;
 BattleProcessMethod g_originalBattleProcess = nullptr;
+BattleRenderMethod g_originalBattleRender = nullptr;
+bool g_captureImages = false;
+bool g_captureStateOnly = false;
+bool g_nativeTracing = false;
+bool g_renderPending = true;
 BattleManagerProcessMethod g_originalBattleManagerProcess = nullptr;
 SelectProcessMethod g_originalSelectProcess = nullptr;
 TitleProcessMethod g_originalTitleProcess = nullptr;
@@ -83,9 +99,32 @@ bool g_activeInputEnabled = false;
 bool g_neutralPending = false;
 bool g_vsBootstrapArmed = false;
 bool g_vsBootstrapComplete = false;
+bool g_episodeResetRequested = false;
 bool g_headlessRender = false;
 bool g_unlimitedPacing = false;
+bool g_idleWait = false;
+using ResetProviderFunction = std::uint32_t (__cdecl *)();
+HMODULE g_resetProvider = nullptr;
+ResetProviderFunction g_resetCapture = nullptr;
+ResetProviderFunction g_resetRestore = nullptr;
+ResetProviderFunction g_resetRelease = nullptr;
+ResetProviderFunction g_resetAudit = nullptr;
+bool g_resetCaptured = false;
+bool g_resetInvalid = false;
+struct StageProfile {
+    std::uint64_t frequency, frames, simulation, capture, hash, recording;
+};
+StageProfile *g_profile = nullptr;
+HANDLE g_profileHandle = nullptr;
+bool g_profileCapture = false;
+std::uint64_t profileClock()
+{
+    LARGE_INTEGER value;
+    QueryPerformanceCounter(&value);
+    return static_cast<std::uint64_t>(value.QuadPart);
+}
 bool g_vsPauseAtStart = false;
+bool g_cardsDisabled = false;
 bool g_vsSeedRequested = false;
 std::uint32_t g_vsSeed = 0;
 std::uint32_t g_vsP1Character = 1;
@@ -96,6 +135,7 @@ std::uint32_t g_vsP1Deck = 0;
 std::uint32_t g_vsP2Deck = 0;
 std::uint32_t g_vsStage = 0;
 std::uint32_t g_vsMusic = 0;
+std::uint32_t g_fixedWeather = 0;
 
 struct CheckpointIdentity {
     std::uint32_t leftCharacter;
@@ -112,6 +152,60 @@ struct CheckpointIdentity {
 
 CheckpointIdentity g_checkpoint{};
 std::vector<SokuRLBridge::RawFrameState> g_history;
+std::uint64_t g_savedFrame = 1;
+SokuRLBridge::LogicalInput g_savedEffectiveInputs[2]{};
+SokuLib::KeyInput g_savedActiveInputs[2]{};
+std::uint32_t g_savedInputMask = 0;
+std::uint32_t g_savedInputFrames = 0;
+bool g_savedInputEnabled = false;
+bool g_savedNeutralPending = false;
+CheckpointIdentity g_savedIdentity{};
+std::uint32_t g_savedFixedWeather = 0;
+
+#pragma pack(push, 1)
+struct NativeGameObjectLayout {
+    std::uint8_t offset_000[0x174];
+    std::uint32_t parentA;
+    std::uint32_t childrenADebugProxy;
+    std::uint32_t childrenAHead;
+    std::uint32_t childrenACount;
+    std::uint8_t offset_184[0x0C];
+    std::int32_t collisionType;
+    std::int8_t collisionLimit;
+    std::uint8_t offset_195[0x1B7];
+    std::int32_t lifetime;
+    std::int32_t handleId;
+    std::uint32_t tail;
+    std::int8_t layer;
+    std::uint8_t offset_359[3];
+    std::uint32_t customData;
+    std::int16_t ignoreOwnerTimestop;
+    std::int16_t unknown362;
+    std::uint32_t parentPlayer;
+    std::uint32_t parentObject;
+    std::uint8_t offset_36C[0x2C];
+    std::uint32_t parentPlayerB;
+    std::uint32_t parentB;
+    std::uint32_t childrenBDebugProxy;
+    std::uint32_t childrenBHead;
+    std::uint32_t childrenBCount;
+};
+#pragma pack(pop)
+
+static_assert(offsetof(NativeGameObjectLayout, collisionType) == 0x190,
+    "GameObject collisionType offset changed");
+static_assert(offsetof(NativeGameObjectLayout, collisionLimit) == 0x194,
+    "GameObject collisionLimit offset changed");
+static_assert(offsetof(NativeGameObjectLayout, lifetime) == 0x34C,
+    "GameObject lifetime offset changed");
+static_assert(offsetof(NativeGameObjectLayout, customData) == 0x35C,
+    "GameObject customData offset changed");
+static_assert(offsetof(NativeGameObjectLayout, parentObject) == 0x368,
+    "GameObject parentObject offset changed");
+static_assert(offsetof(NativeGameObjectLayout, parentB) == 0x39C,
+    "GameObject parentB offset changed");
+static_assert(sizeof(NativeGameObjectLayout) == 0x3AC,
+    "GameObject layout size changed");
 
 std::uint32_t load32(const volatile std::uint32_t *value)
 {
@@ -171,6 +265,14 @@ SokuLib::KeyInput toKeyInput(const SokuRLBridge::LogicalInput &input)
         input.changeCard, input.spellcard};
 }
 
+void suppressCardInputs(SokuLib::KeyInput &input)
+{
+    if (!g_cardsDisabled)
+        return;
+    input.changeCard = 0;
+    input.spellcard = 0;
+}
+
 bool isBoolean(std::int32_t value)
 {
     return value == 0 || value == 1;
@@ -212,9 +314,13 @@ void __declspec(naked) renderBranchDispatch()
     __asm {
         // Preserve the original JNE first. The injected JMP does not alter EFLAGS.
         jne originalSkip
-        cmp byte ptr [g_headlessRender], 0
-        je originalRender
         cmp dword ptr ds:[008A0044h], 5
+        jne originalRender
+        cmp byte ptr [g_headlessRender], 0
+        jne originalSkip
+        cmp byte ptr [g_captureImages], 0
+        je originalRender
+        cmp byte ptr [g_renderPending], 0
         je originalSkip
     originalRender:
         push 00407FB4h
@@ -227,7 +333,7 @@ void __declspec(naked) renderBranchDispatch()
 
 bool installHeadlessRenderHook()
 {
-    if (!g_headlessRender)
+    if (!g_headlessRender && !g_captureImages)
         return true;
 
     auto *branch = reinterpret_cast<unsigned char *>(RENDER_BRANCH);
@@ -251,7 +357,13 @@ DWORD WINAPI framePacingWait(HANDLE object, DWORD timeout)
     if (g_unlimitedPacing &&
         *reinterpret_cast<const int *>(SokuLib::ADDR_SCENE_ID) == LOCAL_BATTLE_SCENE &&
         SokuLib::mainMode == SokuLib::BATTLE_MODE_VSPLAYER)
+    {
         timeout = 0;
+        if (g_idleWait && g_control && g_paused && !g_stepsRemaining &&
+            !g_restartRequested && !g_awaitingRestart &&
+            load32(&g_control->commandSeq) == g_lastCommandSeq)
+            Sleep(1);
+    }
     return WaitForSingleObject(object, timeout);
 }
 
@@ -375,6 +487,7 @@ void captureObject(const SokuLib::ObjectManager &object, std::uint32_t owner,
     std::uint32_t index, SokuRLBridge::ObjectState &state)
 {
     const auto &projectile = reinterpret_cast<const SokuLib::ProjectileManager &>(object);
+    const auto &native = reinterpret_cast<const NativeGameObjectLayout &>(object);
     state.ownerIndex = owner;
     state.listIndex = index;
     state.typeId = reinterpret_cast<std::uint32_t>(object.vtable);
@@ -395,6 +508,9 @@ void captureObject(const SokuLib::ObjectManager &object, std::uint32_t owner,
     state.hitstop = object.hitstop;
     state.hitBoxCount = object.hitBoxCount;
     state.hurtBoxCount = object.hurtBoxCount;
+    state.collisionType = native.collisionType;
+    state.collisionLimit = native.collisionLimit;
+    state.lifetime = native.lifetime;
     state.characterIndex = projectile.characterIndex;
     state.isActive = projectile.isActive;
 }
@@ -424,14 +540,18 @@ void captureObjects(const SokuLib::CharacterManager &manager, std::uint32_t owne
 void captureHand(const SokuLib::CharacterManager &manager, SokuRLBridge::PlayerState &state)
 {
     std::fill(std::begin(state.handIds), std::end(state.handIds), -1);
+    std::fill(std::begin(state.handCosts), std::end(state.handCosts), -1);
+    state.selectedCardIndex = manager.hand.selectedCard;
     const auto count = std::min<unsigned>(manager.cardCount, 5U);
     if (!manager.hand.handCardBase || manager.hand.handCardMax <= 0)
         return;
     for (unsigned i = 0; i < count; ++i) {
         const auto index = (manager.hand.selectedCard + static_cast<int>(i)) % manager.hand.handCardMax;
         const auto *card = manager.hand.handCardBase[index < 0 ? index + manager.hand.handCardMax : index];
-        if (card)
+        if (card) {
             state.handIds[i] = card->id;
+            state.handCosts[i] = card->cost;
+        }
     }
 }
 
@@ -444,6 +564,7 @@ void capturePlayer(const SokuLib::CharacterManager &manager, const SokuRLBridge:
     state.y = manager.objectBase.position.y;
     state.speedX = manager.objectBase.speed.x;
     state.speedY = manager.objectBase.speed.y;
+    state.gravity = manager.objectBase.gravity;
     state.facing = manager.objectBase.direction;
     state.hp = manager.objectBase.hp;
     state.spirit = static_cast<std::int16_t>(manager.currentSpirit);
@@ -458,6 +579,23 @@ void capturePlayer(const SokuLib::CharacterManager &manager, const SokuRLBridge:
     state.elapsedInSubsequence = manager.objectBase.frameCount;
     state.hitstop = manager.objectBase.hitstop;
     state.untech = manager.untech;
+    state.comboRate = manager.combo.rate;
+    state.comboCount = manager.combo.nbHits;
+    state.comboDamage = manager.combo.damages;
+    state.comboLimit = manager.combo.limit;
+    state.spiritRegenDelay = manager.spiritRegenDelay;
+    state.timeStop = manager.timeStop;
+    state.airdashCount = manager.airdashCount;
+    state.meleeInvulTimer = manager.meleeInvulTimer;
+    state.grabInvulTimer = manager.grabInvulTimer;
+    state.projectileInvulTimer = manager.projectileInvulTimer;
+    state.speedPower = manager.speedPower;
+    state.attackPower = manager.attackPower;
+    state.defensePower = manager.defensePower;
+    for (int i = 0; i < 16; ++i)
+        state.skillLevels[i] = manager.skillLevels[i];
+    state.hitBoxCount = manager.objectBase.hitBoxCount;
+    state.hurtBoxCount = manager.objectBase.hurtBoxCount;
     if (manager.objectBase.frameData) {
         state.airborne = manager.objectBase.frameData->frameFlags.airborne ? 1U : 0U;
         state.frameFlags = manager.objectBase.frameData->frameFlags.value;
@@ -490,7 +628,10 @@ SokuRLBridge::RawFrameState captureState(SokuLib::BattleManager *manager, std::u
         state.p1ObjectCount, state.p1ObjectOverflow);
     captureObjects(manager->rightCharacterManager, 1, state.p2Objects,
         state.p2ObjectCount, state.p2ObjectOverflow);
+    const auto hashStart = g_profileCapture ? profileClock() : 0;
     state.stateHash = stateHash(state);
+    if (g_profileCapture)
+        g_profile->hash += profileClock() - hashStart;
     return state;
 }
 
@@ -587,6 +728,49 @@ void pushRing(const SokuRLBridge::RawFrameState &state)
     store32(&g_control->ringWriteSeq, write + 1);
 }
 
+bool isValidTraceConfig(const SokuRLBridge::TraceConfig &config)
+{
+    return !config.enabled ||
+        (g_nativeTracing && config.endFrame >= config.startFrame &&
+            (!config.maxEvents || config.maxEvents <= SokuRLBridge::TRACE_RING_CAPACITY));
+}
+
+void configureTrace(const SokuRLBridge::TraceConfig &config)
+{
+    g_control->traceActive = config.enabled ? 1U : 0U;
+    g_control->traceReadSeq = 0;
+    g_control->traceWriteSeq = 0;
+    g_control->traceDroppedEvents = 0;
+}
+
+void pushTraceEvent(const SokuRLBridge::TraceEvent &event)
+{
+    if (!g_traceMapping || !load32(&g_control->traceActive))
+        return;
+    const auto &config = g_control->traceConfig;
+    if (event.frameId < config.startFrame || event.frameId > config.endFrame)
+        return;
+    if (config.functionAddress != SokuRLBridge::TRACE_ANY &&
+        event.functionAddress != config.functionAddress)
+        return;
+    if (config.subjectPointer != SokuRLBridge::TRACE_ANY &&
+        event.subject != config.subjectPointer)
+        return;
+    const auto write = load32(&g_control->traceWriteSeq);
+    if (config.maxEvents && write >= config.maxEvents) {
+        store32(&g_control->traceActive, 0);
+        return;
+    }
+    const auto read = load32(&g_control->traceReadSeq);
+    if (write - read >= SokuRLBridge::TRACE_RING_CAPACITY) {
+        InterlockedIncrement(reinterpret_cast<volatile LONG *>(&g_control->traceDroppedEvents));
+        return;
+    }
+    g_traceMapping->traceEvents[write % SokuRLBridge::TRACE_RING_CAPACITY] = event;
+    MemoryBarrier();
+    store32(&g_control->traceWriteSeq, write + 1);
+}
+
 void appendRecordedFrame(const SokuRLBridge::RawFrameState &state)
 {
     if (load32(&g_control->checkpointValid)) {
@@ -615,6 +799,57 @@ void clearControlledInput(SokuRLBridge::ResultCode result, bool neutral)
     publishResult(result);
 }
 
+bool isSupportedFixedWeather(std::uint32_t weather)
+{
+    return weather == 0 || weather == SokuLib::WEATHER_CLEAR ||
+        weather == SokuLib::WEATHER_TYPHOON;
+}
+
+void enforceFixedWeather()
+{
+    if (!g_fixedWeather)
+        return;
+    const auto target = static_cast<SokuLib::Weather>(g_fixedWeather);
+    if (SokuLib::activeWeather != target || SokuLib::displayedWeather != target)
+        reinterpret_cast<ActivateWeatherFunction>(ACTIVATE_WEATHER)(g_fixedWeather, true);
+    SokuLib::activeWeather = target;
+    SokuLib::displayedWeather = target;
+    SokuLib::weatherCounter = target == SokuLib::WEATHER_CLEAR ? 0 : 750;
+    if (SokuLib::practiceSettings)
+        SokuLib::practiceSettings->weather = target;
+}
+
+bool captureBranchCheckpoint(bool replace)
+{
+    if (!g_resetCapture || !g_paused || g_stepsRemaining || g_currentFrame < 1 ||
+        g_captureImages || g_nativeTracing || g_history.size() <= g_currentFrame ||
+        !g_vsBootstrapArmed || !isLocalVersusGameplay())
+        return false;
+    if (g_resetCaptured) {
+        if (!replace)
+            return true;
+        if (!g_resetRelease || !g_resetRelease())
+            return false;
+        g_resetCaptured = false;
+    }
+    if (!g_resetCapture())
+        return false;
+    g_savedFrame = g_currentFrame;
+    for (int player = 0; player < 2; ++player) {
+        g_savedEffectiveInputs[player] = g_effectiveInputs[player];
+        g_savedActiveInputs[player] = g_activeInputs[player];
+    }
+    g_savedInputMask = g_activeInputMask;
+    g_savedInputFrames = g_activeInputFrames;
+    g_savedInputEnabled = g_activeInputEnabled;
+    g_savedNeutralPending = g_neutralPending;
+    g_savedIdentity = g_checkpoint;
+    g_savedFixedWeather = g_fixedWeather;
+    g_resetCaptured = true;
+    g_resetInvalid = false;
+    return true;
+}
+
 void consumeCommand(bool gameplay)
 {
     const auto sequence = load32(&g_control->commandSeq);
@@ -628,10 +863,89 @@ void consumeCommand(bool gameplay)
     const auto argument = g_control->commandArgument;
     g_lastCommandSeq = sequence;
 
-    if (type == SokuRLBridge::CommandType::Release) {
+    if (g_resetInvalid && type != SokuRLBridge::CommandType::ResetEpisode) {
+        publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+        acknowledge(sequence);
+        return;
+    }
+
+    if (type == SokuRLBridge::CommandType::ConfigureTrace &&
+        isValidTraceConfig(g_control->traceConfig)) {
+        configureTrace(g_control->traceConfig);
+        publishResult(SokuRLBridge::ResultCode::Complete);
+    } else if (type == SokuRLBridge::CommandType::SetFixedWeather &&
+        isSupportedFixedWeather(duration)) {
+        g_fixedWeather = duration;
+        if (gameplay)
+            enforceFixedWeather();
+        publishResult(SokuRLBridge::ResultCode::Complete);
+    } else if (type == SokuRLBridge::CommandType::Release) {
         clearControlledInput(SokuRLBridge::ResultCode::Released, gameplay);
     } else if (!gameplay) {
         publishResult(SokuRLBridge::ResultCode::NotInGameplay);
+    } else if (type == SokuRLBridge::CommandType::SaveBranchCheckpoint) {
+        publishResult(captureBranchCheckpoint(true) ? SokuRLBridge::ResultCode::Complete :
+            SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+    } else if (type == SokuRLBridge::CommandType::FastReset) {
+        if (!gameplay || !g_paused || g_stepsRemaining || !g_resetCaptured ||
+            duration != 0 || argument != 0 || g_history.size() <= g_savedFrame ||
+            !g_resetRestore || !g_resetAudit) {
+            publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+        } else if (!g_resetRestore()) {
+            g_resetInvalid = true;
+            publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+        } else {
+            const bool auditOk = g_resetAudit() == 1;
+            g_resetInvalid = !auditOk;
+            g_checkpoint = g_savedIdentity;
+            g_fixedWeather = g_savedFixedWeather;
+            ++g_segmentId;
+            g_currentFrame = g_savedFrame;
+            g_stepsRemaining = 0;
+            for (int player = 0; player < 2; ++player) {
+                g_effectiveInputs[player] = g_savedEffectiveInputs[player];
+                g_activeInputs[player] = g_savedActiveInputs[player];
+            }
+            g_activeInputEnabled = g_savedInputEnabled;
+            g_activeInputMask = g_savedInputMask;
+            g_activeInputFrames = g_savedInputFrames;
+            g_neutralPending = g_savedNeutralPending;
+            store32(&g_control->inputFramesRemaining, g_activeInputFrames);
+            store32(&g_control->ringReadSeq, 0);
+            store32(&g_control->ringWriteSeq, 0);
+            store32(&g_control->droppedFrames, 0);
+            g_history.resize(static_cast<std::size_t>(g_savedFrame + 1));
+            auto restored = captureState(&SokuLib::getBattleMgr(), g_savedFrame);
+            g_history.back() = restored;
+            publishLatest(restored);
+            pushRing(restored);
+            SokuRLBridge::resetImageCapture();
+            if (!auditOk)
+                setCheckpointValid(false);
+            publishResult(auditOk ? SokuRLBridge::ResultCode::Complete :
+                SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+        }
+    } else if (type == SokuRLBridge::CommandType::ResetEpisode &&
+        g_vsBootstrapArmed && isLocalVersusGameplay() && argument < 0xFFFFFFFFULL) {
+        if (SokuRLBridge::freshResetEnabled() &&
+            !SokuRLBridge::canStartFreshWorld(&SokuLib::getBattleMgr())) {
+            publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+            acknowledge(sequence);
+            return;
+        }
+        if (g_resetRelease && !g_resetRelease()) {
+            publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+            acknowledge(sequence);
+            return;
+        }
+        g_resetCaptured = false;
+        g_resetInvalid = false;
+        g_vsSeed = static_cast<std::uint32_t>(argument);
+        g_vsSeedRequested = true;
+        g_episodeResetRequested = true;
+        g_paused = true;
+        g_stepsRemaining = 0;
+        clearControlledInput(SokuRLBridge::ResultCode::Restarting, true);
     } else if (type == SokuRLBridge::CommandType::Input && isValidInput(input, duration)) {
         g_activeInputs[0] = toKeyInput(input);
         g_activeInputMask = 1;
@@ -721,6 +1035,12 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
                 g_lastCommandSeq = sequence;
                 publishResult(SokuRLBridge::ResultCode::Complete);
                 acknowledge(sequence);
+            } else if (type == SokuRLBridge::CommandType::SetFixedWeather &&
+                isSupportedFixedWeather(g_control->durationFrames)) {
+                g_fixedWeather = g_control->durationFrames;
+                g_lastCommandSeq = sequence;
+                publishResult(SokuRLBridge::ResultCode::Complete);
+                acknowledge(sequence);
             } else if (type == SokuRLBridge::CommandType::EstablishCheckpoint) {
                 const auto seed = g_control->commandArgument;
                 if (SokuLib::practiceSettings)
@@ -752,7 +1072,8 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
             const auto pending = player == 0 ? g_control->commandInput :
                 g_control->commandInputP2;
             self->input = toKeyInput(pending);
-            g_effectiveInputs[player] = pending;
+            suppressCardInputs(self->input);
+            g_effectiveInputs[player] = toLogicalInput(self->input);
             return;
         }
     }
@@ -773,6 +1094,7 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
             g_neutralPending = false;
         }
     }
+    suppressCardInputs(self->input);
     g_effectiveInputs[player] = toLogicalInput(self->input);
 }
 
@@ -799,6 +1121,7 @@ void applySimulationInputs(SokuLib::BattleManager *manager)
         if (!(mask & (1U << player)))
             continue;
         auto *character = characters[player];
+        suppressCardInputs(inputs[player]);
         character->keyMap = inputs[player];
         if (character->keyManager && character->keyManager->keymapManager)
             character->keyManager->keymapManager->input = inputs[player];
@@ -808,6 +1131,7 @@ void applySimulationInputs(SokuLib::BattleManager *manager)
 
 int callSimulationUpdate(SokuLib::BattleManager *manager)
 {
+    enforceFixedWeather();
     if (isPracticeGameplay() && SokuLib::practiceSettings)
         SokuLib::practiceSettings->state = SokuLib::DUMMY_STATE_2P_CONTROL;
     g_effectiveInputs[0] = {};
@@ -816,6 +1140,7 @@ int callSimulationUpdate(SokuLib::BattleManager *manager)
     g_inSimulationUpdate = true;
     const auto result = (manager->*g_originalBattleManagerProcess)();
     g_inSimulationUpdate = false;
+    enforceFixedWeather();
     if (!g_reconstructing && g_activeInputEnabled && g_activeInputFrames) {
         --g_activeInputFrames;
         store32(&g_control->inputFramesRemaining, g_activeInputFrames);
@@ -906,13 +1231,19 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
         return (manager->*g_originalBattleManagerProcess)();
     const bool gameplay = isSupportedGameplay();
     store32(&g_control->inGameplay, gameplay ? 1U : 0U);
+    if (gameplay && g_resetCapture && !g_resetCaptured && g_currentFrame == 1 &&
+        g_paused && !g_stepsRemaining && !g_captureImages)
+        captureBranchCheckpoint(false);
     consumeCommand(gameplay);
+    if (g_episodeResetRequested)
+        return 0;
     if (!gameplay) {
         g_battleActive = false;
         invalidateCheckpoint(SokuRLBridge::ResultCode::CheckpointInvalidated);
         return (manager->*g_originalBattleManagerProcess)();
     }
     if (!g_battleActive) {
+        enforceFixedWeather();
         g_battleActive = true;
         g_currentFrame = 0;
         g_stepsRemaining = 0;
@@ -967,9 +1298,27 @@ int __fastcall battleManagerOnProcess(SokuLib::BattleManager *manager)
             store32(&g_control->validationState,
                 static_cast<std::uint32_t>(SokuRLBridge::ValidationState::Unknown));
         }
-        result = callSimulationUpdate(manager);
-        ++g_currentFrame;
-        appendRecordedFrame(captureState(manager, g_currentFrame));
+        if (g_profile) {
+            const auto start = profileClock();
+            result = callSimulationUpdate(manager);
+            const auto afterSimulation = profileClock();
+            ++g_currentFrame;
+            g_profileCapture = true;
+            const auto state = captureState(manager, g_currentFrame);
+            g_profileCapture = false;
+            const auto afterCapture = profileClock();
+            appendRecordedFrame(state);
+            const auto afterRecording = profileClock();
+            g_profile->simulation += afterSimulation - start;
+            g_profile->capture += afterCapture - afterSimulation;
+            g_profile->recording += afterRecording - afterCapture;
+            ++g_profile->frames;
+        } else {
+            result = callSimulationUpdate(manager);
+            ++g_currentFrame;
+            appendRecordedFrame(captureState(manager, g_currentFrame));
+        }
+        g_renderPending = true;
         if (g_stepsRemaining)
             --g_stepsRemaining;
         if (result > 0 && result < 4)
@@ -996,13 +1345,19 @@ int __fastcall selectOnProcess(SokuLib::Select *select)
 
 int __fastcall titleOnProcess(SokuLib::Title *title)
 {
+    // Scene deletion is asynchronous. A new battle must not reuse global
+    // resources while the previous battle is still destroying them.
+    if (g_vsBootstrapArmed && !g_vsBootstrapComplete &&
+        !SokuRLBridge::retiredBattleSceneDestroyed())
+        return SokuLib::SCENE_TITLE;
     const auto result = (title->*g_originalTitleProcess)();
     if (!g_vsBootstrapArmed || g_vsBootstrapComplete)
         return result;
 
     *reinterpret_cast<signed char *>(INPUT_MANAGER_CLUSTER_DEVICE) = -1;
+    // Native replay saving (0x43EBE0) requires submode 1, the normal offline VS path.
     SokuLib::setBattleMode(SokuLib::BATTLE_MODE_VSPLAYER,
-        SokuLib::BATTLE_SUBMODE_PLAYING1);
+        SokuLib::BATTLE_SUBMODE_PLAYING2);
     configureVsPlayer(SokuLib::leftPlayerInfo, false, g_vsP1Character,
         g_vsP1Palette, g_vsP1Deck);
     configureVsPlayer(SokuLib::rightPlayerInfo, true, g_vsP2Character,
@@ -1024,6 +1379,54 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
 int __fastcall battleOnProcess(SokuLib::Battle *battle)
 {
     const auto result = (battle->*g_originalBattleProcess)();
+    if (g_episodeResetRequested) {
+        const bool fresh = SokuRLBridge::freshResetEnabled();
+        if (fresh) {
+            SokuLib::gameParams.randomSeed = g_vsSeed;
+            if (!SokuRLBridge::startFreshWorld(&SokuLib::getBattleMgr())) {
+                g_episodeResetRequested = false;
+                publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+                return result;
+            }
+        } else {
+            SokuRLBridge::retireBattleScene(battle);
+        }
+        // Scene reload waits for asynchronous destruction; fresh reset retains
+        // the loaded scene/resources and has already used native exit/start.
+        g_episodeResetRequested = false;
+        g_vsBootstrapComplete = fresh;
+        g_battleActive = false;
+        g_checkpointArmed = fresh;
+        g_checkpointSeedRequested = fresh;
+        g_requestedCheckpointSeed = g_vsSeed;
+        g_restartRequested = false;
+        g_awaitingRestart = false;
+        g_reconstructing = false;
+        g_currentFrame = 0;
+        ++g_segmentId;
+        g_history.clear();
+        g_effectiveInputs[0] = {};
+        g_effectiveInputs[1] = {};
+        g_neutralPending = false;
+        g_renderPending = true;
+        beginStatusWrite();
+        g_control->inGameplay = 0;
+        g_control->checkpointValid = 0;
+        g_control->reconstructing = 0;
+        g_control->currentFrame = 0;
+        g_control->recordedFrames = 0;
+        g_control->stepsRemaining = 0;
+        g_control->ringReadSeq = 0;
+        g_control->ringWriteSeq = 0;
+        g_control->droppedFrames = 0;
+        g_control->lastVerifiedFrame = SokuRLBridge::NO_FRAME;
+        g_control->firstDivergentFrame = SokuRLBridge::NO_FRAME;
+        endStatusWrite();
+        SokuRLBridge::resetImageCapture();
+        return fresh ? result : SokuLib::SCENE_TITLE;
+    }
+    if (g_captureStateOnly && g_battleActive && g_control && isSupportedGameplay())
+        SokuRLBridge::captureImage(g_currentFrame);
     if (!g_restartRequested)
         return result;
     g_restartRequested = false;
@@ -1031,6 +1434,18 @@ int __fastcall battleOnProcess(SokuLib::Battle *battle)
     SokuLib::gameParams.randomSeed = g_checkpoint.randomSeed;
     return SokuLib::SCENE_LOADING;
 }
+
+int __fastcall battleOnRender(SokuLib::Battle *battle)
+{
+    const auto result = (battle->*g_originalBattleRender)();
+    if (g_battleActive && g_control && isSupportedGameplay()) {
+        SokuRLBridge::captureImage(g_currentFrame);
+        g_renderPending = false;
+    }
+    return result;
+}
+
+void closeMapping();
 
 bool createMapping()
 {
@@ -1055,14 +1470,52 @@ bool createMapping()
     g_control->structSize = sizeof(SokuRLBridge::ControlBlock);
     g_control->mappingSize = sizeof(SokuRLBridge::BridgeMapping);
     g_control->ringCapacity = SokuRLBridge::FRAME_RING_CAPACITY;
+    g_control->traceCapacity = g_nativeTracing ? SokuRLBridge::TRACE_RING_CAPACITY : 0;
+    g_control->traceConfig.p1Action = SokuRLBridge::TRACE_ANY;
+    g_control->traceConfig.p2Action = SokuRLBridge::TRACE_ANY;
+    g_control->traceConfig.objectAction = SokuRLBridge::TRACE_ANY;
+    g_control->traceConfig.ownerFilter = SokuRLBridge::TRACE_ANY;
+    g_control->traceConfig.subjectPointer = SokuRLBridge::TRACE_ANY;
+    g_control->traceConfig.functionAddress = SokuRLBridge::TRACE_ANY;
+    g_control->traceConfig.endFrame = SokuRLBridge::NO_FRAME;
     g_control->lastVerifiedFrame = SokuRLBridge::NO_FRAME;
     g_control->firstDivergentFrame = SokuRLBridge::NO_FRAME;
     g_control->connected = 1;
+    if (g_nativeTracing) {
+        wchar_t traceName[64]{};
+        if (swprintf_s(traceName, SokuRLBridge::TRACE_MAPPING_NAME_FORMAT, GetCurrentProcessId()) < 0) {
+            closeMapping();
+            return false;
+        }
+        g_traceFileMapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE,
+            0, sizeof(SokuRLBridge::TraceMapping), traceName);
+        if (g_traceFileMapping)
+            g_traceMapping = static_cast<SokuRLBridge::TraceMapping *>(MapViewOfFile(
+                g_traceFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SokuRLBridge::TraceMapping)));
+        if (!g_traceMapping) {
+            closeMapping();
+            return false;
+        }
+        std::memset(g_traceMapping, 0, sizeof(*g_traceMapping));
+    }
     return true;
 }
 
 void closeMapping()
 {
+    if (g_profile)
+        UnmapViewOfFile(g_profile);
+    if (g_profileHandle)
+        CloseHandle(g_profileHandle);
+    g_profile = nullptr;
+    g_profileHandle = nullptr;
+    SokuRLBridge::closeImageCapture();
+    if (g_traceMapping)
+        UnmapViewOfFile(g_traceMapping);
+    if (g_traceFileMapping)
+        CloseHandle(g_traceFileMapping);
+    g_traceMapping = nullptr;
+    g_traceFileMapping = nullptr;
     if (g_control)
         store32(&g_control->connected, 0);
     if (g_mapping)
@@ -1076,6 +1529,9 @@ void closeMapping()
 
 bool installHooks()
 {
+    if (!SokuRLBridge::installFreshReset() || !SokuRLBridge::installResetTiming())
+        return false;
+    g_control->traceReserved = SokuRLBridge::freshResetEnabled() ? 1U : 0U;
     DWORD textProtection = 0;
     if (!VirtualProtect(reinterpret_cast<void *>(TEXT_SECTION_OFFSET), TEXT_SECTION_SIZE,
             PAGE_EXECUTE_WRITECOPY, &textProtection))
@@ -1098,11 +1554,21 @@ bool installHooks()
         &SokuLib::VTable_Select.onProcess, selectOnProcess);
     g_originalTitleProcess = SokuLib::TamperDword(
         &SokuLib::VTable_Title.onProcess, titleOnProcess);
+    const bool resetBarrierInstalled = SokuRLBridge::installSceneResetBarrier();
+    if (g_captureImages)
+        g_originalBattleRender = SokuLib::TamperDword(
+            &SokuLib::VTable_Battle.onRender, battleOnRender);
+    g_originalBattleProcess = SokuLib::TamperDword(
+        &SokuLib::VTable_Battle.onProcess, battleOnProcess);
+    const bool nativeTraceHooksInstalled = !g_nativeTracing || SokuRLBridge::installNativeTraceHooks(
+        g_mapping, &g_currentFrame, pushTraceEvent);
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
     return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
-        g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess;
+        g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess &&
+        (!g_captureImages || g_originalBattleRender) &&
+        g_originalBattleProcess && resetBarrierInstalled && nativeTraceHooksInstalled;
 }
 }
 
@@ -1115,10 +1581,64 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
 {
     static_assert(sizeof(void *) == 4, "SokuRLBridge must be built for Win32/x86");
     g_history.reserve(SokuRLBridge::INPUT_HISTORY_CAPACITY);
+    g_nativeTracing = environmentValue(L"SOKURL_NATIVE_TRACE", 0) == 1;
     if (!createMapping())
         return false;
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;
+    if (environmentValue(L"SOKURL_MUTE_AUDIO", g_headlessRender ? 1U : 0U) == 1 &&
+        !SokuRLBridge::installAudioMute()) {
+        closeMapping();
+        return false;
+    }
+    const auto captureMode = environmentValue(L"SOKURL_CAPTURE_IMAGES", 0);
+    g_captureImages = captureMode != 0;
+    g_captureStateOnly = captureMode == 2;
+    if (g_captureImages) {
+        // Images require the original renderer, even when the window is unattended.
+        g_headlessRender = g_captureStateOnly;
+        if (!SokuRLBridge::initializeImageCapture(captureMode == 1)) {
+            closeMapping();
+            return false;
+        }
+    }
     g_unlimitedPacing = environmentValue(L"SOKURL_UNLIMITED_PACING", 0) == 1;
+    g_idleWait = environmentValue(L"SOKURL_IDLE_WAIT", 0) == 1;
+    wchar_t providerPath[32768]{};
+    if (GetEnvironmentVariableW(L"SOKURL_FAST_RESET_PROVIDER", providerPath, 32768)) {
+        g_resetProvider = LoadLibraryW(providerPath);
+        auto initialize = g_resetProvider ? reinterpret_cast<ResetProviderFunction>(
+            GetProcAddress(g_resetProvider, "SokuRL_ResetInitialize")) : nullptr;
+        g_resetCapture = g_resetProvider ? reinterpret_cast<ResetProviderFunction>(
+            GetProcAddress(g_resetProvider, "SokuRL_ResetCapture")) : nullptr;
+        g_resetRestore = g_resetProvider ? reinterpret_cast<ResetProviderFunction>(
+            GetProcAddress(g_resetProvider, "SokuRL_ResetRestore")) : nullptr;
+        g_resetRelease = g_resetProvider ? reinterpret_cast<ResetProviderFunction>(
+            GetProcAddress(g_resetProvider, "SokuRL_ResetRelease")) : nullptr;
+        g_resetAudit = g_resetProvider ? reinterpret_cast<ResetProviderFunction>(
+            GetProcAddress(g_resetProvider, "SokuRL_ResetAudit")) : nullptr;
+        if (!initialize || !g_resetCapture || !g_resetRestore || !g_resetRelease || !g_resetAudit || !initialize()) {
+            closeMapping();
+            return false;
+        }
+    }
+    if (environmentValue(L"SOKURL_PROFILE_STAGES", 0) == 1) {
+        wchar_t name[96];
+        swprintf_s(name, L"Local\\SokuRLBridgePerf_%lu", GetCurrentProcessId());
+        g_profileHandle = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr,
+            PAGE_READWRITE, 0, sizeof(StageProfile), name);
+        if (g_profileHandle)
+            g_profile = static_cast<StageProfile *>(MapViewOfFile(g_profileHandle,
+                FILE_MAP_ALL_ACCESS, 0, 0, sizeof(StageProfile)));
+        if (!g_profile) {
+            closeMapping();
+            return false;
+        }
+        *g_profile = {};
+        LARGE_INTEGER frequency;
+        QueryPerformanceFrequency(&frequency);
+        g_profile->frequency = frequency.QuadPart;
+    }
+    g_cardsDisabled = environmentValue(L"SOKURL_CARDS_DISABLED", 0) == 1;
     g_vsBootstrapArmed = environmentValue(L"SOKURL_VS_BOOTSTRAP", 0) == 1;
     if (g_vsBootstrapArmed) {
         g_vsP1Character = environmentValue(L"SOKURL_VS_P1_CHARACTER", 1);

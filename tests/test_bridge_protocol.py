@@ -26,30 +26,77 @@ from scenario_runner import compile_steps, token_input
 
 class BridgeProtocolTests(unittest.TestCase):
     def test_cpp_python_layout_agreement(self) -> None:
-        self.assertEqual(bridge_shared.CONTROL_VERSION, 7)
+        self.assertEqual(bridge_shared.CONTROL_VERSION, 12)
         self.assertEqual(ctypes.sizeof(bridge_shared.LogicalInput), 32)
-        self.assertEqual(ctypes.sizeof(bridge_shared.PlayerState), 140)
-        self.assertEqual(ctypes.sizeof(bridge_shared.ObjectState), 80)
+        self.assertEqual(ctypes.sizeof(bridge_shared.BoxState), 16)
+        self.assertEqual(ctypes.sizeof(bridge_shared.PlayerState), 292)
+        self.assertEqual(ctypes.sizeof(bridge_shared.ObjectState), 92)
         self.assertEqual(ctypes.sizeof(bridge_shared.SimplePlayerState), 40)
         self.assertEqual(ctypes.sizeof(bridge_shared.SimpleStatePatch), 96)
         self.assertEqual(ctypes.sizeof(bridge_shared.ReconstructionFrame), 168)
-        self.assertEqual(ctypes.sizeof(bridge_shared.RawFrameState), 10596)
-        self.assertEqual(ctypes.sizeof(bridge_shared.ControlBlock), 10884)
+        self.assertEqual(ctypes.sizeof(bridge_shared.TraceConfig), 56)
+        self.assertEqual(ctypes.sizeof(bridge_shared.TraceEvent), 128)
+        self.assertEqual(ctypes.sizeof(bridge_shared.RawFrameState), 12436)
+        self.assertEqual(ctypes.sizeof(bridge_shared.ControlBlock), 12804)
         self.assertEqual(bridge_shared.ControlBlock.commandSeq.offset, 16)
         self.assertEqual(bridge_shared.ControlBlock.commandInput.offset, 32)
         self.assertEqual(bridge_shared.ControlBlock.currentFrame.offset, 144)
         self.assertEqual(bridge_shared.ControlBlock.latest.offset, 288)
         header = (ROOT / "native" / "SokuRLBridge" / "ControlBlock.hpp").read_text(encoding="utf-8")
         for assertion in (
-            "sizeof(LogicalInput) == 32", "sizeof(PlayerState) == 140",
-            "sizeof(ObjectState) == 80", "sizeof(SimpleStatePatch) == 96",
+            "sizeof(LogicalInput) == 32", "sizeof(BoxState) == 16",
+            "sizeof(PlayerState) == 292", "sizeof(ObjectState) == 92",
+            "sizeof(SimpleStatePatch) == 96",
             "sizeof(ReconstructionFrame) == 168",
-            "sizeof(RawFrameState) == 10596", "sizeof(ControlBlock) == 10884",
+            "sizeof(TraceConfig) == 56", "sizeof(TraceEvent) == 128",
+            "sizeof(RawFrameState) == 12436", "sizeof(ControlBlock) == 12804",
             "offsetof(ControlBlock, currentFrame) == 144",
         ):
             self.assertIn(assertion, header)
         launcher = (ROOT / "tools" / "sokurl.py").read_text(encoding="utf-8")
-        self.assertIn("version in (4, 5, 6, 7)", launcher)
+        self.assertIn("version in (4, 5, 6, 7, 8, 9, 10, 11, 12)", launcher)
+
+    def test_v10_frame_payload_remains_decodable(self) -> None:
+        self.assertEqual(ctypes.sizeof(bridge_shared.PlayerStateV10), 456)
+        self.assertEqual(ctypes.sizeof(bridge_shared.ObjectStateV10), 248)
+        self.assertEqual(ctypes.sizeof(bridge_shared.RawFrameStateV10), 32732)
+        historical = bridge_shared.RawFrameStateV10()
+        historical.frameId = 9322
+        historical.p1.actionId = 158
+        raw = bytes(historical)
+        decoded = bridge_shared.decode_raw_frame(raw)
+        self.assertIsInstance(decoded, bridge_shared.RawFrameStateV10)
+        self.assertEqual(decoded.frameId, 9322)
+        self.assertEqual(decoded.p1.actionId, 158)
+
+    def test_native_source_counts_and_object_relationship_fields_are_exposed(self) -> None:
+        player_fields = dict(bridge_shared.PlayerState._fields_)
+        object_fields = dict(bridge_shared.ObjectStateV11._fields_)
+        self.assertIn("hitBoxCount", player_fields)
+        self.assertIn("hurtBoxCount", player_fields)
+        for name in (
+            "collisionType", "collisionLimit", "lifetime", "customDataPointer",
+            "parentAPointer", "childrenACount", "parentPlayerPointer",
+            "parentObjectPointer", "parentPlayerBPointer", "parentBPointer",
+            "childrenBCount",
+        ):
+            self.assertIn(name, object_fields)
+
+    def test_trace_configuration_and_ring_layout(self) -> None:
+        config = bridge_shared.TraceConfig()
+        config.enabled = 1
+        config.startFrame = 9300
+        config.endFrame = 9340
+        config.p1Action = 9
+        config.p2Action = 400
+        config.objectAction = 800
+        config.ownerFilter = 1
+        config.maxEvents = 2048
+        self.assertEqual(config.startFrame, 9300)
+        self.assertEqual(config.objectAction, 800)
+        self.assertNotIn("traceEvents", dict(bridge_shared.BridgeMapping._fields_))
+        mapping_fields = dict(bridge_shared.TraceMapping._fields_)
+        self.assertEqual(mapping_fields["traceEvents"]._length_, bridge_shared.TRACE_RING_CAPACITY)
 
     def test_spirit_uses_signed_game_semantics(self) -> None:
         player_fields = dict(bridge_shared.PlayerState._fields_)
@@ -82,7 +129,28 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(bridge_shared.COMMAND_MENU_CONFIRM, 8)
         self.assertEqual(bridge_shared.COMMAND_STEP_WITH_INPUTS, 9)
         self.assertEqual(bridge_shared.COMMAND_APPLY_SIMPLE_STATE, 10)
+        self.assertEqual(bridge_shared.COMMAND_RESET_EPISODE, 11)
+        self.assertEqual(bridge_shared.COMMAND_SET_FIXED_WEATHER, 12)
+        self.assertEqual(bridge_shared.COMMAND_CONFIGURE_TRACE, 13)
         self.assertEqual(bridge_shared.RESULT_NAMES[12], "CHECKPOINT_RESTORE_UNSUPPORTED")
+
+    def test_invalid_reset_seed_is_rejected_before_accessing_process_memory(self):
+        client = bridge_shared.BridgeClient.__new__(bridge_shared.BridgeClient)
+        for seed in (-1, 0xFFFFFFFF, True, 1.5):
+            with self.assertRaises(ValueError):
+                client.reset_episode(seed)
+
+    def test_fixed_weather_command_accepts_only_v1_weather(self):
+        client = bridge_shared.BridgeClient.__new__(bridge_shared.BridgeClient)
+        sent = []
+        client._send = lambda command, **kwargs: sent.append((command, kwargs)) or 1
+        client.set_fixed_weather("clear")
+        client.set_fixed_weather("fixed_typhoon")
+        self.assertEqual(sent[0][1]["duration"], bridge_shared.WEATHER_CLEAR)
+        self.assertEqual(sent[1][1]["duration"], bridge_shared.WEATHER_TYPHOON)
+        for value in ("sunny", 0, 12, True):
+            with self.assertRaises(ValueError):
+                client.set_fixed_weather(value)
 
     def test_required_actions_and_axis_convention(self) -> None:
         self.assertEqual(bridge_shared.ACTION_INPUTS["LEFT"][:2], (-1, 0))
@@ -169,6 +237,8 @@ class BridgeProtocolTests(unittest.TestCase):
         self.assertEqual(set(input_row(state)), set(INPUT_FIELDS))
         self.assertIn("p1_frameFlags", FRAME_FIELDS)
         self.assertIn("p2_hand_4", FRAME_FIELDS)
+        self.assertIn("p1_hand_cost_4", FRAME_FIELDS)
+        self.assertIn("p2_skill_level_15", FRAME_FIELDS)
 
     def test_writer_outputs_manifest_and_zero_drop_validity(self) -> None:
         with tempfile.TemporaryDirectory(dir=ROOT / "tests") as directory:

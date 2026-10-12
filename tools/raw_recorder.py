@@ -10,10 +10,13 @@ from bridge_shared import LogicalInput, PlayerState, RawFrameState
 
 INPUT_NAMES = ("horizontalAxis", "verticalAxis", "a", "b", "c", "d", "changeCard", "spellcard")
 PLAYER_SCALARS = (
-    "characterId", "x", "y", "speedX", "speedY", "facing", "hp", "spirit",
-    "maxSpirit", "cardGauge", "cardCount", "actionId", "sequenceId", "subsequenceId",
+    "characterId", "x", "y", "speedX", "speedY", "gravity", "facing", "hp", "spirit",
+    "maxSpirit", "cardGauge", "cardCount", "selectedCardIndex",
+    "actionId", "sequenceId", "subsequenceId",
     "animationFrame", "elapsedInSubsequence", "hitstop", "untech", "airborne",
-    "frameFlags", "attackFlags", "objectCount",
+    "frameFlags", "attackFlags", "comboRate", "comboCount", "comboDamage", "comboLimit",
+    "spiritRegenDelay", "timeStop", "airdashCount", "meleeInvulTimer", "grabInvulTimer",
+    "projectileInvulTimer", "speedPower", "attackPower", "defensePower", "objectCount",
 )
 GLOBAL_FIELDS = (
     "frameId", "segmentId", "sceneId", "battleMode", "battleSubMode", "stageId",
@@ -24,6 +27,8 @@ FRAME_FIELDS = list(GLOBAL_FIELDS)
 for _prefix in ("p1", "p2"):
     FRAME_FIELDS.extend(f"{_prefix}_{name}" for name in PLAYER_SCALARS)
     FRAME_FIELDS.extend(f"{_prefix}_hand_{index}" for index in range(5))
+    FRAME_FIELDS.extend(f"{_prefix}_hand_cost_{index}" for index in range(5))
+    FRAME_FIELDS.extend(f"{_prefix}_skill_level_{index}" for index in range(16))
 
 INPUT_FIELDS = ["frameId", "segmentId"]
 for _prefix in ("p1", "p2"):
@@ -33,6 +38,8 @@ for _prefix in ("p1", "p2"):
 def _player_values(player: PlayerState, prefix: str) -> dict[str, int | float]:
     values = {f"{prefix}_{name}": getattr(player, name) for name in PLAYER_SCALARS}
     values.update({f"{prefix}_hand_{index}": player.handIds[index] for index in range(5)})
+    values.update({f"{prefix}_hand_cost_{index}": player.handCosts[index] for index in range(5)})
+    values.update({f"{prefix}_skill_level_{index}": player.skillLevels[index] for index in range(16)})
     return values
 
 

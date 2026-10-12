@@ -70,7 +70,10 @@ def wait_for_frame_zero(client: BridgeClient, pid: int, timeout: float = 35.0):
             client.drain_frames()
             return state
         time.sleep(0.005)
-    raise RuntimeError(f"PID {pid}: timed out waiting for paused VS frame zero")
+    raise RuntimeError(f"PID {pid}: timed out waiting for paused VS frame zero; "
+                       f"gameplay={snapshot.in_gameplay} checkpoint={snapshot.checkpoint_valid} "
+                       f"frame={snapshot.game_frame} run_state={snapshot.run_state_name} "
+                       f"scene={snapshot.latest.sceneId} result={snapshot.result_code}")
 
 
 def step_group(

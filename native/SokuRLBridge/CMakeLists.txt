@@ -17,7 +17,21 @@ endif()
 add_subdirectory("${SOKUMODS_ROOT}/SokuLib" "${CMAKE_BINARY_DIR}/SokuLib" EXCLUDE_FROM_ALL)
 
 add_library(SokuRLBridge MODULE
+    ResetTiming.hpp
+    ResetTiming.cpp
+    FreshReset.hpp
+    FreshReset.cpp
+    SceneReset.hpp
+    SceneReset.cpp
+    AudioMute.hpp
+    AudioMute.cpp
     ControlBlock.hpp
+    NativeTrace.hpp
+    NativeTrace.cpp
+    ImageCapture.hpp
+    ImageCapture.cpp
+    RenderState.hpp
+    RenderState.cpp
     SokuRLBridge.cpp
 )
 target_link_libraries(SokuRLBridge PRIVATE SokuLib)

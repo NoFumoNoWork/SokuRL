@@ -173,7 +173,11 @@ class PracticeInstance:
             sokurl.shutdown(5.0, self.pid)
 
 
-def launch_checkpoint(seed: int | None = None, timeout: float = 35.0) -> PracticeInstance:
+def launch_checkpoint(
+    seed: int | None = None,
+    timeout: float = 35.0,
+    weather: str | int | None = None,
+) -> PracticeInstance:
     sokurl._validate_game()
     process = psutil.Process(subprocess.Popen([str(sokurl.GAME_EXE)], cwd=sokurl.GAME_DIR).pid)
     client: BridgeClient | None = None
@@ -182,6 +186,7 @@ def launch_checkpoint(seed: int | None = None, timeout: float = 35.0) -> Practic
         while time.monotonic() < deadline:
             if not process.is_running():
                 raise RuntimeError(f"th123 exited before preset readiness (PID {process.pid})")
+            sokurl.raise_if_startup_error(process.pid)
             state = sokurl._runtime_state(process)
             if state.health == "PRACTICE_PRESET_READY":
                 break
@@ -190,6 +195,13 @@ def launch_checkpoint(seed: int | None = None, timeout: float = 35.0) -> Practic
             raise RuntimeError(f"timed out waiting for Practice preset (PID {process.pid})")
 
         client = BridgeClient(process.pid)
+        if weather is not None:
+            sequence = client.set_fixed_weather(weather)
+            acknowledged = client.wait_for_ack(sequence)
+            if acknowledged.ack_seq != sequence or acknowledged.result_name != "COMPLETE":
+                raise RuntimeError(
+                    f"PID {process.pid}: fixed-weather command failed: {acknowledged.result_name}"
+                )
         sequence = client.establish_checkpoint(seed)
         acknowledged = client.wait_for_ack(sequence)
         if acknowledged.ack_seq != sequence or acknowledged.result_name != "ACCEPTED":
@@ -200,6 +212,7 @@ def launch_checkpoint(seed: int | None = None, timeout: float = 35.0) -> Practic
         confirmations = 0
         next_confirmation = 0.0
         while time.monotonic() < deadline:
+            sokurl.raise_if_startup_error(process.pid)
             runtime = sokurl._runtime_state(process)
             snapshot = client.snapshot()
             if runtime.health == "PRACTICE_READY" and snapshot.checkpoint_valid:
@@ -211,14 +224,14 @@ def launch_checkpoint(seed: int | None = None, timeout: float = 35.0) -> Practic
                 client.drain_frames()
                 return PracticeInstance(process, client, confirmations)
             if runtime.health == "PRACTICE_PRESET_READY" and time.monotonic() >= next_confirmation:
-                if confirmations >= 12:
+                if confirmations >= 60:
                     raise RuntimeError("menu confirmation limit reached")
                 sequence = client.menu_confirm()
                 acknowledged = client.wait_for_ack(sequence)
                 if acknowledged.ack_seq != sequence:
                     raise RuntimeError("menu confirmation was not acknowledged")
                 confirmations += 1
-                next_confirmation = time.monotonic() + 0.6
+                next_confirmation = time.monotonic() + 1.0
             time.sleep(0.05)
         raise RuntimeError(f"timed out waiting for paused frame-zero checkpoint (PID {process.pid})")
     except Exception:

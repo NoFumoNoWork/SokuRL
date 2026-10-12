@@ -19,6 +19,10 @@ __pycache__/
 venv/
 dist/
 build/
+/ABORTED/
+/SokuSim/
+/third_party/
+/docs/reports/**/*.dll
 anchors/*.json
 
 # Editors and OS files

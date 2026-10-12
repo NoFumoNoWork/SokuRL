@@ -76,6 +76,10 @@ user32.EnumWindows.argtypes = [WNDENUMPROC, wintypes.LPARAM]
 user32.EnumWindows.restype = wintypes.BOOL
 user32.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
 user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+user32.GetWindowTextLengthW.restype = ctypes.c_int
+user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+user32.GetWindowTextW.restype = ctypes.c_int
 user32.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
 user32.PostMessageW.restype = wintypes.BOOL
 
@@ -138,7 +142,7 @@ def _read_bridge(pid: int) -> BridgeState | None:
             raw = ctypes.string_at(view, 160)
             frame = struct.unpack_from("<Q", raw, 112)[0]
             connected, in_gameplay = struct.unpack_from("<II", raw, 84)
-        elif version in (4, 5, 6, 7) and struct_size >= 192:
+        elif version in (4, 5, 6, 7, 8, 9, 10, 11, 12) and struct_size >= 192:
             kernel32.UnmapViewOfFile(view)
             view = kernel32.MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 192)
             if not view:
@@ -189,10 +193,22 @@ def _read_process_values(pid: int) -> tuple[int, int, int, int, int | None, int 
 
 
 def _expected_characters() -> tuple[int, int]:
-    config = configparser.ConfigParser()
-    if not config.read(SKIPINTRO_INI, encoding="ascii"):
-        raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
-    return config.getint("P1", "character"), config.getint("P2", "character")
+    mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
+    if not mutex:
+        raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
+    acquired = False
+    try:
+        acquired = kernel32.WaitForSingleObject(mutex, 180000) == WAIT_OBJECT_0
+        if not acquired:
+            raise TimeoutError("timed out reading the game launch configuration")
+        config = configparser.ConfigParser()
+        if not config.read(SKIPINTRO_INI, encoding="ascii"):
+            raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
+        return config.getint("P1", "character"), config.getint("P2", "character")
+    finally:
+        if acquired:
+            kernel32.ReleaseMutex(mutex)
+        kernel32.CloseHandle(mutex)
 
 
 def _runtime_state(process: psutil.Process) -> RuntimeState:
@@ -235,6 +251,48 @@ def _print_state(state: RuntimeState) -> None:
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
+def _window_text(window: wintypes.HWND) -> str:
+    length = user32.GetWindowTextLengthW(window)
+    if length <= 0:
+        return ""
+    buffer = ctypes.create_unicode_buffer(length + 1)
+    user32.GetWindowTextW(window, buffer, length + 1)
+    return buffer.value
+
+
+def _process_window_titles(pid: int) -> list[str]:
+    titles: list[str] = []
+
+    @WNDENUMPROC
+    def callback(window, _lparam):
+        window_pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(window, ctypes.byref(window_pid))
+        if window_pid.value == pid:
+            title = _window_text(window)
+            if title:
+                titles.append(title)
+        return True
+
+    user32.EnumWindows(callback, 0)
+    return titles
+
+
+def detect_startup_error(pid: int) -> str | None:
+    titles = _process_window_titles(pid)
+    for title in titles:
+        if title == "DirectX-Error":
+            return "DirectX-Error dialog is open; th123 failed during Direct3D startup"
+        if title.startswith("th123.exe") and "应用程序错误" in title:
+            return f"Windows application error dialog is open: {title}"
+    return None
+
+
+def raise_if_startup_error(pid: int) -> None:
+    message = detect_startup_error(pid)
+    if message:
+        raise RuntimeError(f"{message} (PID {pid})")
+
+
 def _validate_game() -> None:
     digest = hashlib.md5(GAME_EXE.read_bytes()).hexdigest().upper()
     if digest != EXPECTED_MD5:
@@ -243,6 +301,7 @@ def _validate_game() -> None:
 
 def practice(timeout: float, pid: int | None) -> int:
     _validate_game()
+    launched = pid is None
     if pid is None:
         process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR).pid)
         print(f"launched {GAME_EXE} (PID {process.pid})")
@@ -255,62 +314,82 @@ def practice(timeout: float, pid: int | None) -> int:
     client = None
     confirmations = 0
     next_confirmation = 0.0
-    while time.monotonic() < deadline:
-        if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
-            raise RuntimeError(f"th123 exited before Practice became ready (PID {process.pid})")
-        last_state = _runtime_state(process)
-        if last_state.health == "PRACTICE_READY":
+    try:
+        while time.monotonic() < deadline:
+            if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
+                raise RuntimeError(f"th123 exited before Practice became ready (PID {process.pid})")
+            raise_if_startup_error(process.pid)
+            last_state = _runtime_state(process)
+            if last_state.health == "PRACTICE_READY":
+                _print_state(last_state)
+                print(f"PRACTICE_READY confirmations={confirmations}")
+                if client:
+                    client.close()
+                return 0
+            if last_state.health == "PRACTICE_PRESET_READY" and time.monotonic() >= next_confirmation:
+                if client is None:
+                    client = BridgeClient(process.pid)
+                if confirmations >= 60:
+                    raise RuntimeError("menu confirmation limit reached before battle")
+                sequence = client.menu_confirm()
+                acknowledged = client.wait_for_ack(sequence, timeout=2.0)
+                if acknowledged.ack_seq != sequence:
+                    raise RuntimeError(f"menu confirmation {confirmations + 1} was not acknowledged")
+                confirmations += 1
+                next_confirmation = time.monotonic() + 1.0
+            time.sleep(0.1)
+        if last_state:
             _print_state(last_state)
-            print(f"PRACTICE_READY confirmations={confirmations}")
-            if client:
-                client.close()
-            return 0
-        if last_state.health == "PRACTICE_PRESET_READY" and time.monotonic() >= next_confirmation:
-            if client is None:
-                client = BridgeClient(process.pid)
-            if confirmations >= 12:
-                raise RuntimeError("menu confirmation limit reached before battle")
-            sequence = client.menu_confirm()
-            acknowledged = client.wait_for_ack(sequence, timeout=2.0)
-            if acknowledged.ack_seq != sequence:
-                raise RuntimeError(f"menu confirmation {confirmations + 1} was not acknowledged")
-            confirmations += 1
-            next_confirmation = time.monotonic() + 0.6
-        time.sleep(0.1)
-    if client:
-        client.close()
-    if last_state:
-        _print_state(last_state)
-    raise RuntimeError(f"timed out after {timeout:.1f}s waiting for PRACTICE_READY")
+        raise RuntimeError(f"timed out after {timeout:.1f}s waiting for PRACTICE_READY")
+    except Exception:
+        if client:
+            client.close()
+        if launched and process.is_running():
+            shutdown(3.0, process.pid)
+        raise
 
 
-def _launch_vs_from_title(
+def _launch_vs_group_from_title(
+    worker_count: int,
     timeout: float,
     *,
     headless: bool = False,
     unlimited: bool = False,
     seed: int | None = None,
     pause_at_start: bool = False,
-) -> psutil.Process:
+    seeds: tuple[int, ...] | None = None,
+    capture_images: bool = False,
+    capture_state: bool = False,
+    characters: tuple[int, int] | None = None,
+    cards_disabled: bool = False,
+    stage: int = 0,
+    music: int = 0,
+) -> list[psutil.Process]:
+    if worker_count < 1:
+        raise ValueError("worker_count must be positive")
     if unlimited and not headless:
         raise ValueError("--unlimited requires --headless")
-    config = configparser.ConfigParser()
-    if not config.read(SKIPINTRO_INI, encoding="ascii"):
-        raise RuntimeError(f"cannot read {SKIPINTRO_INI}")
+    if characters is not None and (
+        len(characters) != 2 or any(type(value) is not int or not 0 <= value <= 19 for value in characters)
+    ):
+        raise ValueError("VS characters must contain two vanilla character ids in [0, 19]")
+    if not 0 <= stage <= 255 or not 0 <= music <= 255:
+        raise ValueError("VS stage and music must fit in uint8")
+    if seeds is not None:
+        if seed is not None or len(seeds) != worker_count:
+            raise ValueError("provide one seed per worker, without a common seed")
+        if any(type(s) is not int or not 0 <= s < 0xFFFFFFFF for s in seeds):
+            raise ValueError("native seeds must be in [0, 0xFFFFFFFF)")
     env = os.environ.copy()
     env.update({
         "SOKURL_VS_BOOTSTRAP": "1",
-        "SOKURL_VS_P1_CHARACTER": str(config.getint("P1", "character")),
-        "SOKURL_VS_P2_CHARACTER": str(config.getint("P2", "character")),
-        "SOKURL_VS_P1_PALETTE": str(config.getint("P1", "palette")),
-        "SOKURL_VS_P2_PALETTE": str(config.getint("P2", "palette")),
-        "SOKURL_VS_P1_DECK": str(config.getint("P1", "deck")),
-        "SOKURL_VS_P2_DECK": str(config.getint("P2", "deck")),
-        "SOKURL_VS_STAGE": "0",
-        "SOKURL_VS_MUSIC": "0",
+        "SOKURL_VS_STAGE": str(stage),
+        "SOKURL_VS_MUSIC": str(music),
         "SOKURL_HEADLESS_RENDER": "1" if headless else "0",
+        "SOKURL_CAPTURE_IMAGES": "1" if capture_images else "2" if capture_state else "0",
         "SOKURL_UNLIMITED_PACING": "1" if unlimited else "0",
         "SOKURL_VS_PAUSE_AT_START": "1" if pause_at_start else "0",
+        "SOKURL_CARDS_DISABLED": "1" if cards_disabled else "0",
     })
     if seed is not None:
         if not 0 <= seed <= 0xFFFFFFFF:
@@ -322,36 +401,83 @@ def _launch_vs_from_title(
     mutex = kernel32.CreateMutexW(None, False, r"Local\SokuRLVsLaunchConfig")
     if not mutex:
         raise OSError(ctypes.get_last_error(), "CreateMutexW failed")
-    process = None
+    processes: list[psutil.Process] = []
     original = b""
     try:
         if kernel32.WaitForSingleObject(mutex, INFINITE) != WAIT_OBJECT_0:
             raise OSError(ctypes.get_last_error(), "WaitForSingleObject failed")
         original = SKIPINTRO_INI.read_bytes()
+        config = configparser.ConfigParser()
+        config.read_string(original.decode("ascii"))
+        for player in ("P1", "P2"):
+            for field in ("character", "palette", "deck"):
+                env[f"SOKURL_VS_{player}_{field.upper()}"] = str(config.getint(player, field))
+        if characters is not None:
+            env["SOKURL_VS_P1_CHARACTER"] = str(characters[0])
+            env["SOKURL_VS_P2_CHARACTER"] = str(characters[1])
+            env["SOKURL_VS_P1_PALETTE"] = env["SOKURL_VS_P2_PALETTE"] = "0"
+            env["SOKURL_VS_P1_DECK"] = env["SOKURL_VS_P2_DECK"] = "0"
         title_config, replacements = re.subn(
             rb"(?m)^(\s*scene_id\s*=\s*)\d+(\s*)$", rb"\g<1>2\g<2>", original, count=1
         )
         if replacements != 1:
             raise RuntimeError("SkipIntro scene_id setting was not found")
         SKIPINTRO_INI.write_bytes(title_config)
-        process = psutil.Process(subprocess.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=env).pid)
-        deadline = time.monotonic() + min(timeout, 10.0)
+        for index in range(worker_count):
+            process_env = env.copy()
+            if seeds is not None:
+                process_env["SOKURL_VS_SEED"] = str(seeds[index])
+            process = psutil.Popen([str(GAME_EXE)], cwd=GAME_DIR, env=process_env)
+            processes.append(process)
+        pending = list(processes)
+        deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            if not process.is_running():
-                raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid})")
-            try:
-                _, mode, _, _, _, _ = _read_process_values(process.pid)
-                if mode == BATTLE_MODE_VSPLAYER:
-                    return process
-            except OSError:
-                pass
+            for process in pending[:]:
+                exit_code = process.poll()
+                if exit_code is not None:
+                    raise RuntimeError(f"th123 exited before Title bootstrap (PID {process.pid}, "
+                                       f"exit=0x{exit_code & 0xFFFFFFFF:08X})")
+                raise_if_startup_error(process.pid)
+                try:
+                    _, mode, _, _, _, _ = _read_process_values(process.pid)
+                    if mode == BATTLE_MODE_VSPLAYER:
+                        pending.remove(process)
+                except OSError:
+                    pass
+            if not pending:
+                return processes
             time.sleep(0.01)
-        raise RuntimeError(f"Title bootstrap timeout for PID {process.pid}")
+        raise RuntimeError(f"Title bootstrap timeout for PIDs {[p.pid for p in pending]}")
+    except Exception:
+        for process in processes:
+            if process.is_running():
+                process.terminate()
+                process.wait(timeout=5.0)
+        raise
     finally:
         if original:
             SKIPINTRO_INI.write_bytes(original)
         kernel32.ReleaseMutex(mutex)
         kernel32.CloseHandle(mutex)
+
+
+def _launch_vs_from_title(
+    timeout: float,
+    *,
+    headless: bool = False,
+    unlimited: bool = False,
+    seed: int | None = None,
+    pause_at_start: bool = False,
+    characters: tuple[int, int] | None = None,
+    cards_disabled: bool = False,
+    stage: int = 0,
+    music: int = 0,
+) -> psutil.Process:
+    return _launch_vs_group_from_title(
+        1, timeout, headless=headless, unlimited=unlimited,
+        seed=seed, pause_at_start=pause_at_start, characters=characters,
+        cards_disabled=cards_disabled, stage=stage, music=music,
+    )[0]
 
 
 def versus(timeout: float, headless: bool = False, unlimited: bool = False) -> int:
@@ -366,6 +492,7 @@ def versus(timeout: float, headless: bool = False, unlimited: bool = False) -> i
         if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
             client.close()
             raise RuntimeError(f"th123 exited before VS Player became ready (PID {process.pid})")
+        raise_if_startup_error(process.pid)
         last_state = _runtime_state(process)
         if last_state.health == "VS_READY":
             frame = last_state.bridge.simulation_frame
@@ -401,6 +528,7 @@ def replay(path: Path, frame: int | None, timeout: float) -> int:
         while time.monotonic() < deadline:
             if not process.is_running():
                 raise RuntimeError(f"th123 exited before replay readiness (PID {process.pid})")
+            raise_if_startup_error(process.pid)
             try:
                 client = BridgeClient(process.pid)
                 break

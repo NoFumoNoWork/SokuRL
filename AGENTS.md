@@ -1,5 +1,15 @@
 # AGENTS.md
 
+## Current Main Branch Scope
+
+This branch contains CPU SokuRL Platform only. Training nodes, trainers,
+policies, training configuration and model artifacts remain on RL. Frozen
+SokuSim/GPU experiments must not be resumed. Keep reports in
+`docs/reports/<topic>/<run>/`; preserve the game-protection and validation
+rules below. In an isolated worktree, use that worktree as the command root
+and the existing repository-local Python environment; do not overwrite the
+other branch's dirty working files.
+
 ## Project
 
 This repository is `SokuRL`, an RL environment for Touhou Hisoutensoku (th123).

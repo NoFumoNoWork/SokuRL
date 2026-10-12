@@ -1,0 +1,296 @@
+[
+  {
+    "path": "docs/reports/fresh_reset/20261013/default_parity.json",
+    "source": "D:\\github\\SokuRL\\docs\\reports\\fresh_reset\\20261013\\default_parity.json",
+    "target": "D:\\github\\SokuRL-main-platform\\docs\\reports\\fresh_reset\\20261013\\default_parity.json",
+    "before_sha256": null,
+    "after_sha256": "F1D8A54FDEB0A97071AE93DD4640C8B98CCF5FCF4C044ED4BFE5292F0A362460"
+  },
+  {
+    "path": "docs/reports/fresh_reset/20261013/final_rng_terminal.json",
+    "source": "D:\\github\\SokuRL\\docs\\reports\\fresh_reset\\20261013\\final_rng_terminal.json",
+    "target": "D:\\github\\SokuRL-main-platform\\docs\\reports\\fresh_reset\\20261013\\final_rng_terminal.json",
+    "before_sha256": null,
+    "after_sha256": "A433A04C184AC1CC6D9C95F24EF6ADE734629DEA8EAFBFE20435F875F60698CD"
+  },
+  {
+    "path": "docs/reports/fresh_reset/20261013/parity_active_ai.json",
+    "source": "D:\\github\\SokuRL\\docs\\reports\\fresh_reset\\20261013\\parity_active_ai.json",
+    "target": "D:\\github\\SokuRL-main-platform\\docs\\reports\\fresh_reset\\20261013\\parity_active_ai.json",
+    "before_sha256": null,
+    "after_sha256": "13D9FAE1B5A8770084A95EE167AA266B0EAB4B42A4FAB2B21F76B8E8B61732F8"
+  },
+  {
+    "path": "docs/reports/fresh_reset/20261013/parity_eight_reversed.json",
+    "source": "D:\\github\\SokuRL\\docs\\reports\\fresh_reset\\20261013\\parity_eight_reversed.json",
+    "target": "D:\\github\\SokuRL-main-platform\\docs\\reports\\fresh_reset\\20261013\\parity_eight_reversed.json",
+    "before_sha256": null,
+    "after_sha256": "9FB2EFCD4E96CC7A2C5A850BB321D80D18AEB0DBA2CFC12B31926CF9E181054D"
+  },
+  {
+    "path": "docs/reports/fresh_reset/20261013/report.md",
+    "source": "D:\\github\\SokuRL\\docs\\reports\\fresh_reset\\20261013\\report.md",
+    "target": "D:\\github\\SokuRL-main-platform\\docs\\reports\\fresh_reset\\20261013\\report.md",
+    "before_sha256": null,
+    "after_sha256": "E54CC2ED6A84EE380CB87E84EE8DB687514E1C4D887CDBAC54D7E5BCFB3A0323"
+  },
+  {
+    "path": "native/BridgeTools/build_host.cmd",
+    "source": "D:\\github\\SokuRL\\native\\BridgeTools\\build_host.cmd",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\BridgeTools\\build_host.cmd",
+    "before_sha256": null,
+    "after_sha256": "3EDEAD0D418C069E4FE2BCEC56C11C3198C6F63B05371267854887CA8DE1D565"
+  },
+  {
+    "path": "native/BridgeTools/HostBench.cpp",
+    "source": "D:\\github\\SokuRL\\native\\BridgeTools\\HostBench.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\BridgeTools\\HostBench.cpp",
+    "before_sha256": null,
+    "after_sha256": "4946318B20DF9C99914EEB51B62D4F9994A8289F6F605C1C40AC7A350861BFFA"
+  },
+  {
+    "path": "native/BridgeTools/README.md",
+    "source": "D:\\github\\SokuRL\\native\\BridgeTools\\README.md",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\BridgeTools\\README.md",
+    "before_sha256": null,
+    "after_sha256": "AF7DD763AFAD1F4D931F9639A2C0FC7EE215F2323B7AC0DB7EA4B4B30939D8BE"
+  },
+  {
+    "path": "native/SokuRLBridge/AudioMute.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\AudioMute.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\AudioMute.cpp",
+    "before_sha256": null,
+    "after_sha256": "5DC6E660AAFD0981C79CFFD96984B40E3B8ADE380FC6C7900A010323060761EB"
+  },
+  {
+    "path": "native/SokuRLBridge/AudioMute.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\AudioMute.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\AudioMute.hpp",
+    "before_sha256": null,
+    "after_sha256": "E06A1D44AB9A3F439E2D3928AE9C768D66C43EDBD433F7B6BEE3E23B08DA4FC7"
+  },
+  {
+    "path": "native/SokuRLBridge/CMakeLists.txt",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\CMakeLists.txt",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\CMakeLists.txt",
+    "before_sha256": "62932C9D6A98C4E896DD77AC656A5A59DFF2F06553C65F8C54FBD93E6928B369",
+    "after_sha256": "265C97FE9CE2224B204D105CBBC0609E77F09BA05F9D8B71C8347D9266BD7CEF"
+  },
+  {
+    "path": "native/SokuRLBridge/ControlBlock.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\ControlBlock.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\ControlBlock.hpp",
+    "before_sha256": "FEF5012A7CAB67E7B2414F20E787F3D07BF4E0DE00C82AE3BB5036AE137835AE",
+    "after_sha256": "8037A51FB1B522AA4E713FBFAB6C25BC1005585E07C70836E067B2974455FCC5"
+  },
+  {
+    "path": "native/SokuRLBridge/FreshReset.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\FreshReset.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\FreshReset.cpp",
+    "before_sha256": null,
+    "after_sha256": "EEBED21D6FEFDDB3FD7C8ED3408C88211840181D07AAC3FA4C50554BB7126A0F"
+  },
+  {
+    "path": "native/SokuRLBridge/FreshReset.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\FreshReset.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\FreshReset.hpp",
+    "before_sha256": null,
+    "after_sha256": "A4D9688A9CF8F2E84C03800F7E08C16799F7D68B05881FF784037194331A2059"
+  },
+  {
+    "path": "native/SokuRLBridge/ImageCapture.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\ImageCapture.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\ImageCapture.cpp",
+    "before_sha256": null,
+    "after_sha256": "8FBB8810CB450A94E6EF49BA3385327DD925193922B18A578FED238FB03CA505"
+  },
+  {
+    "path": "native/SokuRLBridge/ImageCapture.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\ImageCapture.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\ImageCapture.hpp",
+    "before_sha256": null,
+    "after_sha256": "21D5862EFF630F04ED28635AD0A82BE4A736FAC73335262713FDA80BECC43105"
+  },
+  {
+    "path": "native/SokuRLBridge/NativeTrace.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\NativeTrace.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\NativeTrace.cpp",
+    "before_sha256": null,
+    "after_sha256": "5B5F3BE197F0B950A0EE546A122AD77E6EB4448E5F85B4F312B4360EB76BFF3D"
+  },
+  {
+    "path": "native/SokuRLBridge/NativeTrace.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\NativeTrace.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\NativeTrace.hpp",
+    "before_sha256": null,
+    "after_sha256": "2800D652847D0C65DA628BDBC40CACCD59238CB41947E10DAF6C15214943B5E4"
+  },
+  {
+    "path": "native/SokuRLBridge/README.md",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\README.md",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\README.md",
+    "before_sha256": "0701B6BB324F4A44272F4D37E5E7EE0A42B2CF8D366CD77A50B1792343F7EA7C",
+    "after_sha256": "7563E836B4582C909DA4BAB67752983E870E51746A6DA93206FC97EBF93E20E4"
+  },
+  {
+    "path": "native/SokuRLBridge/RenderState.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\RenderState.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\RenderState.cpp",
+    "before_sha256": null,
+    "after_sha256": "B36A3F454E6BC4E739A87AC91BFF5ECE0FB5DE4FEAEC7A3B903A4F63552D19E3"
+  },
+  {
+    "path": "native/SokuRLBridge/RenderState.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\RenderState.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\RenderState.hpp",
+    "before_sha256": null,
+    "after_sha256": "E3845FFF2D9595471ED29E24AEA140A81E2ABE9A1F8A3338143E9CA507558E8B"
+  },
+  {
+    "path": "native/SokuRLBridge/ResetTiming.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\ResetTiming.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\ResetTiming.cpp",
+    "before_sha256": null,
+    "after_sha256": "A23D7EE1107EF5E1EEE52DE189B7075FBF01621BFA4556FF49AA692671ABF61F"
+  },
+  {
+    "path": "native/SokuRLBridge/ResetTiming.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\ResetTiming.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\ResetTiming.hpp",
+    "before_sha256": null,
+    "after_sha256": "1FD909D772CED5B3C745D4A3DC0DF7FA036267703F99E60F31C758CA8FAD9217"
+  },
+  {
+    "path": "native/SokuRLBridge/SceneReset.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\SceneReset.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\SceneReset.cpp",
+    "before_sha256": null,
+    "after_sha256": "67CC97AD3B234F213FACCB81A0A7CB41BDCA4B5B08C337CF6BA5EAD86D9E8B45"
+  },
+  {
+    "path": "native/SokuRLBridge/SceneReset.hpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\SceneReset.hpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\SceneReset.hpp",
+    "before_sha256": null,
+    "after_sha256": "E701DB3BA61055B92B3F7950DC7C9329CE1F892B012F49F2F916FD4063C9E19E"
+  },
+  {
+    "path": "native/SokuRLBridge/SokuRLBridge.cpp",
+    "source": "D:\\github\\SokuRL\\native\\SokuRLBridge\\SokuRLBridge.cpp",
+    "target": "D:\\github\\SokuRL-main-platform\\native\\SokuRLBridge\\SokuRLBridge.cpp",
+    "before_sha256": "DF971B3AF1AA1D57A2BB8E45C7A040E5B530C5C4F52E0C2AE1BFCDB5C598D0CD",
+    "after_sha256": "D3D3B3B78812FD83104424A5FB5DD730D15749478A77C0647ACA8BABD8FFA5F8"
+  },
+  {
+    "path": "tests/test_bridge_host_cost.py",
+    "source": "D:\\github\\SokuRL\\tests\\test_bridge_host_cost.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tests\\test_bridge_host_cost.py",
+    "before_sha256": null,
+    "after_sha256": "52EB2771F7A1AE0B4C35A21FF12D4C32E45DD1C3313FD453A42B6EC4D19ACBD9"
+  },
+  {
+    "path": "tests/test_bridge_protocol.py",
+    "source": "D:\\github\\SokuRL\\tests\\test_bridge_protocol.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tests\\test_bridge_protocol.py",
+    "before_sha256": "9D40DFA7371F7347A0AA4206F6F98FEAE1028AE1922D5044EBCC7D9D779733BB",
+    "after_sha256": "AF70B0A8269C8C441738B694C69268D8BAE0FB75E517AA023DACC79CDD1C41F8"
+  },
+  {
+    "path": "tests/test_fast_reset_protocol.py",
+    "source": "D:\\github\\SokuRL\\tests\\test_fast_reset_protocol.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tests\\test_fast_reset_protocol.py",
+    "before_sha256": null,
+    "after_sha256": "7E53710413DA94BF7630BE9BAB49D954A0A3D8CE7EC8C17404B7DE2F68BCE24B"
+  },
+  {
+    "path": "tools/bridge_shared.py",
+    "source": "D:\\github\\SokuRL\\tools\\bridge_shared.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\bridge_shared.py",
+    "before_sha256": "A9E36B2107D8F0B89656DA0B62F4A522F3228A4DEA7B6E18C1E9405729E005F3",
+    "after_sha256": "571C0044318F7BDDEE9A2F9BC86CCF8212F65791C2EBD14289769610DC8F5548"
+  },
+  {
+    "path": "tools/bridge_worker_health.py",
+    "source": "D:\\github\\SokuRL\\tools\\bridge_worker_health.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\bridge_worker_health.py",
+    "before_sha256": null,
+    "after_sha256": "5A8716E227181F954C3E959A239B7D7230C9984970D856C0BF400A5BFFE14E65"
+  },
+  {
+    "path": "tools/frame_validation.py",
+    "source": "D:\\github\\SokuRL\\tools\\frame_validation.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\frame_validation.py",
+    "before_sha256": "BE50A994254E097077C4C7ADDBE7852E74D49C1846D72520BD73FD14365887AA",
+    "after_sha256": "FE39512323E8D420E9F1B0964104A3EEB8C2D2266278DB605D74898F63381FD7"
+  },
+  {
+    "path": "tools/headless_validation.py",
+    "source": "D:\\github\\SokuRL\\tools\\headless_validation.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\headless_validation.py",
+    "before_sha256": "B51B45B9E7C4AF9B9BAEF88AC97517827A3759013C7953486E872D8D5FDDE691",
+    "after_sha256": "1222C62D2A1BDD0F5B0AD80ECF893F8C6594AF6FA926F84AF4D2A476104013BA"
+  },
+  {
+    "path": "tools/profile_fresh_reset.py",
+    "source": "D:\\github\\SokuRL\\tools\\profile_fresh_reset.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\profile_fresh_reset.py",
+    "before_sha256": null,
+    "after_sha256": "D2107C3B1CD8C22ABD6B9AEB5E0FA4CEB392845A312D49C275F86BF3FBFD9A57"
+  },
+  {
+    "path": "tools/profile_training_cost.py",
+    "source": "D:\\github\\SokuRL\\tools\\profile_training_cost.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\profile_training_cost.py",
+    "before_sha256": null,
+    "after_sha256": "A031CD144C89DD7C41B43524BDE4523CA7FCDEE8E13468B801581E2B021D60D3"
+  },
+  {
+    "path": "tools/raw_recorder.py",
+    "source": "D:\\github\\SokuRL\\tools\\raw_recorder.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\raw_recorder.py",
+    "before_sha256": "57ABE955508FD6F2BFF0D94ACC5EBACFB83C3971C68159F51A4736AF189E1AC2",
+    "after_sha256": "4FC9F0D27548B68626B675E9EE475D30CAAB8459F1729D97784E3A53C57A1993"
+  },
+  {
+    "path": "tools/replay_validation.py",
+    "source": "D:\\github\\SokuRL\\tools\\replay_validation.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\replay_validation.py",
+    "before_sha256": "3D567B7D167AB7D05EDF12CF62940F128A4A306583021AFA1DF6BE5ABEDF6F44",
+    "after_sha256": "193B1DC8E7ED2EC318B66777CCFD006EBD058E100532BF52A4BF5869E082A338"
+  },
+  {
+    "path": "tools/scenario_runner.py",
+    "source": "D:\\github\\SokuRL\\tools\\scenario_runner.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\scenario_runner.py",
+    "before_sha256": "424A9164BECF8D5C467EC6357BE081CD8C2982A4885A68C61E634F370D11E75F",
+    "after_sha256": "ACEE3AF0A0515B27A0544FB3090E81259D14532B70012EE02FFE585EDC5022BE"
+  },
+  {
+    "path": "tools/sokurl.py",
+    "source": "D:\\github\\SokuRL\\tools\\sokurl.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\sokurl.py",
+    "before_sha256": "B9D89B1040AC51C7420ABD5A3CE4504D5676CE65D82E229A1307A7588BA3C529",
+    "after_sha256": "01916FE78E07C1662818B87309E7E4C7B5E03F402498B59066EBC4259FB375B4"
+  },
+  {
+    "path": "tools/unlimited_benchmark.py",
+    "source": "D:\\github\\SokuRL\\tools\\unlimited_benchmark.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\unlimited_benchmark.py",
+    "before_sha256": "FD9FB1D99D731985C7EE41EE0F151D7CFFA4B284E1F7011377632E1ACF029D4F",
+    "after_sha256": "8906E022AFC31A0E2F675413C6610EFE5A08CFA0E88BB83F6F541EC0B3BF2684"
+  },
+  {
+    "path": "tools/validate_fresh_reset.py",
+    "source": "D:\\github\\SokuRL\\tools\\validate_fresh_reset.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\validate_fresh_reset.py",
+    "before_sha256": null,
+    "after_sha256": "58546FCED84F7F491F02AD4979FEFD318AA89895E00C749D8D0FE219420EB0DA"
+  },
+  {
+    "path": "tools/validate_training_cost.py",
+    "source": "D:\\github\\SokuRL\\tools\\validate_training_cost.py",
+    "target": "D:\\github\\SokuRL-main-platform\\tools\\validate_training_cost.py",
+    "before_sha256": null,
+    "after_sha256": "FADFF8190F54EC01EE80C5F13D86B11B589E2804FB82ABE65F8661714C0A7AC9"
+  }
+]
