@@ -228,3 +228,12 @@ hash comparison path as Practice; it does not parse or replace ReplayDnD.
 
 The first form starts normal playback. The second fast-simulates from replay
 frame zero to the requested frame and leaves the process frozen there.
+## Optional Command Counters and Combat Events
+
+Set `SOKURL_COMBAT_EVENTS=1` and `SOKURL_NATIVE_INPUT_COUNTERS=1` before
+launch for the tested command-input path. Defaults remain OFF. Combat sidecar
+ABI8 advertises support/enabled flags; RawFrame ABI12 is unchanged.
+The accumulator advances once per controlled simulation frame, not per input hook.
+Counter-mode GotoFrame/FastReset/branch checkpoints are explicitly unsupported.
+Use `tools/run_command_input.py --help` for the selected-instance command entry.
+The runner requires an owned, paused match and exclusive control/event consumption.

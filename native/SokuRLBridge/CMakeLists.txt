@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-get_filename_component(SOKUMODS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/SokuMods" ABSOLUTE)
+set(SOKUMODS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../../third_party/SokuMods" CACHE PATH "Existing SokuMods checkout")
 if(NOT EXISTS "${SOKUMODS_ROOT}/SokuLib/CMakeLists.txt")
     message(FATAL_ERROR "SokuLib was not found under ${SOKUMODS_ROOT}")
 endif()
@@ -17,6 +17,8 @@ endif()
 add_subdirectory("${SOKUMODS_ROOT}/SokuLib" "${CMAKE_BINARY_DIR}/SokuLib" EXCLUDE_FROM_ALL)
 
 add_library(SokuRLBridge MODULE
+    CombatCapture.hpp
+    CombatCapture.cpp
     ResetTiming.hpp
     ResetTiming.cpp
     FreshReset.hpp

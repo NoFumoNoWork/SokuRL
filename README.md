@@ -1,5 +1,26 @@
 # SokuRL
 
+## Generic Platform Command Input
+
+Platform now owns a single character-independent command compiler/player:
+`tools/command_input.py`. It supports AAA, directional motions, holds/releases
+and bounded native-feedback gates without per-move handlers. RL compatibility
+imports use the same implementation; no trainer/reward/model code is merged here.
+Standalone selected-instance entry: `tools/run_command_input.py`.
+The native duration-counter adapter and combat event sidecar are explicit,
+default-OFF options. Original game rules and RawFrame ABI12 are unchanged.
+This is tested-path command execution, not full moveset/true-combo certification.
+
+Before launching a tested instance, explicitly set `SOKURL_COMBAT_EVENTS=1`
+and `SOKURL_NATIVE_INPUT_COUNTERS=1`. Build/deploy the Win32 Bridge deliberately;
+the installed game DLL is not updated automatically. On an owned paused match,
+run `python tools/run_command_input.py --pid <PID> --commands AAA --confirm`.
+The runner neutralizes the opposite seat; do not attach another controller or
+event-ring consumer concurrently. Command completion does not prove a true combo.
+Counter mode does not support historical checkpoints/GotoFrame/FastReset.
+The standalone CLI is mock-tested; live tests covered the shared interpreter,
+not this new CLI. Full moveset phase classification remains unverified.
+
 `main` contains **SokuRL Platform only**: original-engine CPU simulation,
 Bridge, input/recording/replay tools and validation. Trainers, learning nodes,
 policies, training configurations and model artifacts remain on `RL` and are

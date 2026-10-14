@@ -5,6 +5,8 @@
 #include "SceneReset.hpp"
 #include "ResetTiming.hpp"
 #include "FreshReset.hpp"
+#include "CombatCapture.hpp"
+#include "InputCounters.hpp"
 
 #include <BattleManager.hpp>
 #include <BattleMode.hpp>
@@ -93,6 +95,8 @@ std::uint64_t g_replayInputFrame = 0;
 
 SokuRLBridge::LogicalInput g_effectiveInputs[2]{};
 SokuLib::KeyInput g_activeInputs[2]{};
+SokuLib::KeyInput g_countedInputs[2]{};
+bool g_nativeInputCounters=false;
 std::uint32_t g_activeInputMask = 0;
 std::uint32_t g_activeInputFrames = 0;
 bool g_activeInputEnabled = false;
@@ -789,6 +793,7 @@ void appendRecordedFrame(const SokuRLBridge::RawFrameState &state)
 
 void clearControlledInput(SokuRLBridge::ResultCode result, bool neutral)
 {
+    g_countedInputs[0]={}; g_countedInputs[1]={};
     g_activeInputs[0] = {};
     g_activeInputs[1] = {};
     g_activeInputMask = 0;
@@ -862,6 +867,17 @@ void consumeCommand(bool gameplay)
     const auto duration = g_control->durationFrames;
     const auto argument = g_control->commandArgument;
     g_lastCommandSeq = sequence;
+
+    // Counter accumulator is external to the original rollback snapshot.
+    // Keep legacy rewind behavior intact; opt-in counters require a fresh episode.
+    if (g_nativeInputCounters && (type==SokuRLBridge::CommandType::GotoFrame ||
+            type==SokuRLBridge::CommandType::FastReset ||
+            type==SokuRLBridge::CommandType::SaveBranchCheckpoint ||
+            type==SokuRLBridge::CommandType::EstablishCheckpoint)) {
+        publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
+        acknowledge(sequence);
+        return;
+    }
 
     if (g_resetInvalid && type != SokuRLBridge::CommandType::ResetEpisode) {
         publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
@@ -1087,7 +1103,7 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
         self->input = toKeyInput(recorded);
     } else if (g_activeInputEnabled && (g_activeInputMask & (1U << player)) &&
         g_activeInputFrames) {
-        self->input = g_activeInputs[player];
+        self->input = g_nativeInputCounters ? g_countedInputs[player] : g_activeInputs[player];
     } else if (player == 0) {
         if (g_neutralPending) {
             self->input = {};
@@ -1122,10 +1138,15 @@ void applySimulationInputs(SokuLib::BattleManager *manager)
             continue;
         auto *character = characters[player];
         suppressCardInputs(inputs[player]);
+        const auto logical=toLogicalInput(inputs[player]);
+        if (g_nativeInputCounters && !g_reconstructing) {
+            SokuRLBridge::advanceInputCounters(g_countedInputs[player],inputs[player]);
+            inputs[player]=g_countedInputs[player];
+        }
         character->keyMap = inputs[player];
         if (character->keyManager && character->keyManager->keymapManager)
             character->keyManager->keymapManager->input = inputs[player];
-        g_effectiveInputs[player] = toLogicalInput(inputs[player]);
+        g_effectiveInputs[player] = logical;
     }
 }
 
@@ -1138,7 +1159,9 @@ int callSimulationUpdate(SokuLib::BattleManager *manager)
     g_effectiveInputs[1] = {};
     applySimulationInputs(manager);
     g_inSimulationUpdate = true;
+    SokuRLBridge::beginCombatFrame(manager, g_currentFrame+1, g_segmentId);
     const auto result = (manager->*g_originalBattleManagerProcess)();
+    SokuRLBridge::endCombatFrame();
     g_inSimulationUpdate = false;
     enforceFixedWeather();
     if (!g_reconstructing && g_activeInputEnabled && g_activeInputFrames) {
@@ -1510,6 +1533,7 @@ void closeMapping()
     g_profile = nullptr;
     g_profileHandle = nullptr;
     SokuRLBridge::closeImageCapture();
+    SokuRLBridge::closeCombatCapture();
     if (g_traceMapping)
         UnmapViewOfFile(g_traceMapping);
     if (g_traceFileMapping)
@@ -1538,6 +1562,7 @@ bool installHooks()
         return false;
     g_originalSetInputs = SokuLib::union_cast<SetInputsMethod>(
         SokuLib::TamperNearJmpOpr(KEYMAP_SET_INPUTS_HOOK, keymapManagerSetInputs));
+    const bool combatInstalled = SokuRLBridge::installCombatCapture();
     const bool headlessHookInstalled = installHeadlessRenderHook();
     const bool unlimitedHookInstalled = installUnlimitedPacingHook();
     DWORD ignored = 0;
@@ -1560,12 +1585,12 @@ bool installHooks()
             &SokuLib::VTable_Battle.onRender, battleOnRender);
     g_originalBattleProcess = SokuLib::TamperDword(
         &SokuLib::VTable_Battle.onProcess, battleOnProcess);
-    const bool nativeTraceHooksInstalled = !g_nativeTracing || SokuRLBridge::installNativeTraceHooks(
+    const bool nativeTraceHooksInstalled = !(g_nativeTracing || SokuRLBridge::combatCaptureEnabled()) || SokuRLBridge::installNativeTraceHooks(
         g_mapping, &g_currentFrame, pushTraceEvent);
     VirtualProtect(reinterpret_cast<void *>(RDATA_SECTION_OFFSET), RDATA_SECTION_SIZE,
         rdataProtection, &ignored);
     FlushInstructionCache(GetCurrentProcess(), nullptr, 0);
-    return g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
+    return combatInstalled && g_originalSetInputs && headlessHookInstalled && unlimitedHookInstalled &&
         g_originalBattleManagerProcess && g_originalSelectProcess && g_originalTitleProcess &&
         (!g_captureImages || g_originalBattleRender) &&
         g_originalBattleProcess && resetBarrierInstalled && nativeTraceHooksInstalled;
@@ -1582,6 +1607,7 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     static_assert(sizeof(void *) == 4, "SokuRLBridge must be built for Win32/x86");
     g_history.reserve(SokuRLBridge::INPUT_HISTORY_CAPACITY);
     g_nativeTracing = environmentValue(L"SOKURL_NATIVE_TRACE", 0) == 1;
+    g_nativeInputCounters = environmentValue(L"SOKURL_NATIVE_INPUT_COUNTERS",0)==1;
     if (!createMapping())
         return false;
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;

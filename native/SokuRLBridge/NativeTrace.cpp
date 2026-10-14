@@ -1,4 +1,5 @@
 #include "NativeTrace.hpp"
+#include "CombatCapture.hpp"
 
 #include <BattleManager.hpp>
 #include <CharacterManager.hpp>
@@ -21,6 +22,7 @@ constexpr std::uint32_t FLAG_CHILD_SPAWN = 2;
 
 using SetActionFunction = bool (__thiscall *)(void *, short);
 using SetSequenceFunction = void (__thiscall *)(void *, short);
+using HandleInputsFunction = void (__thiscall *)(void *);
 using CreateObjectFunction = void *(__thiscall *)(
     void *, void *, SokuLib::CharacterManager *, short, float, float,
     char, char, void *, unsigned int);
@@ -33,6 +35,7 @@ SetSequenceFunction g_playerSetSequence[2]{};
 SetActionFunction g_objectSetAction[2]{};
 SetSequenceFunction g_objectSetSequence[2]{};
 CreateObjectFunction g_createObject[2]{};
+HandleInputsFunction g_handleInputs[2]{};
 
 std::uint32_t bits(float value)
 {
@@ -109,9 +112,11 @@ bool __fastcall setActionHook(void *self, void *, short action)
     const auto oldAction = static_cast<std::uint32_t>(
         static_cast<SokuLib::ObjectManager *>(self)->action);
     auto function = Player ? g_playerSetAction[Index] : g_objectSetAction[Index];
+    const auto token = Player ? SokuRLBridge::combatActionBegin(self) : SokuRLBridge::CombatActionToken{0,0};
     const auto result = function(self, action);
     const auto newAction = static_cast<std::uint32_t>(
         static_cast<SokuLib::ObjectManager *>(self)->action);
+    if (Player) SokuRLBridge::combatActionEnd(self,ret,oldAction,newAction,result,token);
     const std::uint32_t args[16] = {
         oldAction, static_cast<std::uint16_t>(action), newAction,
         result ? 1U : 0U,
@@ -146,8 +151,10 @@ void *__fastcall createObjectHook(void *self, void *, void *parent,
 {
     const auto ret = returnAddress();
     auto function = g_createObject[Index];
+    const auto token = SokuRLBridge::combatSpawnBegin(parent,owner);
     auto *result = function(
         self, parent, owner, action, x, y, direction, layer, customData, customDataSize);
+    SokuRLBridge::combatSpawnEnd(result,parent,owner,token);
     std::uint32_t args[16] = {
         static_cast<std::uint16_t>(action), bits(x), bits(y),
         static_cast<std::uint8_t>(direction), static_cast<std::uint8_t>(layer),
@@ -161,6 +168,14 @@ void *__fastcall createObjectHook(void *self, void *, void *parent,
         SokuRLBridge::TraceSubjectKind::Player,
         parent ? FLAG_CHILD_SPAWN : FLAG_DIRECT_SPAWN, args);
     return result;
+}
+
+template<std::size_t Index>
+void __fastcall handleInputsHook(void *self, void *)
+{
+    const auto previous=SokuRLBridge::combatInputBegin(self);
+    g_handleInputs[Index](self);
+    SokuRLBridge::combatInputEnd(self,previous);
 }
 
 template<std::size_t Index>
@@ -179,6 +194,11 @@ bool installCharacterHooks()
         &objectVtable[SET_SEQUENCE_SLOT], setSequenceHook<Index, false>));
     g_createObject[Index] = reinterpret_cast<CreateObjectFunction>(SokuLib::TamperDword(
         &listVtable[LIST_CREATE_OBJECT_SLOT], createObjectHook<Index>));
+    if (SokuRLBridge::combatCaptureEnabled()) {
+        g_handleInputs[Index] = reinterpret_cast<HandleInputsFunction>(SokuLib::TamperDword(
+            &playerVtable[20],handleInputsHook<Index>));
+        if (!g_handleInputs[Index]) return false;
+    }
     return g_playerSetAction[Index] && g_playerSetSequence[Index] &&
         g_objectSetAction[Index] && g_objectSetSequence[Index] && g_createObject[Index];
 }
