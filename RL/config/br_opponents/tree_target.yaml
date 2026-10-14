@@ -1,0 +1,20 @@
+# @package algorithm
+# A frozen weak opponent for curriculum pretraining; use rules=default.
+target:
+  character: 0
+  style: idle
+opponents:
+  - name: tree:${algorithm.target.character}:${algorithm.target.style}
+    probability: 1.0
+    setup:
+      character: ${algorithm.target.character}
+      palette: 0
+      deck: 0
+    policy:
+      kind: rule
+      name: ${algorithm.target.style}
+      rules:
+        roster: ["${algorithm.target.style}"]
+        tree: ${rules.tree}
+        overrides: ${rules.overrides}
+        community: {}

@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - superhuman_address_invariant
+  - _self_
+rl:
+  ppo:
+    action_frame: own_facing
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.canonical_features.CanonicalCombatFeatures
+      features_extractor_kwargs:
+        arena_width: 1280.0

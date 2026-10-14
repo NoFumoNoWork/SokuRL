@@ -1,0 +1,4 @@
+action_set: combat
+relative_features: true
+action_history: 8
+health_potential_scale: 1.0

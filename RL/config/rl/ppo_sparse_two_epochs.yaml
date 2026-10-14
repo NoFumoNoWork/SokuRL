@@ -1,0 +1,5 @@
+defaults:
+  - ppo_sparse_transfer
+  - _self_
+ppo:
+  n_epochs: 2

@@ -1,0 +1,23 @@
+defaults:
+  - train
+  - evaluation@excluded.validation: validation
+  - evaluation@excluded.test: test
+  - override algorithm: br
+  - override rl: ppo_sparse_transfer
+  - override rules: god
+  - override wrappers: superhuman_learning
+  - override track: superhuman_combat
+  - _self_
+
+seed: 341729
+num_envs: 4
+collection:
+  episodes_per_seat: 8
+  validation_per_seat: 2
+teacher:
+  kind: rule
+  name: god
+  rules: ${rules}
+behavior: {kind: teacher}
+excluded_datasets: []
+output: ${oc.env:SOKURL_RL_ROOT}/runs/demonstrations/god-${now:%Y%m%d-%H%M%S}

@@ -1,0 +1,13 @@
+defaults:
+  - train_platform_tokens_mixture
+  - _self_
+
+algorithm:
+  initial_policy:
+    kind: weights
+rl:
+  ppo:
+    learning_rate: 0.0001
+    n_epochs: 4
+    target_kl: 0.01
+output: ${oc.env:SOKURL_RL_ROOT}/runs/training/tokens-conservative-${now:%Y%m%d-%H%M%S}

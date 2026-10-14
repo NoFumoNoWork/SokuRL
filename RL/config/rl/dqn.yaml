@@ -1,0 +1,22 @@
+defaults:
+  - ppo
+  - _self_
+learner: dqn
+policy_type: mlp
+dqn:
+  learning_rate: 0.0001
+  buffer_size: 131072
+  learning_starts: 4096
+  batch_size: 256
+  gamma: 1.0
+  n_steps: 3
+  train_freq: 32
+  gradient_steps: 32
+  target_update_interval: 2048
+  tau: 1.0
+  exploration_decay_steps: 131072
+  exploration_initial_eps: 1.0
+  exploration_final_eps: 0.05
+  max_grad_norm: 10.0
+  policy_kwargs: ${rl.ppo.policy_kwargs}
+  verbose: 1

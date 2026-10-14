@@ -1,0 +1,14 @@
+defaults:
+  - train_ppo_control_a
+  - _self_
+
+algorithm:
+  opponents:
+    - name: pressure
+      probability: 1.0
+      setup: ${episode.match.player_1}
+      policy:
+        kind: rule
+        name: pressure
+        rules: ${rules}
+output: ${oc.env:SOKURL_RL_ROOT}/runs/ppo-control-c-${now:%Y%m%d-%H%M%S}

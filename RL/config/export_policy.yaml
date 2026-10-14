@@ -1,0 +1,6 @@
+defaults:
+  - netplay
+  - _self_
+
+verification_steps: 2048
+output: ${oc.env:SOKURL_RL_ROOT}/runs/deployment/${candidate.name}-${now:%Y%m%d-%H%M%S}

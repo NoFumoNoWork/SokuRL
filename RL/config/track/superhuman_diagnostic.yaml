@@ -1,0 +1,8 @@
+# @package _global_
+# Existing compact diagnostic tensor; uses the shared default MLP extractor.
+track: superhuman
+episode:
+  decision_frames: 1
+  latency_frames: 0
+  observation_mode: diagnostic_state
+  history_frames: 4

@@ -1,0 +1,22 @@
+defaults:
+  - benchmark_platform_initial
+  - override rules: default
+  - _self_
+
+opponent_source: config
+algorithm:
+  opponents:
+    - name: zoning
+      probability: 0.5
+      setup: ${episode.match.player_1}
+      policy:
+        kind: rule
+        name: zoning
+        rules: ${rules}
+    - name: counter
+      probability: 0.5
+      setup: ${episode.match.player_1}
+      policy:
+        kind: rule
+        name: counter
+        rules: ${rules}

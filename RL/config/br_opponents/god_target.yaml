@@ -1,0 +1,21 @@
+# @package algorithm
+# Select one original strategy without changing the shared PPO configuration.
+target:
+  character: 0
+  script: character
+opponents:
+  - name: god:${algorithm.target.character}:${algorithm.target.script}
+    probability: 1.0
+    setup:
+      character: ${algorithm.target.character}
+      palette: 0
+      deck: 0
+    policy:
+      kind: rule
+      name: god
+      rules:
+        roster: [god]
+        god:
+          package: ${rules.god.package}
+          api_source: ${rules.god.api_source}
+          script: ${algorithm.target.script}

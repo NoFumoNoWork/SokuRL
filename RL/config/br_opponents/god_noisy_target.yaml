@@ -1,0 +1,25 @@
+# @package algorithm
+# Frozen noisy target for controlled diagnostics. Training curricula use adaptive feedback.
+target:
+  character: 0
+  script: character
+  random_probability: 0.9
+opponents:
+  - name: god-noisy:${algorithm.target.character}:${algorithm.target.script}:${algorithm.target.random_probability}
+    probability: 1.0
+    setup:
+      character: ${algorithm.target.character}
+      palette: 0
+      deck: 0
+    policy:
+      kind: action_noise
+      random_probability: ${algorithm.target.random_probability}
+      policy:
+        kind: rule
+        name: god
+        rules:
+          roster: [god]
+          god:
+            package: ${rules.god.package}
+            api_source: ${rules.god.api_source}
+            script: ${algorithm.target.script}

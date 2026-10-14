@@ -1,0 +1,18 @@
+defaults:
+  - train_platform_initial
+  - _self_
+
+algorithm:
+  timesteps: 8192
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.token_features.PublicTokenFeatures
+      features_extractor_kwargs:
+        history_frames: ${episode.history_frames}
+        width: 64
+        heads: 4
+        spatial_layers: 2
+        temporal_layers: 1
+        features_dim: 128
+output: ${oc.env:SOKURL_RL_ROOT}/runs/training/platform-tokens-${now:%Y%m%d-%H%M%S}

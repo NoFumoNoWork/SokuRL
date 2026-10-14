@@ -1,0 +1,13 @@
+defaults:
+  - train_platform_tokens_conservative
+  - _self_
+
+seed: 20261014
+algorithm:
+  timesteps: 196608
+  checkpoint_every: 65536
+  initial_policy:
+    kind: weights
+    path: ${oc.env:SOKURL_RL_ROOT}/runs/tokens-conservative-32768-20261013/final.zip
+    training_config: ${oc.env:SOKURL_RL_ROOT}/runs/tokens-conservative-32768-20261013/config.yaml
+output: ${oc.env:SOKURL_RL_ROOT}/runs/ppo-control-a-${now:%Y%m%d-%H%M%S}

@@ -1,0 +1,5 @@
+defaults:
+  - ppo
+  - _self_
+ppo:
+  rollout_buffer_class: soku_rl.rl.sparse_transfer.SparseTransferRolloutBuffer

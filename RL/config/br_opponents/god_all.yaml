@@ -1,0 +1,435 @@
+# @package algorithm
+# The original 27 scripts, each paired with its own character.
+opponents:
+- name: god:00_reimuEX1_main
+  probability: 0.037037037037037035
+  setup:
+    character: 0
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 00_reimuEX1_main.ai
+- name: god:00_reimuEX2_main
+  probability: 0.037037037037037035
+  setup:
+    character: 0
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 00_reimuEX2_main.ai
+- name: god:reimu
+  probability: 0.037037037037037035
+  setup:
+    character: 0
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 00_reimu_main.ai
+- name: god:marisa
+  probability: 0.037037037037037035
+  setup:
+    character: 1
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 01_marisa_main.ai
+- name: god:01_marisa_main_新版厨远A
+  probability: 0.037037037037037035
+  setup:
+    character: 1
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 01_marisa_main_新版厨远A.ai
+- name: god:sakuya
+  probability: 0.037037037037037035
+  setup:
+    character: 2
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 02_sakuya_main.ai
+- name: god:02_sakuya_main_新版厨dc
+  probability: 0.037037037037037035
+  setup:
+    character: 2
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 02_sakuya_main_新版厨dc.ai
+- name: god:alice
+  probability: 0.037037037037037035
+  setup:
+    character: 3
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 03_alice_main.ai
+- name: god:patchouli
+  probability: 0.037037037037037035
+  setup:
+    character: 4
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 04_patchouli_main.ai
+- name: god:youmu
+  probability: 0.037037037037037035
+  setup:
+    character: 5
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 05_youmu_main.ai
+- name: god:remilia
+  probability: 0.037037037037037035
+  setup:
+    character: 6
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 06_remilia_main.ai
+- name: god:06_remilia_main原版强化流
+  probability: 0.037037037037037035
+  setup:
+    character: 6
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 06_remilia_main原版强化流.ai
+- name: god:yuyuko
+  probability: 0.037037037037037035
+  setup:
+    character: 7
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 07_yuyuko_main.ai
+- name: god:yukari
+  probability: 0.037037037037037035
+  setup:
+    character: 8
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 08_yukari_main.ai
+- name: god:suica
+  probability: 0.037037037037037035
+  setup:
+    character: 9
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 09_suica_main.ai
+- name: god:udonge
+  probability: 0.037037037037037035
+  setup:
+    character: 10
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 10_udonge_main.ai
+- name: god:10_udonge_main_旧版（反应快完爆新版）
+  probability: 0.037037037037037035
+  setup:
+    character: 10
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 10_udonge_main_旧版（反应快完爆新版）.ai
+- name: god:aya
+  probability: 0.037037037037037035
+  setup:
+    character: 11
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 11_aya_main.ai
+- name: god:komachi
+  probability: 0.037037037037037035
+  setup:
+    character: 12
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 12_komachi_main.ai
+- name: god:iku
+  probability: 0.037037037037037035
+  setup:
+    character: 13
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 13_iku_main.ai
+- name: god:tenshi
+  probability: 0.037037037037037035
+  setup:
+    character: 14
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 14_tenshi_main.ai
+- name: god:sanae
+  probability: 0.037037037037037035
+  setup:
+    character: 15
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 15_sanae_main.ai
+- name: god:chirno
+  probability: 0.037037037037037035
+  setup:
+    character: 16
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 16_chirno_main.ai
+- name: god:meirin
+  probability: 0.037037037037037035
+  setup:
+    character: 17
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 17_meirin_main.ai
+- name: god:utsuho
+  probability: 0.037037037037037035
+  setup:
+    character: 18
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 18_utsuho_main.ai
+- name: god:18_utsuho_main原版强化流
+  probability: 0.037037037037037035
+  setup:
+    character: 18
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 18_utsuho_main原版强化流.ai
+- name: god:suwako
+  probability: 0.037037037037037035
+  setup:
+    character: 19
+    palette: 0
+    deck: 0
+  policy:
+    kind: rule
+    name: god
+    rules:
+      roster:
+      - god
+      god:
+        package: ${rules.god.package}
+        api_source: ${rules.god.api_source}
+        script: 19_suwako_main.ai

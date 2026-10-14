@@ -1,0 +1,21 @@
+defaults:
+  - train
+  - evaluation: validation
+  - override algorithm: br
+  - override rules: god
+  - override wrappers: superhuman_learning
+  - override track: superhuman
+  - _self_
+
+training_directory: ???
+candidate: {kind: checkpoint}
+checkpoint: final.zip
+require_complete: true
+opponent_source: training
+opponent_names: all
+benchmark:
+  world_seeds: ${evaluation.world_seeds}
+  policy_seed: ${evaluation.policy_seed}
+  policy_seed_mode: common_roles
+  alpha: 0.05
+output: ${oc.env:SOKURL_RL_ROOT}/runs/benchmark/br-${evaluation.name}-${now:%Y%m%d-%H%M%S}

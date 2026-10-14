@@ -1,0 +1,14 @@
+defaults:
+  - recurrent_demonstration_transfer
+  - _self_
+online_anchor:
+  reference:
+    kind: sb3_recurrent
+    path: logs/pretraining/god-marisa-reimu-address-invariant-20261002/best.zip
+    training_config: logs/pretraining/god-marisa-reimu-address-invariant-20261002/config.yaml
+  updates_per_rollout: 1
+  sequences: 4
+  sequence_length: 64
+  # Separate SGD without momentum, after upstream PPO; not the PPO learning rate.
+  learning_rate: 0.01
+  seed: 612947

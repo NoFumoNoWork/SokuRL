@@ -1,0 +1,23 @@
+defaults:
+  - train_platform_tokens_mixture
+  - _self_
+
+algorithm:
+  opponents:
+    - name: rush
+      probability: 0.125
+      setup: ${episode.match.player_1}
+      policy: {kind: rule, name: rush, rules: '${rules}'}
+    - name: community_combo
+      probability: 0.25
+      setup: ${episode.match.player_1}
+      policy: {kind: rule, name: community_combo, rules: '${rules}'}
+    - name: pressure
+      probability: 0.5
+      setup: ${episode.match.player_1}
+      policy: {kind: rule, name: pressure, rules: '${rules}'}
+    - name: bullet_wall
+      probability: 0.125
+      setup: ${episode.match.player_1}
+      policy: {kind: rule, name: bullet_wall, rules: '${rules}'}
+output: ${oc.env:SOKURL_RL_ROOT}/runs/training/tokens-focus-${now:%Y%m%d-%H%M%S}

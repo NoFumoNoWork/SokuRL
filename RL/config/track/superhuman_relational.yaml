@@ -1,0 +1,11 @@
+# @package _global_
+defaults:
+  - superhuman_address_invariant
+  - _self_
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.relational_features.RelationalCombatFeatures
+      features_extractor_kwargs:
+        attention_heads: 2
+        attention_queries: 4

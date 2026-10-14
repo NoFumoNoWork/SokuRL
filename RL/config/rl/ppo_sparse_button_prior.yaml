@@ -1,0 +1,6 @@
+defaults:
+  - ppo_sparse_transfer
+  - _self_
+ppo:
+  initial_action_prior:
+    button_probability: 0.05

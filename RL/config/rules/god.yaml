@@ -1,0 +1,5 @@
+defaults:
+  - default
+  - original
+  - _self_
+roster: [god]

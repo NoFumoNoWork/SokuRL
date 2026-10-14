@@ -1,0 +1,6 @@
+# Single-variable sample-efficiency candidate; compare with rl=dqn.
+defaults:
+  - dqn
+  - _self_
+dqn:
+  n_steps: 5

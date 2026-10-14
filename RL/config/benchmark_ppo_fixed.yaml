@@ -1,0 +1,13 @@
+defaults:
+  - benchmark_platform_initial
+  - br_opponents: ppo_fixed
+  - override evaluation: validation
+  - override rules: default
+  - _self_
+
+num_envs: 4
+opponent_source: config
+benchmark:
+  world_seeds: ${evaluation.world_seeds}
+  policy_seed: ${evaluation.policy_seed}
+output: ${oc.env:SOKURL_RL_ROOT}/runs/evaluation/ppo-fixed-${now:%Y%m%d-%H%M%S}

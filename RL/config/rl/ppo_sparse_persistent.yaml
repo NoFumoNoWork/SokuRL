@@ -1,0 +1,6 @@
+defaults:
+  - ppo_sparse_button_prior
+  - _self_
+ppo:
+  action_persistence:
+    repeat_probability: 0.8

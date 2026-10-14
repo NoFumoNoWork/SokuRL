@@ -1,0 +1,7 @@
+defaults:
+  - benchmark
+  - _self_
+
+training_directory: ???
+# Filled from the completed training report before evaluation starts.
+training_result_sha256: ???

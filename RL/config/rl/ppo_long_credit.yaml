@@ -1,0 +1,6 @@
+# Controlled candidate: only the GAE trace changes from the shared PPO baseline.
+defaults:
+  - ppo
+  - _self_
+ppo:
+  gae_lambda: 0.995

@@ -1,0 +1,10 @@
+# @package _global_
+# Same superhuman interface; only the shared policy encoder changes.
+defaults:
+  - superhuman
+  - _self_
+
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.features.NumericPrivilegedFeatures

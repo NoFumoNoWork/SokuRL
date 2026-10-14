@@ -1,0 +1,11 @@
+defaults:
+  - recurrent_demonstration_transfer
+  - _self_
+rehearsal:
+  datasets:
+    - logs/demonstrations/god-marisa-reimu-20261001
+  updates_per_rollout: 1
+  sequences: 4
+  sequence_length: 64
+  learning_rate: 0.0001
+  seed: 612947

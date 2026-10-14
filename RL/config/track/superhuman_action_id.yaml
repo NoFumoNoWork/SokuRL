@@ -1,0 +1,10 @@
+# @package _global_
+defaults:
+  - superhuman_address_invariant
+  - _self_
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.action_id_features.ActionIdCombatFeatures
+      features_extractor_kwargs:
+        action_embedding_dim: 8

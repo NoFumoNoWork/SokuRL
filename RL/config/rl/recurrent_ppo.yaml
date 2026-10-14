@@ -1,0 +1,14 @@
+defaults:
+  - ppo
+  - _self_
+policy_type: lstm
+ppo:
+  n_steps: 256
+  batch_size: 128
+  n_epochs: 4
+  policy_kwargs:
+    net_arch: [128]
+    lstm_hidden_size: 256
+    n_lstm_layers: 1
+    shared_lstm: false
+    enable_critic_lstm: true

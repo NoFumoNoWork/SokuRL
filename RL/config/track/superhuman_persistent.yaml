@@ -1,0 +1,8 @@
+# @package _global_
+defaults:
+  - superhuman_combat
+  - _self_
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.persistent_policy.ActionContextFeatures

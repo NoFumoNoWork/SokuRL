@@ -1,0 +1,8 @@
+defaults:
+  - train_ppo_control_a
+  - _self_
+
+rl:
+  ppo:
+    learning_rate: 0.00003
+output: ${oc.env:SOKURL_RL_ROOT}/runs/ppo-control-b-${now:%Y%m%d-%H%M%S}

@@ -1,5 +1,31 @@
 # SokuRL
 
+## RL Integration Preview
+
+This local `codex/shisoul-integration` branch combines Shi-Soul944cd53 learning/
+evaluation modules with our unchanged Platform3311e16 ABI12. It is not main and
+is not a reproduction of the stopped historical experiments or their models.
+Worker protocol4 is adapted to current structured observations and optional
+fixed Reimu/Marisa, Clear, cards-disabled fresh reset. RGB reset parity, live
+network control, masked-seat commands and native snapshot sidecars are outside
+this first integration. Official replay recording is explicit and cannot yet
+be combined with resource-reuse fresh reset. Nothing starts training on import.
+
+Learning code, configuration and tests are isolated under [RL](RL/README.md).
+Use `D:\github\SokuRL\.venv\python.exe -B RL/run.py train --config-name train_platform_initial`.
+The launcher selects this worktree's RL source and parent Platform explicitly;
+old training CLI paths remain compatibility wrappers. Integration evidence and
+commands: [report](docs/reports/shisoul_integration/20261013/report.md).
+
+Four-instance fresh PPO and paired original/final-policy evaluation have now
+run; see [initial result](docs/reports/shisoul_integration/20261013/initial_training.md).
+Conservative observation/history optimizations preserve tested outputs and
+final training hashes. With custom probes OFF, three paired8192-step PPO trials
+averaged4.57% loop throughput improvement, with substantial pair-to-pair variation;
+see [unprofiled PPO A/B](docs/reports/environment_interaction/ppo-ab-20261013-133124/report.md).
+These local integration results are neither policy-strength certification nor
+a universal throughput guarantee. Main remains Platform-only.
+
 `main` contains **SokuRL Platform only**: original-engine CPU simulation,
 Bridge, input/recording/replay tools and validation. Trainers, learning nodes,
 policies, training configurations and model artifacts remain on `RL` and are

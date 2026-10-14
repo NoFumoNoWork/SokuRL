@@ -1,0 +1,6 @@
+defaults:
+  - recurrent_demonstration_transfer
+  - _self_
+ppo:
+  policy_kwargs:
+    share_features_extractor: false

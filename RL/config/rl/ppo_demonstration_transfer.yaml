@@ -1,0 +1,9 @@
+# Conservative on-policy updates after expert initialization; shared by all MARL algorithms.
+defaults:
+  - ppo_sparse_transfer
+  - _self_
+ppo:
+  learning_rate: 0.0001
+  n_epochs: 3
+  ent_coef: 0.001
+  target_kl: 0.015

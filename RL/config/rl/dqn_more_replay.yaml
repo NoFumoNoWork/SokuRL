@@ -1,0 +1,6 @@
+# Single-variable update-to-data ratio candidate: 64 instead of 32 gradients.
+defaults:
+  - dqn
+  - _self_
+dqn:
+  gradient_steps: 64

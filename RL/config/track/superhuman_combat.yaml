@@ -1,0 +1,9 @@
+# @package _global_
+# Same complete input and action contract; append scaled context inside the network.
+defaults:
+  - superhuman
+  - _self_
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.combat_features.CombatPrivilegedFeatures

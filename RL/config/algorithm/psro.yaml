@@ -1,0 +1,19 @@
+name: psro
+resume: {kind: fresh}
+iterations: 4
+simulations_per_entry: 32
+prd_iterations: 10000
+timeout_payoff: zero_at_horizon
+initial_population:
+  player_0:
+    kind: uniform
+  player_1:
+    kind: uniform
+response:
+  initialization: parent_weights
+  timesteps_per_response: 262144
+  ppo: ${rl.ppo}
+  policy_type: ${rl.policy_type}
+  timeout_payoff: ${rl.timeout_payoff}
+  learner: ${rl.learner}
+  dqn: ${rl.dqn}

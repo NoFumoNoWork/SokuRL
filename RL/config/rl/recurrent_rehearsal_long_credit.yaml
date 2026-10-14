@@ -1,0 +1,6 @@
+# Paired with recurrent_rehearsal; change only the GAE residual trace.
+defaults:
+  - recurrent_rehearsal
+  - _self_
+ppo:
+  gae_lambda: 0.995

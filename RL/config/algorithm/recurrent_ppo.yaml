@@ -1,0 +1,4 @@
+defaults:
+  - ppo
+  - override /rl@_global_.rl: recurrent_ppo
+  - _self_

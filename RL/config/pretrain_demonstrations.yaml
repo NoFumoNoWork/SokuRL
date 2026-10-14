@@ -1,0 +1,15 @@
+defaults:
+  - collect_demonstrations
+  - _self_
+
+pretraining:
+  dataset: ???
+  additional_datasets: []
+  initial_policy: {kind: fresh}
+  epochs: 20
+  batch_size: 256
+  value_coef: 0.5
+  action_change_weight: 1.0
+runtime:
+  command: []
+output: ${oc.env:SOKURL_RL_ROOT}/runs/pretraining/god-bc-${now:%Y%m%d-%H%M%S}

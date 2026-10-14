@@ -1,0 +1,16 @@
+# @package _global_
+track: superhuman
+episode:
+  decision_frames: 1
+  latency_frames: 0
+  observation_mode: privileged_state
+  history_frames: 1
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_class: soku_rl.rl.features.PrivilegedFeatures
+      features_extractor_kwargs:
+        history_frames: ${episode.history_frames}
+        object_features: 16
+        player_features: 128
+        features_dim: 256

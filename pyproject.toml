@@ -3,7 +3,7 @@ requires = ["setuptools>=69"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hisouten-rl"
+name = "sokurl-platform"
 version = "0.1.0"
 description = "Research project for reinforcement-learning agents in Touhou Hisoutensoku"
 readme = "README.md"
@@ -12,10 +12,9 @@ dependencies = ["psutil==7.2.2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
-rl = ["gymnasium>=1.0", "PyYAML>=6"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools]
+packages = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

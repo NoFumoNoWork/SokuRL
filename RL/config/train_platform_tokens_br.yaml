@@ -1,0 +1,15 @@
+defaults:
+  - train_platform_tokens
+  - _self_
+
+episode:
+  max_frames: 7200
+algorithm:
+  player: random
+  timesteps: 65536
+  checkpoint_every: 16384
+rl:
+  ppo:
+    n_steps: 2048
+    n_epochs: 10
+output: ${oc.env:SOKURL_RL_ROOT}/runs/training/tokens-br-${now:%Y%m%d-%H%M%S}

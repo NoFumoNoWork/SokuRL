@@ -39,3 +39,6 @@ HISTORY.md
 PROGRESS.md
 STRUCTURES.md
 *.zip
+/RL/runs/
+/RL/AGENTS_RL.md
+/docs/reports/rl_isolation/*/backup/

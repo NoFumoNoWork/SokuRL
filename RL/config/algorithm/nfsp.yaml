@@ -1,0 +1,15 @@
+name: nfsp
+policy_type: ${rl.policy_type}
+timeout_payoff: ${rl.timeout_payoff}
+ppo: ${rl.ppo}
+iterations: 16
+timesteps_per_iteration: 16384
+checkpoint_every: 4
+anticipatory_param: 0.1
+resume: {kind: fresh}
+average:
+  capacity: 20000
+  batch_size: 128
+  updates: 128
+learner: ${rl.learner}
+dqn: ${rl.dqn}

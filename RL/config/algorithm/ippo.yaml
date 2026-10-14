@@ -1,0 +1,11 @@
+name: ippo
+policy_type: ${rl.policy_type}
+timeout_payoff: ${rl.timeout_payoff}
+ppo: ${rl.ppo}
+timesteps_per_player: 262144
+checkpoint_every: 8
+initial_policies:
+  player_0: {kind: fresh}
+  player_1: {kind: fresh}
+learner: ${rl.learner}
+dqn: ${rl.dqn}

@@ -1,0 +1,21 @@
+name: br
+policy_type: ${rl.policy_type}
+timeout_payoff: ${rl.timeout_payoff}
+ppo: ${rl.ppo}
+player: random
+matchups:
+  mode: sampled
+  learner: ${episode.match.player_0}
+initial_policy: {kind: fresh}
+timesteps: 262144
+checkpoint_every: 65536
+opponents:
+  - name: god
+    probability: 1.0
+    setup: ${episode.match.player_1}
+    policy:
+      kind: rule
+      name: god
+      rules: ${rules}
+learner: ${rl.learner}
+dqn: ${rl.dqn}

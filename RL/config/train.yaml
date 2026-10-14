@@ -1,0 +1,48 @@
+defaults:
+  - rl: ppo
+  - algorithm: nfsp
+  - rules: default
+  - wrappers: raw
+  - _self_
+  - track: human
+  - optional local@_global_: runtime
+
+seed: 1732
+device: cuda:0
+num_envs: 16
+episode:
+  match:
+    player_0: {character: 1, palette: 0, deck: 0}
+    player_1: {character: 0, palette: 0, deck: 0}
+  max_frames: 7200
+  history_frames: 4
+  visibility:
+    pixel_quantum: 8
+    minimum_alpha: 0.5
+    hp_quantum: 0.02
+    spirit_quantum: 0.1
+    # Approximate dimensions in game coordinates at camera scale 1.
+    player_width: 48.0
+    player_height: 96.0
+    object_diameter: 16.0
+    minimum_visible_fraction: 0.25
+runtime:
+  mute_audio: true
+  # Relative to the worker's working directory, in its Windows/Wine path space.
+  game_directory: th123_jp
+  # Explicit command list. Linux: [absolute/path/run-python.sh, tools/rollout_worker.py].
+  command: ???
+  cwd: ${oc.env:SOKURL_PROJECT_ROOT,.}
+  fresh_reset: false
+  record_replays: false
+  cards_disabled: false
+  fixed_weather: null
+  timeout: 300.0
+  launch_timeout: 180.0
+output: ${oc.env:SOKURL_RL_ROOT}/runs/training/${algorithm.name}-${now:%Y%m%d-%H%M%S}
+
+hydra:
+  run:
+    dir: ${oc.env:SOKURL_RL_ROOT}/runs/hydra/train-${now:%Y%m%d-%H%M%S}
+  job:
+    chdir: false

@@ -1,0 +1,10 @@
+defaults:
+  - recurrent_ppo
+  - _self_
+ppo:
+  learning_rate: 0.0001
+  n_epochs: 3
+  ent_coef: 0.001
+  target_kl: 0.015
+  policy_kwargs:
+    net_arch: [256, 256]
