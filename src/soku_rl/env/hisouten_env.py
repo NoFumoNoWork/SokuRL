@@ -1,1 +1,0 @@
-"""Main environment implementation placeholder."""

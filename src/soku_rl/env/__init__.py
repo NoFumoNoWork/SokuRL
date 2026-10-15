@@ -1,1 +1,0 @@
-"""Gymnasium-compatible environment layer."""

@@ -9,6 +9,11 @@ logs/*
 experiments/results/*
 !experiments/results/.gitkeep
 
+# Ken43 generated training and evaluation artifacts
+/Ken43/checkpoints/
+/Ken43/results/*
+!/Ken43/results/*.md
+
 # Python
 __pycache__/
 *.py[cod]
@@ -16,13 +21,11 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .venv/
+.venv-linux/
+config/local/
 venv/
 dist/
 build/
-/ABORTED/
-/SokuSim/
-/third_party/
-/docs/reports/**/*.dll
 anchors/*.json
 
 # Editors and OS files
@@ -39,3 +42,61 @@ HISTORY.md
 PROGRESS.md
 STRUCTURES.md
 *.zip
+
+# Local static-reverse toolchain and Ghidra project cache
+/SokuSim/tools/ghidra/
+/SokuSim/diagnostics/static_reverse/ghidra_project/
+/SokuSim/tmp/ghidra_home/
+
+ABORTED/
+
+# Active two-module workspace outputs and private local notes.
+/rl/runs/
+/rl/AGENTS_RL.md
+/platform/build/
+/platform/native/BridgeTools/build/
+/platform/logs/
+/platform/config/local/
+/rl/config/local/
+/docs/reports/repository_layout/*/source-before.zip
+
+# Frozen pre-bundle SokuSim assets; retained on disk, no migration or deletion.
+/SokuSim/
+/src/soku_rl/sokusim/
+/third_party/
+/SokuSim_GPU_Master_Plan.md
+/tests/*sokusim*.py
+/tests/test_m3_*.py
+/tests/test_pack_character_params.py
+/tests/test_pack_frame_data.py
+/tests/test_pat_frame_data.py
+/tests/test_trace_diff.py
+/tools/*sokusim*.py
+/tools/pack_character_params.py
+/tools/pack_frame_data.py
+/tools/extract_roster_movement.py
+/tools/probe_torch_compile_rollout.py
+/tools/summarize_m3_*.py
+/tools/build_p0_action_execution_graph.py
+/tools/build_p0_action_families.py
+/tools/build_p0_call_chains.py
+/tools/build_p0_contact_reference.py
+/tools/build_p0_phase5_gap.py
+/tools/run_p0_contact_reference.py
+/tools/run_p0_gpu_parity.py
+/native/FastResetExperiment/work/
+/docs/reports/fast_reset/**/*.raw
+/docs/reports/fast_reset/**/*.bin
+/docs/reports/fast_reset/**/*.dll
+/docs/reports/fresh_reset/**/*.dll
+/tools/run_p0_input_parity.py
+
+# Current user-defined Git admission policy; existing tracked paths stay tracked
+# until a separately scoped index/branch cleanup. No force-add of local records.
+*.md
+!/README.md
+!/rl/README.md
+/current_state.txt
+/docs/
+/reports/
+/runs/
