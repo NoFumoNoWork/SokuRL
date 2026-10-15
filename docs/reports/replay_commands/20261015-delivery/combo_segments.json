@@ -1,0 +1,13 @@
+{
+  "classification": "NATIVE_COMBO_COUNTER_SEGMENTS_NOT_UNIVERSAL_INESCAPABILITY_PROOF",
+  "source": "../20261015-portable-acceptance/case_1.json and case_2.json",
+  "replay_1": [
+    {"first_hit": 832, "last_hit": 860, "contacts": 2, "damage": 1159, "first_ch": false}
+  ],
+  "replay_2": [
+    {"first_hit": 270, "last_hit": 334, "contacts": 6, "damage": 1747, "first_ch": false},
+    {"first_hit": 365, "last_hit": 380, "contacts": 6, "damage": 668, "entry_count_before": 6, "entry_count_after": 1, "first_ch": false},
+    {"first_hit": 516, "last_hit": 516, "contacts": 1, "damage": 1360, "entry_count_before": 6, "entry_count_after": 1, "first_ch": true}
+  ],
+  "historical_fixture_metadata": "The replay_2 combo/hits13 field is an old contact-window label, not a single combo. Original evidence is preserved byte-exact."
+}

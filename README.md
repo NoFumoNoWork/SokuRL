@@ -21,6 +21,15 @@ Counter mode does not support historical checkpoints/GotoFrame/FastReset.
 The standalone CLI is mock-tested; live tests covered the shared interpreter,
 not this new CLI. Full moveset phase classification remains unverified.
 
+Human-replay calibration uses `compile_input_frames()` to preserve irregular
+holds and simultaneous buttons without per-move timing functions. Offline replay
+polls and simulation frames are distinct clocks. Two no-card attack-sequence fixtures passed
+independent live VS at920/576frames after one frame-zero RNG-state alignment;
+there is no replay reader or next-state copy in that path. This verifies declared
+combat/contact projections, not whole-match or complete hidden-state equivalence.
+Use `tools/validate_replay_commands.ps1 -Cases <case.json,...> -Output
+docs/reports/replay_commands/<new-run>` for reversible DLL deployment/acceptance.
+
 `main` contains **SokuRL Platform only**: original-engine CPU simulation,
 Bridge, input/recording/replay tools and validation. Trainers, learning nodes,
 policies, training configurations and model artifacts remain on `RL` and are

@@ -78,3 +78,19 @@ def test_confirmation_timeout_is_simulation_bounded_and_replays_full_motion():
     assert player.next(8,1)==original[0]
     assert player.next(9,1)==original[1]
     with pytest.raises(TimeoutError):player.next(10,1)
+
+
+def test_frame_input_program_preserves_actual_holds_and_simultaneous_buttons():
+    from command_input import compile_input_frames
+    import random
+    rng = random.Random(1732)
+    frames = [(1, 1, 1, 1, 0, 0, 0, 0)] * 47 + [NEUTRAL] * 3
+    frames += [tuple(rng.choice((-1, 0, 1)) for _ in range(2)) +
+               tuple(rng.randrange(2) for _ in range(6)) for _ in range(100)]
+    program = compile_input_frames(frames)
+    assert program[0].frames == 47 and program[0].buttons == 'AB'
+    player = CommandPlayer(program)
+    assert [player.next(frame, 1) for frame in range(len(frames))] == frames
+    assert player.done
+    assert compile_input_frames([]) == ()
+    with pytest.raises(ValueError):compile_input_frames([(2, 0, 0, 0, 0, 0, 0, 0)])

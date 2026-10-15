@@ -93,6 +93,27 @@ def compile_commands(text, *, tap_frames=2, release_frames=2, charge_frames=40, 
     return tuple(stages)
 
 
+def compile_input_frames(frames):
+    """Lossless run-length program for absolute, frame-aligned logical keys.
+
+    Execute with facing=1. No neutral edges or motion timings are invented.
+    Native replay poll streams must be aligned to simulation frames first.
+    """
+    reverse = {value: key for key, value in DIRECTIONS.items()}
+    stages = []
+    previous = None
+    for values in frames:
+        values = tuple(values)
+        encode_action(values)
+        if values == previous and stages[-1].frames < 10000:
+            stages[-1] = replace(stages[-1], frames=stages[-1].frames + 1)
+        else:
+            stages.append(Keys(reverse[values[:2]], ''.join(
+                button for button, index in BUTTONS.items() if values[index]), 1, len(stages) + 1))
+        previous = values
+    return tuple(stages)
+
+
 class CommandPlayer:
     """Per-agent queue. next() submits exactly one frame; no per-move handler."""
     def __init__(self, program):

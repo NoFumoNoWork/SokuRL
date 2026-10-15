@@ -1,0 +1,2 @@
+# Preserve hash-bound fixtures and acceptance evidence across Git checkouts.
+*.json -text whitespace=trailing-space,space-before-tab,blank-at-eof,cr-at-eol

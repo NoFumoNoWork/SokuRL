@@ -1,0 +1,54 @@
+{
+  "scope": "CURRENT_SOURCE_AND_PORTABLE_FIXTURE_BINDINGS_NOT_ALL_HIDDEN_STATE",
+  "root": "D:/github/SokuRL-main-platform",
+  "base_commit": "f96f428",
+  "status": "LOCAL_UNCOMMITTED",
+  "platform_tests": "54 PASS",
+  "rl_tests": "155 PASS / 2 SKIP / 2 SUBTESTS",
+  "files": [
+    {
+      "sha256": "23CD3FC471CF958640EEB973027A52CDA0FF20089B5FCFCC7B73D19FED9452B9",
+      "path": "tools/command_input.py"
+    },
+    {
+      "sha256": "C921A9910B967C004C9FE9D5AB1CF412137603F2012AE696973D3330CB975DC2",
+      "path": "tools/probe_replay_commands.py"
+    },
+    {
+      "sha256": "9C9AB302398EE0B0FD970ED9FE2768ECD34C36CE1EF5FBED52EEA5AD974F66A7",
+      "path": "tools/build_replay_command_cases.py"
+    },
+    {
+      "sha256": "BFACA76AB2FDDC4F1D3769D73989DF9673E063AA7600CCE4D5A89056F385827D",
+      "path": "tools/run_replay_command_case.py"
+    },
+    {
+      "sha256": "C034F08130C06070366F7649EC2E3AF0B10C470CB847C3E287DBABFC394A8E4C",
+      "path": "tools/validate_replay_commands.ps1"
+    },
+    {
+      "sha256": "28AF44B36B39AE1CB4B858BBF6A3294CCAFA8E1B170E77FEDB0EDC6AA4179A92",
+      "path": "tests/test_command_input.py"
+    },
+    {
+      "sha256": "22745BC74C71BE83C688339FE23124069FC2B6F1E248DD1958F600C3D3CC9295",
+      "path": "tests/test_replay_command_probe.py"
+    },
+    {
+      "sha256": "81C1E41C1305BE9B3D0E8CEE39D97F6E628E98FE77987E2A805BABE54AF689EC",
+      "path": "docs/reports/replay_commands/20261015-delivery/portable_cases/replay_1/case.json"
+    },
+    {
+      "sha256": "43769A6C8DB363800A9C78FDC7D80DCBC34FD8459649DD9F04B3CDDE9145831B",
+      "path": "docs/reports/replay_commands/20261015-delivery/portable_cases/replay_2/case.json"
+    },
+    {
+      "sha256": "D19973BC55402AD3DC4B504E7275D320E992BA03DC50B0364BE5B1D9322C8E2A",
+      "path": "docs/reports/replay_commands/20261015-portable-acceptance/case_1.json"
+    },
+    {
+      "sha256": "EE49E63AB1875315E14F25BFCBBE6D3D298F3A00DA29069891F98935A1F87915",
+      "path": "docs/reports/replay_commands/20261015-portable-acceptance/case_2.json"
+    }
+  ]
+}
