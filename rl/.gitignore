@@ -1,0 +1,10 @@
+# Local training outputs and private module records.
+/runs/
+/docs/
+/reports/
+/config/local/
+*.md
+!/README.md
+__pycache__/
+*.py[cod]
+.pytest_cache/
