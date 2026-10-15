@@ -1,0 +1,13 @@
+defaults:
+  - benchmark_platform_initial
+  - _self_
+
+device: cuda:0
+num_envs: 4
+runtime:
+  command: ["${oc.env:SOKURL_PYTHON}", "-B", "${oc.env:SOKURL_RL_ROOT}/tools/rollout_worker.py"]
+  combat_events: true
+  native_input_counters: true
+benchmark:
+  world_seeds: [918042743, 1897077702, 244381756, 3884668474]
+output: ${oc.env:SOKURL_RL_ROOT}/runs/combat-v2-eval-${now:%Y%m%d-%H%M%S}

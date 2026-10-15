@@ -1,0 +1,23 @@
+defaults:
+  - train_combat_v2_probe
+  - _self_
+
+# Explicit partial reward profile: unknown segment/passive semantics are disabled.
+# Not full Reward V2 acceptance, and not an instruction to launch training.
+episode:
+  combat_reward:
+    combo_beta: 0.0
+    passive_b: 0.0
+    counter_coefficient: 0.2
+    technical_cap: 5000.0
+    terminal_win: 10000.0
+    terminal_loss: -10000.0
+    terminal_timeout: -10000.0
+    scale: 10000.0
+wrappers:
+  health_potential_scale: 0.0
+runtime:
+  combat_events: true
+rl:
+  timeout_payoff: native_combat_at_horizon
+output: ${oc.env:SOKURL_RL_ROOT}/runs/combat-v2-damage-ch-${now:%Y%m%d-%H%M%S}

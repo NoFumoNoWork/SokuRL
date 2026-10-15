@@ -1,0 +1,13 @@
+defaults:
+  - train_combat_v2
+  - _self_
+
+algorithm:
+  # Stable two-left/two-right slots keep both seats represented without
+  # repeatedly recreating instances for character-seat changes at reset.
+  player: balanced
+  opponents:
+    - name: pressure
+      probability: 1.0
+      setup: ${episode.match.player_1}
+      policy: {kind: rule, name: pressure, rules: "${rules}"}

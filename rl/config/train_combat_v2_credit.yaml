@@ -1,0 +1,14 @@
+defaults:
+  - train_combat_v2_specialist
+  - _self_
+
+# Controlled follow-up to the balanced low-LR specialist: only GAE differs.
+# At 1F decisions lambda=.95 discounts a 48F delayed TD contribution to .085;
+# .99 retains .617. This is a hypothesis, not an improvement claim.
+rl:
+  ppo:
+    learning_rate: 0.00003
+    gae_lambda: 0.99
+    policy_kwargs:
+      features_extractor_kwargs:
+        timing_vocab_size: 8192

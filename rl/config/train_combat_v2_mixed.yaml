@@ -1,0 +1,10 @@
+defaults:
+  - train_combat_v2
+  - br_opponents: ppo_fixed
+  - _self_
+
+# Reuse verified public-rule opponents; no God-AI substitution or imitation.
+algorithm:
+  player: random
+  timesteps: 65536
+output: ${oc.env:SOKURL_RL_ROOT}/runs/combat-v2-mixed-${now:%Y%m%d-%H%M%S}

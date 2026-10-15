@@ -1,0 +1,9 @@
+defaults:
+  - benchmark_combat_v2
+  - br_opponents: ppo_fixed
+  - override rules: default
+  - _self_
+
+opponent_source: config
+benchmark:
+  world_seeds: [918042743, 1897077702]

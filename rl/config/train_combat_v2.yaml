@@ -1,0 +1,28 @@
+defaults:
+  - train_combat_v2_damage_ch
+  - _self_
+
+# Animation proxy, not pixel-only perception; native accepted action/spawn-root
+# segment identity, not reconstruction of uniquely consumed buffered keys.
+num_envs: 4
+runtime:
+  native_input_counters: true
+  command: ["${oc.env:SOKURL_PYTHON}", "-B", "${oc.env:SOKURL_RL_ROOT}/tools/rollout_worker.py"]
+episode:
+  max_frames: 7200
+  combat_reward:
+    combo_beta: 0.3
+    passive_b: 0.02
+    passive_cap: 2500.0
+    unknown_combo_policy: no_bonus
+algorithm:
+  timesteps: 16384
+  checkpoint_every: 4096
+rl:
+  ppo:
+    mask_card_actions: true
+    learning_rate: 0.0001
+    n_steps: 256
+    batch_size: 256
+    n_epochs: 4
+output: ${oc.env:SOKURL_RL_ROOT}/runs/combat-v2-${now:%Y%m%d-%H%M%S}

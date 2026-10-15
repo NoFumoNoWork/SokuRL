@@ -1,0 +1,10 @@
+defaults:
+  - train_combat_v2_damage_ch
+  - _self_
+
+# Explicit partial profile: native damage + CH + supported independent segments.
+# Passive qualification remains disabled, not silently inferred.
+episode:
+  combat_reward:
+    combo_beta: 0.3
+output: ${oc.env:SOKURL_RL_ROOT}/runs/combat-v2-combo-ch-${now:%Y%m%d-%H%M%S}

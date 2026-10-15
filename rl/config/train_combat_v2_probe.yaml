@@ -1,0 +1,35 @@
+defaults:
+  - train_platform_initial
+  - _self_
+
+track: superhuman
+seed: 20261014
+num_envs: 2
+episode:
+  max_frames: 7200
+  observation_mode: animation
+  history_frames: 8
+  animation_object_slots: 16
+  decision_frames: 1
+  latency_frames: 0
+wrappers:
+  relative_features: false
+  action_history: 8
+  health_potential_scale: 1.0
+algorithm:
+  timesteps: 256
+  checkpoint_every: 256
+rl:
+  ppo:
+    n_steps: 128
+    batch_size: 64
+    n_epochs: 1
+    policy_kwargs:
+      net_arch: [128, 128]
+      features_extractor_class: soku_rl.rl.animation_features.AnimationTokenFeatures
+      features_extractor_kwargs:
+        object_slots: ${episode.animation_object_slots}
+        width: 64
+        heads: 4
+        features_dim: 128
+output: ${oc.env:SOKURL_RL_ROOT}/runs/combat-v2-probe-${now:%Y%m%d-%H%M%S}
