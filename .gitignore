@@ -51,6 +51,7 @@ STRUCTURES.md
 ABORTED/
 
 # Active two-module workspace outputs and private local notes.
+/rl/
 /rl/runs/
 /rl/AGENTS_RL.md
 /platform/build/
