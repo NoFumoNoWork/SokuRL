@@ -136,7 +136,8 @@ class EngineBatch:
                     capture_images=self.observation_mode == "image",
                     capture_state=self.observation_mode in {"state", "animation"},
                     characters=(match.player_0.character, match.player_1.character),
-                    cards_disabled=self.cards_disabled)
+                    cards_disabled=self.cards_disabled,
+                    original_replay_recording=self.recording_enabled)
                 owned.update(zip(slots, processes, strict=True))
                 self.processes.update(zip(slots, processes, strict=True))
         except BaseException:
@@ -149,6 +150,8 @@ class EngineBatch:
             for slot, process in zip(seeds, processes, strict=True):
                 client = BridgeClient(process.pid)
                 self.clients[slot] = client
+                if self.recording_enabled and not client.original_replay_recording_enabled:
+                    raise RuntimeError("installed Bridge lacks native REP input-boundary protection")
                 if self.fresh_reset and not client.fresh_reset_enabled:
                     raise RuntimeError("installed Bridge lacks requested fresh-reset capability")
                 if self.fixed_weather:

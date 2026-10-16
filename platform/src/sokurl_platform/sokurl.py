@@ -363,6 +363,7 @@ def _launch_vs_group_from_title(
     capture_state: bool = False,
     characters: tuple[int, int] | None = None,
     cards_disabled: bool = False,
+    original_replay_recording: bool = False,
     stage: int = 0,
     music: int = 0,
 ) -> list[psutil.Process]:
@@ -391,6 +392,7 @@ def _launch_vs_group_from_title(
         "SOKURL_UNLIMITED_PACING": "1" if unlimited else "0",
         "SOKURL_VS_PAUSE_AT_START": "1" if pause_at_start else "0",
         "SOKURL_CARDS_DISABLED": "1" if cards_disabled else "0",
+        "SOKURL_ORIGINAL_REPLAY_RECORDING": "1" if original_replay_recording else "0",
     })
     if seed is not None:
         if not 0 <= seed <= 0xFFFFFFFF:

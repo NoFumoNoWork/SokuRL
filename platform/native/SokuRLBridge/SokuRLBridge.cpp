@@ -97,6 +97,8 @@ SokuRLBridge::LogicalInput g_effectiveInputs[2]{};
 SokuLib::KeyInput g_activeInputs[2]{};
 SokuLib::KeyInput g_countedInputs[2]{};
 bool g_nativeInputCounters=false;
+bool g_originalReplayRecording = false;
+bool g_recordingFrameReady = false;
 std::uint32_t g_activeInputMask = 0;
 std::uint32_t g_activeInputFrames = 0;
 bool g_activeInputEnabled = false;
@@ -1036,6 +1038,21 @@ int playerIndexFor(SokuLib::KeymapManager *self)
     return -1;
 }
 
+bool originalReplayInputReady()
+{
+    if (!g_originalReplayRecording || !isLocalVersusGameplay())
+        return true;
+    // Same original record/deque layout as OriginalReplayReader. The native
+    // recorder excludes the intro; injected actions must not precede its stream.
+    const auto record = *reinterpret_cast<const std::uintptr_t *>(0x00898718 + 0x104);
+    return record && *reinterpret_cast<const std::uint32_t *>(record + 0x4C) != 0;
+}
+
+bool controlledRecordingInputReady()
+{
+    return g_inSimulationUpdate ? g_recordingFrameReady : originalReplayInputReady();
+}
+
 void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
 {
     (self->*g_originalSetInputs)();
@@ -1078,6 +1095,11 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
     const auto player = playerIndexFor(self);
     if (player < 0)
         return;
+    if (!controlledRecordingInputReady()) {
+        self->input = {};
+        g_effectiveInputs[player] = {};
+        return;
+    }
 
     const auto pendingSequence = load32(&g_control->commandSeq);
     if (pendingSequence != g_lastCommandSeq) {
@@ -1137,13 +1159,18 @@ void applySimulationInputs(SokuLib::BattleManager *manager)
         if (!(mask & (1U << player)))
             continue;
         auto *character = characters[player];
+        if (!g_recordingFrameReady)
+            inputs[player] = {};
         suppressCardInputs(inputs[player]);
         const auto logical=toLogicalInput(inputs[player]);
         if (g_nativeInputCounters && !g_reconstructing) {
             SokuRLBridge::advanceInputCounters(g_countedInputs[player],inputs[player]);
             inputs[player]=g_countedInputs[player];
         }
-        character->keyMap = inputs[player];
+        // The recording path must let the engine latch the previous keyMap and
+        // compute release edges. Overwriting it early erases e.g. B-up in hitstop.
+        if (!g_originalReplayRecording)
+            character->keyMap = inputs[player];
         if (character->keyManager && character->keyManager->keymapManager)
             character->keyManager->keymapManager->input = inputs[player];
         g_effectiveInputs[player] = logical;
@@ -1157,6 +1184,7 @@ int callSimulationUpdate(SokuLib::BattleManager *manager)
         SokuLib::practiceSettings->state = SokuLib::DUMMY_STATE_2P_CONTROL;
     g_effectiveInputs[0] = {};
     g_effectiveInputs[1] = {};
+    g_recordingFrameReady = originalReplayInputReady();
     applySimulationInputs(manager);
     g_inSimulationUpdate = true;
     SokuRLBridge::beginCombatFrame(manager, g_currentFrame+1, g_segmentId);
@@ -1555,7 +1583,8 @@ bool installHooks()
 {
     if (!SokuRLBridge::installFreshReset() || !SokuRLBridge::installResetTiming())
         return false;
-    g_control->traceReserved = SokuRLBridge::freshResetEnabled() ? 1U : 0U;
+    g_control->traceReserved = (SokuRLBridge::freshResetEnabled() ? 1U : 0U) |
+        (g_originalReplayRecording ? 2U : 0U);
     DWORD textProtection = 0;
     if (!VirtualProtect(reinterpret_cast<void *>(TEXT_SECTION_OFFSET), TEXT_SECTION_SIZE,
             PAGE_EXECUTE_WRITECOPY, &textProtection))
@@ -1608,6 +1637,7 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     g_history.reserve(SokuRLBridge::INPUT_HISTORY_CAPACITY);
     g_nativeTracing = environmentValue(L"SOKURL_NATIVE_TRACE", 0) == 1;
     g_nativeInputCounters = environmentValue(L"SOKURL_NATIVE_INPUT_COUNTERS",0)==1;
+    g_originalReplayRecording = environmentValue(L"SOKURL_ORIGINAL_REPLAY_RECORDING",0)==1;
     if (!createMapping())
         return false;
     g_headlessRender = environmentValue(L"SOKURL_HEADLESS_RENDER", 0) == 1;

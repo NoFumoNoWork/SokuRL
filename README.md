@@ -79,6 +79,15 @@ approximate rewritten engine.
 
 ## Verification And Limits
 
+Native REP recording is an explicit, separate mode. EngineBatch recording adapters
+launch with `SOKURL_ORIGINAL_REPLAY_RECORDING=1`; ABI12 capability mask `0x2` confirms
+the protection is active. Until the original input record deque becomes nonempty,
+controlled requests remain neutral. The engine, not early direct player-key
+overwrites, then performs input latching and release-edge calculation. Ordinary
+training/control defaults remain unchanged. Use the matching card/weather setup
+for playback; file export alone is not a fidelity verdict. RL checkpoint review
+orchestration and its reversible deployment entry are documented in `rl/README.md`.
+
 Offline tests cover layouts, codecs, command programs, interfaces and dependency
 boundaries. Native verification requires an installed game and reversible DLL
 deployment; no game is started by the offline command above.

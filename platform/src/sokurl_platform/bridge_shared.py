@@ -642,6 +642,10 @@ class BridgeClient:
     def fresh_reset_enabled(self):
         return bool(getattr(self.block, "traceReserved", 0) & 1)
 
+    @property
+    def original_replay_recording_enabled(self):
+        return bool(getattr(self.block, "traceReserved", 0) & 2)
+
     def fast_reset(self):
         """Restore the single branch checkpoint, including its original RNG state."""
         return self._send(COMMAND_FAST_RESET)
