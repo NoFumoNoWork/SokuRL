@@ -106,6 +106,28 @@ def test_pairing_keeps_logical_policy_seeds_and_hashes_character_setup():
     assert not {t.trial_id for t in plan} & {t.trial_id for t in changed}
 
 
+def test_review_seat_filter_preserves_trial_identity_and_default_pairing():
+    strategies, learner, setups, config = benchmark_inputs()
+    complete = matchup_plan(strategies, "learned", learner, setups, config, "game")
+    for seat in (0, 1):
+        selected = matchup_plan(strategies, "learned", learner, setups,
+                                config | {"learner_seats": [seat]}, "game")
+        assert selected == [t for t in complete if t.learner_seat == seat]
+    for invalid in ([], [0, 0], [2], [True], "left"):
+        with pytest.raises(ValueError, match="learner_seats"):
+            matchup_plan(strategies, "learned", learner, setups,
+                         config | {"learner_seats": invalid}, "game")
+
+
+def test_single_seat_review_finishes_without_fabricated_pair_statistics(tmp_path):
+    strategies, learner, setups, config = benchmark_inputs()
+    report = benchmark_br(EvaluationGame("p1_win"), strategies, "learned", learner,
+                          setups, config | {"learner_seats": [0]}, "game", tmp_path)
+    assert len(report["games"]) == 4
+    assert report["summary"]["kind"] == "unpaired_review"
+    assert report["summary"]["paired_inference"] == "NOT APPLICABLE"
+
+
 def test_common_role_seeds_are_model_independent_but_trial_identity_is_not():
     strategies, learner, setups, config = benchmark_inputs()
     changed = strategies | {"learned": SeatPolicies("learned", (

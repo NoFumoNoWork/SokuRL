@@ -1,5 +1,6 @@
 """Evaluate tensor policies in paired games and retain exact action replays."""
 from dataclasses import asdict
+from collections import Counter
 import json
 import time
 
@@ -115,8 +116,15 @@ def run_plan(env, strategies, plan, config, directory, reset_batch):
                     records[-1]["input_metrics_by_seat"] = [
                         infos[slot][agent]["input_metrics"] for agent in AGENTS]
                 del obs[slot]
+                if config.get("learner_seats", [0, 1]) in ([0], [1]):
+                    summary = {"kind": "unpaired_review", "planned_games": len(plan),
+                               "completed_games": len(records),
+                               "outcomes": dict(Counter(r["outcome"] for r in records)),
+                               "paired_inference": "NOT APPLICABLE"}
+                else:
+                    summary = summarize(plan, records, config["alpha"])
                 progress = {"games": records, "seconds": time.perf_counter() - started,
-                            "summary": summarize(plan, records, config["alpha"])}
+                            "summary": summary}
                 if config.get("recurrent_batch", False):
                     progress["policy_inference"] = inference_name
                 (directory / "progress.json").write_text(json.dumps(progress, indent=2), encoding="utf-8")

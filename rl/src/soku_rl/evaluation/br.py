@@ -29,6 +29,10 @@ def matchup_plan(strategies, candidate, learner, setups, config, game_identity):
         raise ValueError("each evaluated opponent requires a character setup")
     if config["policy_seed_mode"] not in {"strategy", "common_roles"}:
         raise ValueError("policy_seed_mode must be strategy or common_roles")
+    seats = config.get("learner_seats", [0, 1])
+    if (not isinstance(seats, list) or not seats or len(seats) != len(set(seats))
+            or any(type(s) is not int or s not in (0, 1) for s in seats)):
+        raise ValueError("learner_seats must contain distinct seat indices 0 or 1")
     learner = PlayerSetup(**learner)
     plan = []
     for name, setup in setups.items():
@@ -40,6 +44,8 @@ def matchup_plan(strategies, candidate, learner, setups, config, game_identity):
             if trial.players[0] == trial.players[1]:
                 continue
             seat = trial.players.index(candidate)
+            if seat not in seats:
+                continue
             if config["policy_seed_mode"] == "common_roles":
                 # Different candidate models share logical actor randomness;
                 # character setup, opponent and world seed still define a block.
