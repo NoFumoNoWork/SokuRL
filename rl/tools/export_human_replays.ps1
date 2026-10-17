@@ -5,7 +5,8 @@ param(
     [switch]$Resume,
     [switch]$PrefixOnly,
     [ValidateSet('train','validation')][string]$Partition='train',
-    [string]$Plan=''
+    [string]$Plan='',
+    [string]$Audit='rl/runs/human-bc-20261016/audit-v3'
 )
 $ErrorActionPreference='Stop'
 $root=Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
@@ -22,7 +23,7 @@ $oldTemp=$env:TEMP;$oldTmp=$env:TMP
 try{
     $env:TEMP=$temp;$env:TMP=$temp
     $arguments=@('-B',"$root/rl/run.py",'export_human_replays',
-        '--audit',"$root/rl/runs/human-bc-20261016/audit-v3",
+        '--audit',[IO.Path]::GetFullPath((Join-Path $root $Audit)),
         '--source',"$root/rl/runs/combat-v2-adaptive-20261015/campaign/train-4",
         '--output',$destination,'--frames',"$Frames",'--limit',"$Limit",'--partition',$Partition)
     if($Resume){$arguments+='--resume'}

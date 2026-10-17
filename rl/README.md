@@ -452,6 +452,18 @@ correctness updates, not a new formal training run or evidence of stronger play.
 that changes only the data path relative to the prior bounded profile. It does
 not authorize starting another training run; the old profile/data remain intact.
 
+To expand a fully used training pool, `plan_human_expansion` accepts `--audit`,
+`--index`, `--output` and `--max-new` (1..200). It appends only new local
+Reimu/Marisa REP after byte/hash/character-seat checks. All old validation/test/
+excluded assignments remain exact, and heldout player/SET/hash overlap is rejected.
+This static source audit is NOT native alignment acceptance. The existing
+`export_human_replays.ps1` accepts `-Audit` and `-Plan` for the new audit and subset;
+its default audit and native capture semantics are unchanged. New exports must
+pass `validate_human_export` before joining a hash-bound HumanCollection and the
+existing chain -> hierarchical -> semantic -> post-opening derivative pipeline.
+Keep fixed validation and sealed test untouched; do not turn a source audit into
+fabricated capture acceptance or claim full-match replay parity from prefixes.
+
 ## PPO Example And Continuation
 
 Run only within the authorized training/resource budget, using new output names:
