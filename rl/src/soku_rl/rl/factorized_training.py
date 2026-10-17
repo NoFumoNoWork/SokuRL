@@ -11,9 +11,9 @@ from omegaconf import OmegaConf
 import torch
 
 from soku_rl.rl.factorized_bc import load_factorized, save_factorized, factorized_loss, rare_weights
-from soku_rl.rl.hierarchical_data import SemanticDataset, tensors
+from soku_rl.rl.hierarchical_data import semantic_training_dataset, tensors
 from soku_rl.rl.hierarchical_training import materialize, evaluate
-from soku_rl.rl.semantic_sampling import stratified_order, RATIOS
+from soku_rl.rl.semantic_sampling import stratified_order, RATIOS, sampling_membership, choice_weight_mask
 from soku_rl.replay.human_dataset import sha256, save_json
 
 
@@ -69,16 +69,17 @@ def run_training(config, output, device='cuda'):
     report['source_manifest_sha256'] = sha256(out/'source-manifest.json')
     save_json(out/'result.json', report)
     try:
-        training = SemanticDataset(cfg['data'], 'train')
-        validation_set = SemanticDataset(cfg['data'], 'validation')
+        training = semantic_training_dataset(cfg['data'], 'train')
+        validation_set = semantic_training_dataset(cfg['data'], 'validation')
         train, validation = materialize(training), materialize(validation_set)
+        report['sample_selection']=training.manifest.get('selection','ALL_V2_ROWS')
         report['resident_dataset_bytes'] = sum(a.nbytes for d in (train,validation) for a in d.values())
         actor, metadata = load_factorized(cfg['initial_checkpoint'], device)
         if metadata['catalog'] != training.manifest['catalog']:
             raise ValueError('model/data catalog mismatch')
         catalog = metadata['catalog']
         weights = rare_weights(torch.as_tensor(train['target_action']),
-                               torch.as_tensor(train['target_action_mask']), actor.actions).to(device)
+                               torch.as_tensor(choice_weight_mask(train)), actor.actions).to(device)
         report['class_weights'] = weights.cpu().tolist()
         optimizer = torch.optim.Adam(actor.parameters(), lr=cfg['learning_rate'])
         def assess(data):
@@ -97,7 +98,7 @@ def run_training(config, output, device='cuda'):
         with (out/'updates.jsonl').open('x',encoding='utf-8') as log:
             for cycle in range(1,cfg['cycles']+1):
                 tick = time.perf_counter()
-                order, roles, stats = stratified_order(train['supervision_strata'],train['replay_id'],train['chain_id'],
+                order, roles, stats = stratified_order(sampling_membership(train),train['replay_id'],train['chain_id'],
                     rng,cfg['draws_per_cycle'],row_cap=cfg['row_cap'],replay_cap=cfg['replay_cap'],chain_cap=cfg['chain_cap'])
                 if stats['status'] != 'PASS':
                     raise RuntimeError('BLOCKED_CAPACITY: declared schedule cannot fit caps')

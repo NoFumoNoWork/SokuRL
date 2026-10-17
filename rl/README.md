@@ -420,6 +420,38 @@ metrics likewise use the hierarchical decoder. Record category/attack/movement,
 stop and autoregressive metrics, not overall accuracy alone. No sealed test or
 win-rate claim is implied; absent skills/charge and scarce defense labels remain.
 
+### Post-Opening Projectile-Context Selection
+
+Build an independent derivative from accepted semantic v2 shards:
+
+```powershell
+.\.venv\python.exe -B rl/run.py build_post_opening_events --data rl/runs/hierarchical-factorized-20261017/data-v2/manifest.json --output rl/runs/my-post-opening-data --min-frame 300
+.\.venv\python.exe -B rl/run.py check_factorized_bc --data rl/runs/my-post-opening-data/manifest.json --output rl/runs/my-post-opening-check
+```
+
+The v3 dataset preserves every original row, target and history array. Only
+training eligibility changes: original pre-action observation frames below300
+cannot be sampled or affect class weights. All reliable attack labels after the
+cutoff remain eligible, whether they hit, are blocked or have no observed contact.
+Continuous direction/D/neutral-release labels may train with current visible
+object context even without an own attack. Existing observed links, defense
+context and attack stop/continue supervision are also retained. Empty-screen
+unlinked movement is excluded. Selection does not create new labels or turn
+passive events into autonomous choices.
+
+Object context uses the existing16 public visible-object tokens, both owners;
+these do not prove attackability, danger or graze properties. Neutral/release
+counts are reported separately from direction/D. Opening states still supply
+causal history to later samples; raw REP files are never cut or rewritten.
+The factorized loaders accept explicitly typed v2/v3 datasets. Full natural
+validation remains unchanged, including opening rows; report this separately
+from the filtered training distribution. This command performs at most four
+correctness updates, not a new formal training run or evidence of stronger play.
+
+`config/hierarchical_factorized_post_opening.yaml` is a prepared training profile
+that changes only the data path relative to the prior bounded profile. It does
+not authorize starting another training run; the old profile/data remain intact.
+
 ## PPO Example And Continuation
 
 Run only within the authorized training/resource budget, using new output names:

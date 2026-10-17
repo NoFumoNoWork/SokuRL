@@ -12,9 +12,9 @@ import torch
 from soku_rl.rl.factorized_bc import (FactorizedActor, CATEGORIES, category_ids, factorized_loss,
     rare_weights, warm_start, save_factorized, load_factorized)
 from soku_rl.rl.hierarchical_bc import load_hierarchical
-from soku_rl.rl.hierarchical_data import SemanticDataset, tensors
+from soku_rl.rl.hierarchical_data import semantic_training_dataset, tensors
 from soku_rl.rl.hierarchical_training import materialize
-from soku_rl.rl.semantic_sampling import stratified_order, RATIOS, STRATA
+from soku_rl.rl.semantic_sampling import stratified_order, RATIOS, STRATA, sampling_membership, choice_weight_mask
 from soku_rl.replay.human_dataset import sha256, save_json
 
 
@@ -56,22 +56,25 @@ def main():
     save_json(out/'result.json', report)
     started = time.perf_counter()
     try:
-        train_set = SemanticDataset(args.data, 'train')
-        validation = SemanticDataset(args.data, 'validation')
+        train_set = semantic_training_dataset(args.data, 'train')
+        validation = semantic_training_dataset(args.data, 'validation')
         train = materialize(train_set)
+        report['sample_selection'] = train_set.manifest.get('selection', 'ALL_V2_ROWS')
+        report['eligible_training_rows'] = int(np.asarray(
+            train.get('training_eligible', np.ones(len(train['state']), bool))).sum())
         report['host_array_bytes'] = sum(a.nbytes for a in train.values())
         sam = cfg['sampling']
-        order, roles, stats = stratified_order(train['supervision_strata'], train['replay_id'], train['chain_id'],
+        order, roles, stats = stratified_order(sampling_membership(train), train['replay_id'], train['chain_id'],
             rng, sam['diagnostic_draws'], row_cap=sam['row_cap'], replay_cap=sam['replay_cap'], chain_cap=sam['chain_cap'])
         report['sampler'] = stats
         np.savez_compressed(out/'sampling.npz', indices=order, roles=roles)
         if stats['status'] != 'PASS':
             raise RuntimeError('BLOCKED: requested draws cannot fit declared caps')
         catalog = train_set.manifest['catalog']
-        weights = rare_weights(torch.as_tensor(train['target_action']), torch.as_tensor(train['target_action_mask']), len(catalog))
+        weights = rare_weights(torch.as_tensor(train['target_action']), torch.as_tensor(choice_weight_mask(train)), len(catalog))
         report['weights'] = weights.tolist()
         report['category_counts'] = {name: int(np.sum(
-            np.asarray(category_ids(catalog))[train['target_action'][train['target_action_mask']]] == i))
+            np.asarray(category_ids(catalog))[train['target_action'][choice_weight_mask(train)]] == i))
             for i, name in enumerate(CATEGORIES)}
         from stable_baselines3 import PPO
         original = PPO.load(cfg['source_checkpoint'], device='cpu')

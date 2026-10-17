@@ -47,6 +47,30 @@ class SemanticDataset(EventDataset):
     expected_status='PASS_CAUSAL_DERIVATIVE_LIMITED_FEEDBACK'
 
 
+class PostOpeningDataset(EventDataset):
+    expected_format='semantic_post_opening_dataset_v3'
+    expected_status='PASS_OFFLINE_SELECTION_ORIGINAL_ARRAYS_EXACT'
+
+    def batch(self, indices):
+        data = super().batch(indices)
+        eligible = data.get('training_eligible')
+        frames = data.get('observation_frame')
+        minimum = self.manifest.get('selection', {}).get('min_observation_frame')
+        if (eligible is None or frames is None or type(minimum) is not int or minimum < 0
+                or eligible.shape != (len(indices),) or eligible.dtype != np.bool_
+                or frames.shape != eligible.shape or frames.dtype.kind not in 'iu'
+                or (frames[eligible] < minimum).any()):
+            raise ValueError('post-opening eligibility/time contract missing or invalid')
+        return data
+
+
+def semantic_training_dataset(path,partition):
+    kind=json.loads(Path(path).read_text()).get('format')
+    if kind==SemanticDataset.expected_format:return SemanticDataset(path,partition)
+    if kind==PostOpeningDataset.expected_format:return PostOpeningDataset(path,partition)
+    raise ValueError('explicit supported semantic dataset required')
+
+
 def tensors(data,device):
     inputs={k:torch.as_tensor(v,device=device) for k,v in data.items() if not k.startswith('target_')}
     targets={k[7:]:torch.as_tensor(v,device=device) for k,v in data.items() if k.startswith('target_')}

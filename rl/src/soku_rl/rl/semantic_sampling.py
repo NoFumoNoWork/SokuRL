@@ -6,6 +6,22 @@ STRATA = ('movement_neutral', 'attack_skill', 'cancel_link', 'defense_reaction')
 RATIOS = np.array([.30, .30, .25, .15])
 
 
+def sampling_membership(data):
+    roles = np.asarray(data['supervision_strata'], bool)
+    eligible = np.asarray(data.get('training_eligible', np.ones(len(roles), bool)))
+    if eligible.shape != (len(roles),) or eligible.dtype != np.bool_:
+        raise ValueError('boolean training eligibility must align with event rows')
+    return roles & eligible[:, None]
+
+
+def choice_weight_mask(data):
+    known = np.asarray(data['target_action_mask'], bool)
+    eligible = np.asarray(data.get('training_eligible', np.ones(len(known), bool)))
+    if eligible.shape != known.shape or eligible.dtype != np.bool_:
+        raise ValueError('boolean training eligibility must align with action labels')
+    return known & eligible
+
+
 def stratified_order(strata, replays, chains, rng, draws, *, row_cap=2,
                      replay_cap=256, chain_cap=32):
     strata = np.asarray(strata, bool)
