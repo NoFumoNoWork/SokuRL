@@ -156,7 +156,8 @@ def validate_budget(config):
         raise ValueError('resume profile and bound training report must be specified together')
 
 
-def restore_optimizer(optimizer, checkpoint, report_path, learning_rate):
+def restore_optimizer(optimizer, checkpoint, report_path, learning_rate, *,
+                      expected_status='PASS_BOUNDED_SUPERVISED_TRAINING'):
     """Restore only the hash-bound Adam sidecar of a completed selected HBC model."""
     import json
     from pathlib import Path
@@ -164,7 +165,9 @@ def restore_optimizer(optimizer, checkpoint, report_path, learning_rate):
     checkpoint = Path(checkpoint).resolve(strict=True)
     report_path = Path(report_path).resolve(strict=True)
     previous = json.loads(report_path.read_text())
-    if previous.get('status') != 'PASS_BOUNDED_SUPERVISED_TRAINING':
+    if expected_status not in ('PASS_BOUNDED_SUPERVISED_TRAINING', 'PASS_BOUNDED_FACTORIZED_TRAINING'):
+        raise ValueError('explicit supported training report status required')
+    if previous.get('status') != expected_status:
         raise ValueError('optimizer requires a completed supervised training report')
     best = previous['best']
     if Path(best['path']).resolve() != checkpoint or sha256(checkpoint) != best['sha256']:

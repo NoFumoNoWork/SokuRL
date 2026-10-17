@@ -12,7 +12,7 @@ import torch
 
 from soku_rl.rl.factorized_bc import load_factorized, save_factorized, factorized_loss, rare_weights
 from soku_rl.rl.hierarchical_data import semantic_training_dataset, tensors
-from soku_rl.rl.hierarchical_training import materialize, evaluate
+from soku_rl.rl.hierarchical_training import materialize, evaluate, restore_optimizer
 from soku_rl.rl.semantic_sampling import stratified_order, RATIOS, sampling_membership, choice_weight_mask
 from soku_rl.replay.human_dataset import sha256, save_json
 
@@ -22,13 +22,57 @@ def validate_config(cfg):
             or not 1 <= cfg['batch_size'] <= 128 or not 1 <= cfg['max_updates'] <= 5000
             or cfg['learning_rate'] != .00003 or cfg['termination_weight'] != .3
             or cfg['future_weight'] != .15 or cfg['rare_weight_max'] != 4.
-            or cfg['sampling_ratios'] != RATIOS.tolist() or cfg['optimizer'] != 'fresh_adam'
+            or cfg['sampling_ratios'] != RATIOS.tolist()
+            or cfg['optimizer'] not in ('fresh_adam', 'resume_adam_from_bound_selected_checkpoint')
             or cfg['selection'] != 'full_validation_weighted_objective'
             or not 1 <= cfg['draws_per_cycle'] <= 41075
             or (cfg['row_cap'], cfg['replay_cap'], cfg['chain_cap']) != (2, 256, 32)):
         raise ValueError('explicit bounded approved factorized training contract required')
     if math.ceil(cfg['draws_per_cycle']/cfg['batch_size'])*cfg['cycles'] > cfg['max_updates']:
         raise ValueError('declared complete cycles exceed optimizer budget')
+    if bool(cfg.get('resume_training_report')) != (cfg['optimizer'] == 'resume_adam_from_bound_selected_checkpoint'):
+        raise ValueError('bound resume report and optimizer must be specified together')
+
+
+def restore_continuation(optimizer, cfg, train, weights, rng):
+    previous = json.loads(Path(cfg['resume_training_report']).read_text())
+    if previous.get('status') != 'PASS_BOUNDED_FACTORIZED_TRAINING':
+        raise ValueError('completed factorized report required')
+    keys = ('format', 'seed', 'batch_size', 'learning_rate', 'termination_weight',
+            'future_weight', 'rare_weight_max', 'sampling_ratios', 'row_cap',
+            'replay_cap', 'chain_cap', 'draws_per_cycle', 'selection')
+    if any(cfg[k] != previous['config'][k] for k in keys):
+        raise ValueError('continuation training contract differs')
+    if (sha256(cfg['data']) != previous['data_sha256']
+            or weights.detach().cpu().tolist() != previous['class_weights']):
+        raise ValueError('continuation data/class weights changed')
+    result = restore_optimizer(optimizer, cfg['initial_checkpoint'], cfg['resume_training_report'],
+        cfg['learning_rate'], expected_status='PASS_BOUNDED_FACTORIZED_TRAINING')
+    for parameter, state in optimizer.state.items():
+        for key in ('exp_avg', 'exp_avg_sq'):
+            if key not in state or state[key].shape != parameter.shape or not torch.isfinite(state[key]).all():
+                raise ValueError('Adam parameter layout or moments invalid')
+    best = previous['best']
+    if 'sampler_rng_state' in best:
+        rng.bit_generator.state = best['sampler_rng_state']
+        sampler_method = 'BOUND_CHECKPOINT_RNG_STATE'
+    else:
+        # Old reports saved draws, not RNG state. Reproduce and verify every
+        # selected-prefix draw before advancing the same sampler, never restart.
+        for cycle in range(1, best['cycle'] + 1):
+            order, roles, stats = stratified_order(sampling_membership(train), train['replay_id'],
+                train['chain_id'], rng, cfg['draws_per_cycle'], row_cap=cfg['row_cap'],
+                replay_cap=cfg['replay_cap'], chain_cap=cfg['chain_cap'])
+            with np.load(Path(cfg['resume_training_report']).parent/f'sampling-{cycle:02d}.npz') as saved:
+                if (stats['status'] != 'PASS' or not np.array_equal(order, saved['indices'])
+                        or not np.array_equal(roles, saved['roles'])):
+                    raise ValueError('prior sampler reproduction differs')
+        sampler_method = 'VERIFIED_PRIOR_DRAWS_REPLAY'
+    selected_updates = (previous.get('starting_updates', 0) +
+        next((c['updates'] for c in previous['cycles'] if c['cycle'] == best['cycle']), 0))
+    result.update(sampler=sampler_method, starting_updates=selected_updates,
+                  selected_cycle=best['cycle'])
+    return result
 
 
 def run_training(config, output, device='cuda'):
@@ -59,7 +103,7 @@ def run_training(config, output, device='cuda'):
         rl_commit=git('rev-parse','HEAD'), rl_dirty=git('status','--short','--','rl'),
         platform_reference_commit=git('rev-parse','origin/platform'),
         platform_source_identity='source-manifest.json;not assumed clean from remote ref',
-        sealed_test_used=False, strength='NOT TESTED', optimizer='FRESH_ADAM',
+        sealed_test_used=False, strength='NOT TESTED', optimizer=cfg['optimizer'], starting_updates=0,
         selection='Full natural validation, train-only weighted 1/.3/.15 objective; includes initial checkpoint')
     # Hash actual module sources; ignored local formatting changes are explicit.
     identity = {str(p.relative_to(root)):sha256(p) for base in ('rl/src','rl/tools','rl/config','platform/src')
@@ -82,15 +126,20 @@ def run_training(config, output, device='cuda'):
                                torch.as_tensor(choice_weight_mask(train)), actor.actions).to(device)
         report['class_weights'] = weights.cpu().tolist()
         optimizer = torch.optim.Adam(actor.parameters(), lr=cfg['learning_rate'])
+        if cfg.get('resume_training_report'):
+            report['optimizer_restore'] = restore_continuation(optimizer, cfg, train, weights, rng)
+            report['starting_updates'] = report['optimizer_restore']['starting_updates']
         def assess(data):
             return evaluate(actor, data, catalog, cfg['batch_size'], device,
                             task_weights=(.3,.15), ce_weights=weights)
         def checkpoint(name, cycle):
             path = out/'checkpoints'/f'{name}.json'
             save_factorized(actor, path, metadata['source'], dict(config=cfg,cycle=cycle,
-                updates=report['updates'],data_sha256=report['data_sha256'],rl_commit=report['rl_commit']))
+                updates=report['updates'],total_updates=report['starting_updates']+report['updates'],
+                data_sha256=report['data_sha256'],rl_commit=report['rl_commit']))
             torch.save(optimizer.state_dict(), path.with_suffix('.adam.pt'))
-            return dict(path=str(path),sha256=sha256(path),optimizer_sha256=sha256(path.with_suffix('.adam.pt')))
+            return dict(path=str(path),sha256=sha256(path),optimizer_sha256=sha256(path.with_suffix('.adam.pt')),
+                        sampler_rng_state=rng.bit_generator.state)
         initial = checkpoint('initial',0)
         report['initial_validation'] = assess(validation)
         report['best'] = dict(cycle=0,**initial,validation=report['initial_validation'])
@@ -115,7 +164,9 @@ def run_training(config, output, device='cuda'):
                     norm = torch.nn.utils.clip_grad_norm_(actor.parameters(),.5,error_if_nonfinite=True)
                     optimizer.step()
                     report['updates'] += 1
-                    log.write(json.dumps(dict(cycle=cycle,update=report['updates'],gradient_norm=float(norm),
+                    report['total_updates'] = report['starting_updates'] + report['updates']
+                    log.write(json.dumps(dict(cycle=cycle,update=report['updates'],
+                        total_updates=report['total_updates'],gradient_norm=float(norm),
                         **{k:float(v.detach()) for k,v in losses.items()}))+'\n')
                 log.flush()
                 metrics = assess(validation)

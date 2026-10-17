@@ -466,6 +466,16 @@ fabricated capture acceptance or claim full-match replay parity from prefixes.
 
 ## PPO Example And Continuation
 
+Factorized event BC continuation is separate from PPO: the prepared
+`config/hierarchical_factorized_continuation.yaml` binds the prior selected
+checkpoint and completed training report. It verifies the checkpoint/Adam SHA,
+same data, loss/sampler configuration, class weights and optimizer layout. Adam
+moments/steps are restored, not recreated. Sampler RNG is restored from the bound
+checkpoint report; older reports reproduce and verify saved draws to recover its
+position, failing on mismatch. Fresh-Adam defaults remain unchanged. Use a new
+output directory and an explicitly authorized additional budget; local update
+counts and cumulative updates are distinct. Old checkpoints are never overwritten.
+
 Run only within the authorized training/resource budget, using new output names:
 
 ```powershell
