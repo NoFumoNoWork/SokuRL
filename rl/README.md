@@ -466,6 +466,21 @@ fabricated capture acceptance or claim full-match replay parity from prefixes.
 
 ## PPO Example And Continuation
 
+### Event BC Vs Direct PPO
+
+`tools/run_event_duel.ps1 -Output rl/runs/my-duel -Checkpoint PATH_TO_TYPED_BC_JSON`
+compares the frozen event BC with the existing `train-4/final.zip` PPO (override
+`-PpoDirectory` explicitly). Both retain their trained Marisa character in a
+mirror matchup; four fixed world seeds, both seats, eight games, Clear/no cards,
+7200F horizon and two independent native instances. It reuses the existing
+event controller, seeded stochastic PPO episode, primitive interface and guarded
+Bridge deployment. Model weights are never trained. Full compiled command
+candidates are not claimed to be exact engine legality. KO wins and timeout HP
+leads are reported separately, with damage/contact summaries and submitted
+primitive inputs; these NPZ inputs are not native REP files. Mirrors are outside
+the original training matchup, BC inherited PPO feature weights, and this small
+screen is not a compute-matched training-method comparison or significance test.
+
 Factorized event BC continuation is separate from PPO: the prepared
 `config/hierarchical_factorized_continuation.yaml` binds the prior selected
 checkpoint and completed training report. It verifies the checkpoint/Adam SHA,
