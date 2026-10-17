@@ -1,0 +1,13 @@
+format: hierarchical_native_smoke_v1
+legality_mode: masked_native_feedback
+checkpoint: rl/runs/hierarchical-bc-implementation-20261017/final-smoke/checkpoint.json
+source_config: rl/runs/combat-v2-adaptive-20261015/campaign/train-4/config.yaml
+warmup_frames: 600
+fixture_frames: 150
+model_frames: 256
+reset_model_frames: 64
+max_wait: 60
+allowed_candidates: [5move, 6move, 4move, 8move, 6D, 8D, 5A, 5B]
+seeds: [71302011, 71302021]
+reset_seeds: [71302111, 71302121]
+note: Candidate mask is not a complete game legal set. No training or strength evaluation.

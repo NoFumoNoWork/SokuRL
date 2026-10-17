@@ -1,0 +1,26 @@
+format: hierarchical_bc_v2_factorized
+source_checkpoint: rl/runs/combat-v2-adaptive-20261015/campaign/train-4/final.zip
+warm_start: rl/runs/hierarchical-bc-expanded-20261017/training/checkpoints/epoch-06.json
+seed: 20261017
+event_history: 16
+event_layers: 3
+event_width: 128
+event_heads: 4
+input_history: 60
+sequence_horizon: 3
+learning_rate: 0.00003
+batch_size: 16
+max_correctness_updates: 4
+choice_weight: 1.0
+termination_weight: 0.3
+future_weight: 0.15
+rare_weight_max: 4.0
+sampling:
+  strata: [movement_neutral, attack_skill, cancel_link, defense_reaction]
+  ratios: [0.30, 0.30, 0.25, 0.15]
+  diagnostic_draws: 4096
+  row_cap: 2
+  replay_cap: 256
+  chain_cap: 32
+formal_training: false
+legality: candidate_masks_not_complete_engine_sets

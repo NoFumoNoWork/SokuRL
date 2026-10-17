@@ -1,6 +1,11 @@
 """Load every policy type through the same observation and action contract."""
 def load_policy(name, spec, interface, device):
     kind = spec["kind"]
+    if kind == "human_multiscale":
+        from soku_rl.policy.multiscale_bc import MultiscaleBCPolicy
+        if set(spec) != {"kind", "path"}:
+            raise ValueError('human_multiscale requires a typed artifact manifest')
+        return MultiscaleBCPolicy(name, spec['path'], interface, device)
     if kind == "teacher_takeover":
         from soku_rl.policy.takeover import TeacherTakeoverPolicy, validate_takeover_frame
         if (set(spec) != {"kind", "learner", "teacher", "after_frames"}

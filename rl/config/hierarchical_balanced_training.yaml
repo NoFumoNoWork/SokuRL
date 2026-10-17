@@ -1,0 +1,13 @@
+format: hierarchical_training_v1
+seed: 20261017
+initial_checkpoint: rl/runs/hierarchical-bc-implementation-20261017/final-smoke/checkpoint.json
+data: rl/runs/hierarchical-bc-implementation-20261017/data-final/manifest.json
+epochs: 10
+max_updates: 2390
+batch_size: 64
+learning_rate: 0.00003
+termination_weight: 0.5
+sequence_weight: 0.5
+sampling: balanced_attack_movement
+selection: full_validation_composite_loss
+optimizer: fresh_adam_previous_moments_unavailable

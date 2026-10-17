@@ -1,0 +1,17 @@
+format: hierarchical_bc_v1
+seed: 20261017
+source_checkpoint: rl/runs/combat-v2-adaptive-20261015/campaign/train-4/final.zip
+event_history: 16
+event_layers: 3
+event_width: 128
+event_heads: 4
+input_history: 60
+sequence_horizon: 3
+learning_rate: 0.00003
+batch_size: 8
+max_updates: 16
+termination_weight: 0.5
+sequence_weight: 0.5
+max_wait: 120
+native_legality: require_explicit_engine_legal_set
+train_long_runs: false
