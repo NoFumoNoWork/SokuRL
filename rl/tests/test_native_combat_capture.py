@@ -96,3 +96,26 @@ def test_input_scope_preserves_buffer_release_and_command_evidence():
     assert event['command_combination_before']==2
     assert event['movement_combination_before']==4
     assert event['independent_input_segment'] is None
+
+
+def test_original_replay_boundary_is_separate_from_processed_player_keys():
+    data=[0]*52
+    data[0]=133;data[2]=1;data[4]=8;data[5]=data[6]=1
+    data[7]=0x1234;data[8]=1;data[9]=42
+    data[10]=data[11]=0x5678;data[12]=100;data[13]=99;data[14]=132
+    data[20:28]=[0xFFFFFFFF,0,1,0,0,0,0,0]
+    event=decode_event(data,version=9)
+    assert event['kind']=='REPLAY_INPUT_BOUNDARY'
+    assert event['frame']==133 and event['bridge_frame_before']==132
+    assert event['remaining_before']==100 and event['remaining_after']==99
+    assert event['original_key_manager_inputs']==(-1,0,1,0,0,0,0,0)
+    assert event['phase']=='SIMULATION' and event['call_serial']==42
+    assert 'native_inputs_before' not in event
+    data[5]=data[6]=2
+    unknown=decode_event(data,version=9)
+    assert unknown['attacker_seat'] is None and unknown['seat_status']=='UNKNOWN'
+    with pytest.raises(ValueError,match='ABI9'):
+        decode_event(data,version=8)
+    data[8]=2
+    with pytest.raises(ValueError,match='ABI9'):
+        decode_event(data,version=9)

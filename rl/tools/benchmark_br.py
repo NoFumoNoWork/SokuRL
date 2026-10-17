@@ -12,6 +12,10 @@ from omegaconf import OmegaConf
 
 def candidate_specification(config, source, algorithm):
     candidate = config["candidate"]
+    if set(candidate) == {'kind', 'path'} and candidate['kind'] == 'human_multiscale':
+        manifest = Path(candidate['path']).resolve(strict=True)
+        return 'learned-br:human-multiscale', dict(candidate, path=str(manifest)), {
+            'checkpoint_sha256': hashlib.sha256(manifest.read_bytes()).hexdigest()}
     if candidate.get("kind") == "teacher_takeover":
         from soku_rl.policy.takeover import validate_takeover_frame
         if (set(candidate) != {"kind", "teacher", "after_frames"}

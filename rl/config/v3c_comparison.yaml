@@ -1,0 +1,23 @@
+defaults:
+  - train_combat_v2_credit
+  - _self_
+
+# Effective credit profile, fresh policies; no previously trained final model.
+num_envs: 2
+algorithm:
+  initial_policy: {kind: fresh}
+  timesteps: 131072
+  checkpoint_every: 16384
+rl:
+  ppo:
+    duration_aware: true
+comparison:
+  native_frames: 131072
+  arm: V2
+  back_jump_hp: 40.0
+  back_jump_cap_hp: 240.0
+  back_d_hp: 20.0
+  reset_forward_frames: 16
+  reset_forward_distance: 32.0
+  evaluation_seeds: [215396201, 700384221, 1038192443, 1571138057, 2034975829, 2681903027, 3174602849, 4033826741]
+  evaluation_policy_seed: 910273

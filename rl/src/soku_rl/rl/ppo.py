@@ -63,12 +63,21 @@ def initialize_ppo(algorithm, policy_type, env, interface, config, source, devic
     if sum(option in config for option in ("online_anchor", "rehearsal", "online_teacher")) > 1:
         raise ValueError("select online_anchor, rehearsal or online_teacher; combining auxiliary objectives is not supported")
     parameters = dict(config["ppo"])
+    duration_aware = parameters.pop('duration_aware', False)
+    if type(duration_aware) is not bool:
+        raise ValueError('duration_aware must be a boolean')
+    if duration_aware:
+        from soku_rl.rl.command_ppo import DurationPPO, DurationRolloutBuffer
+        if algorithm is not PPO or 'rollout_buffer_class' in parameters:
+            raise ValueError('duration-aware adapter requires categorical feedforward PPO')
+        algorithm = DurationPPO
+        parameters['rollout_buffer_class'] = DurationRolloutBuffer
     card_mask=parameters.pop('mask_card_actions',False)
     if type(card_mask) is not bool:
         raise ValueError('mask_card_actions must be a boolean')
     if card_mask:
         from soku_rl.rl.masked_policy import CardMaskedActorCriticPolicy
-        if (algorithm is not PPO or config['policy_type']!='mlp'
+        if (not issubclass(algorithm, PPO) or config['policy_type']!='mlp'
                 or any(option in parameters for option in
                        ('action_factorization','action_persistence','action_frame'))):
             raise ValueError('static card masking requires ordinary categorical PPO')
@@ -141,7 +150,7 @@ def initialize_ppo(algorithm, policy_type, env, interface, config, source, devic
                 and config["ppo"].get("action_frame") != "own_facing"):
             raise ValueError("canonical features require the own_facing action head")
     parameters["policy_kwargs"] = architecture
-    if "rollout_buffer_class" in parameters:
+    if isinstance(parameters.get("rollout_buffer_class"), str):
         parameters["rollout_buffer_class"] = get_class(parameters["rollout_buffer_class"])
     elif algorithm is PPO and interface.episode.observation_mode == "privileged_state":
         from soku_rl.rl.buffers import PackedRolloutBuffer
