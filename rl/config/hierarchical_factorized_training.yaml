@@ -1,0 +1,18 @@
+format: factorized_training_v2
+data: rl/runs/hierarchical-factorized-20261017/data-v2/manifest.json
+initial_checkpoint: rl/runs/hierarchical-factorized-20261017/check-fp32/initial.json
+seed: 20261017
+cycles: 10
+draws_per_cycle: 4096
+max_updates: 640
+batch_size: 64
+learning_rate: 0.00003
+termination_weight: 0.3
+future_weight: 0.15
+rare_weight_max: 4.0
+sampling_ratios: [0.30, 0.30, 0.25, 0.15]
+row_cap: 2
+replay_cap: 256
+chain_cap: 32
+optimizer: fresh_adam
+selection: full_validation_weighted_objective

@@ -81,6 +81,7 @@ class FactorizedActor(HierarchicalActor):
             raise ValueError('three ordered future events required')
         hidden = context
         future = []
+        future_ids = []
         # Current engine legality does not predict legality at future unknown states.
         future_mask = batch.get('future_candidates', torch.ones(
             len(context), 3, self.actions, dtype=torch.bool, device=context.device))
@@ -90,11 +91,14 @@ class FactorizedActor(HierarchicalActor):
             hidden = self.sequence_cell(self.action_embedding(previous), hidden)
             step, future_category, future_conditional = self.future_choice(hidden, future_mask[:, i].bool())
             future.append(step)
+            predicted = future_conditional.masked_fill(self.future_choice.mapping[None] !=
+                future_category.argmax(-1)[:, None], float('-inf')).argmax(-1)
+            future_ids.append(predicted)
             previous = (teacher[:, i].clamp_min(0).long() if teacher is not None else
-                future_conditional.masked_fill(self.future_choice.mapping[None] !=
-                    future_category.argmax(-1)[:, None], float('-inf')).argmax(-1))
+                        predicted)
         return dict(action=joint, category=category, conditional=conditional,
-                    choice_id=choice_id, termination=stop, sequence=torch.stack(future, 1))
+                    choice_id=choice_id, termination=stop, sequence=torch.stack(future, 1),
+                    sequence_choice_ids=torch.stack(future_ids, 1))
 
 
 def rare_weights(labels, mask, actions):

@@ -50,7 +50,7 @@ def epoch_order(data, catalog, rng, mode='uniform'):
     return order, stats
 
 
-def evaluate(actor, data, catalog, batch_size, device):
+def evaluate(actor, data, catalog, batch_size, device, *, task_weights=(.5,.5), ce_weights=None):
     actor.eval()
     totals = {}
     counts = {}
@@ -61,7 +61,9 @@ def evaluate(actor, data, catalog, batch_size, device):
     label_counts = np.zeros(len(catalog), np.int64)
     attack = torch.tensor([not c['continuous'] for c in catalog], device=device)
 
-    def accumulate(name, logits, labels, mask, binary=False):
+    weighted_totals = {}
+
+    def accumulate(name, logits, labels, mask, binary=False, predictions=None):
         mask = mask.bool()
         n = int(mask.sum())
         if not n:
@@ -71,7 +73,11 @@ def evaluate(actor, data, catalog, batch_size, device):
                 if binary else F.cross_entropy(values, targets.long(), reduction='sum'))
         if not torch.isfinite(loss):
             raise FloatingPointError(f'nonfinite validation {name}')
-        predictions = values >= 0 if binary else values.argmax(-1)
+        predictions = (predictions[mask] if predictions is not None else
+                       values >= 0 if binary else values.argmax(-1))
+        if ce_weights is not None and not binary and values.shape[-1] == len(ce_weights):
+            weighted = F.cross_entropy(values, targets.long(), weight=ce_weights, reduction='sum')
+            weighted_totals[name] = weighted_totals.get(name, 0.) + float(weighted)
         totals[name] = totals.get(name, 0.) + float(loss)
         counts[name] = counts.get(name, 0) + n
         correct[name] = correct.get(name, 0) + int((predictions == targets).sum())
@@ -82,7 +88,8 @@ def evaluate(actor, data, catalog, batch_size, device):
             outputs = actor(x, selected=y['action'].clamp_min(0), teacher=y['sequence'])
             mask = y['action_mask'].bool()
             is_attack = attack[y['action'].clamp_min(0).long()]
-            predicted = outputs['action'][mask].argmax(-1)
+            chosen = outputs.get('choice_id', outputs['action'].argmax(-1))
+            predicted = chosen[mask]
             predicted_counts += np.bincount(predicted.cpu().numpy(), minlength=len(catalog))
             label_counts += np.bincount(y['action'][mask].long().cpu().numpy(), minlength=len(catalog))
             predicted_attack, actual_attack = attack[predicted], is_attack[mask]
@@ -90,7 +97,10 @@ def evaluate(actor, data, catalog, batch_size, device):
                                 ('tn', ~predicted_attack & ~actual_attack), ('fn', ~predicted_attack & actual_attack)]:
                 attack_confusion[key] += int(subset.sum())
             for name, subset in [('action', mask), ('attack', mask & is_attack), ('movement', mask & ~is_attack)]:
-                accumulate(name, outputs['action'], y['action'], subset)
+                accumulate(name, outputs['action'], y['action'], subset, predictions=chosen)
+            if 'category' in outputs:
+                categories = actor.choice.mapping[y['action'].clamp_min(0).long()]
+                accumulate('category', outputs['category'], categories, mask)
             accumulate('termination', outputs['termination'], y['termination'], y['termination_mask'], True)
             tm = y['termination_mask'].bool()
             actual = y['termination'][tm].bool()
@@ -98,18 +108,23 @@ def evaluate(actor, data, catalog, batch_size, device):
             for key, subset in [('tp', predicted & actual), ('fp', predicted & ~actual),
                                 ('tn', ~predicted & ~actual), ('fn', ~predicted & actual)]:
                 stop_confusion[key] += int(subset.sum())
-            accumulate('sequence_teacher_forced', outputs['sequence'], y['sequence'], y['sequence_mask'])
+            accumulate('sequence_teacher_forced', outputs['sequence'], y['sequence'], y['sequence_mask'],
+                       predictions=outputs.get('sequence_choice_ids'))
             free = actor(x)
-            accumulate('sequence_free_running', free['sequence'], y['sequence'], y['sequence_mask'])
+            accumulate('sequence_free_running', free['sequence'], y['sequence'], y['sequence_mask'],
+                       predictions=free.get('sequence_choice_ids'))
             for i in range(3):
                 accumulate(f'future_{i+1}_teacher_forced', outputs['sequence'][:, i],
-                           y['sequence'][:, i], y['sequence_mask'][:, i])
+                           y['sequence'][:, i], y['sequence_mask'][:, i],
+                           predictions=(outputs['sequence_choice_ids'][:,i] if 'sequence_choice_ids' in outputs else None))
     metrics = {k: dict(count=counts[k], nll=totals[k]/counts[k], accuracy=correct[k]/counts[k]) for k in counts}
+    for key,value in weighted_totals.items():metrics[key]['weighted_nll']=value/counts[key]
     required = ('action', 'termination', 'sequence_teacher_forced')
     if any(k not in metrics for k in required):
         raise ValueError('full validation requires all three supervised tasks')
-    metrics['selection_loss'] = (metrics['action']['nll'] + .5*metrics['termination']['nll']
-                                 + .5*metrics['sequence_teacher_forced']['nll'])
+    field='weighted_nll' if ce_weights is not None else 'nll'
+    metrics['selection_loss'] = (metrics['action'][field] + task_weights[0]*metrics['termination']['nll']
+                                 + task_weights[1]*metrics['sequence_teacher_forced'][field])
     metrics['rows'] = len(data['state'])
     metrics['stop_confusion'] = stop_confusion
     n = sum(stop_confusion.values())

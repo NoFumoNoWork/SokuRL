@@ -399,6 +399,27 @@ Do not substitute prefix-end no-contact or future combo outcomes. Native accepta
 and raw operation onset remain separate in alignment evidence. Unknown skill and
 charge labels stay masked; the new output heads do not invent their supervision.
 
+### Bounded Factorized Training
+
+The separate `hierarchical_factorized_training.yaml` profile authorizes no search
+or automatic expansion. It uses fresh Adam3e-5, batch64, ten sampling cycles of
+4096draws (40960total,640updates), the fixed1/.3/.15loss and2/256/32repeat caps.
+A sampling cycle is NOT a unique pass through all41075source rows. Its initial
+model is the typed pre-correctness v2 checkpoint, not the four-update smoke model.
+These local data/model resources must exist before running:
+
+```powershell
+.\.venv\python.exe -B rl/run.py train_factorized_bc --config rl/config/hierarchical_factorized_training.yaml --output rl/runs/my-factorized-training --device cuda
+```
+
+All checkpoints and Adam sidecars remain immutable. Best selection includes the
+initial model and uses full natural validation with train-only class weights and
+the1/.3/.15objective. Accuracy/histograms use actual category-first decisions,
+not the possibly different flat joint-probability argmax. Free-running future
+metrics likewise use the hierarchical decoder. Record category/attack/movement,
+stop and autoregressive metrics, not overall accuracy alone. No sealed test or
+win-rate claim is implied; absent skills/charge and scarce defense labels remain.
+
 ## PPO Example And Continuation
 
 Run only within the authorized training/resource budget, using new output names:
