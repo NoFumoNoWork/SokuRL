@@ -156,6 +156,7 @@ class ContinuousSourceTeacher:
         self.invalidated_at = None
         self.initialized = False
         self.fatal = None
+        self.ended = False
         self.last_submitted = None
         self.confirmed_inputs = decode_action(self.interface.command(initial_action)).inputs
         self.write_cursor = 0
@@ -261,8 +262,12 @@ class ContinuousSourceTeacher:
                 self.state = PlanState.READY
 
     def query(self, values, *, schema, receipt=None, legal_actions=None,
-              trusted_boundary=False, replan=False):
+              trusted_boundary=False, replan=False, terminal=False):
         """legal_actions is a caller-verified 90-input mask, not our move table."""
+        if self.ended:
+            raise ValueError('teacher episode ended;create a new teacher at Reset')
+        if type(terminal) is not bool:
+            raise ValueError('explicit episode terminal flag required')
         current = decode_shared(values, schema=schema)
         frame = int(current.world['frame'])
         if frame != self.frame + 1:
@@ -310,6 +315,14 @@ class ContinuousSourceTeacher:
             self.fatal = str(error)
             self.invalidate('OBSERVATION_DEPENDENCY_FAILURE')
             return self.result(None, 'OBSERVATION_DEPENDENCY_FAILURE')
+        if terminal:
+            # Reconcile the final real input and update observation memory,then
+            # close without resuming main or inventing a post-terminal action.
+            self.invalidate('EPISODE_TERMINAL')
+            self.ended = True
+            self.state = PlanState.WAITING
+            self.counts['terminal_closures'] += 1
+            return self.result(None, 'EPISODE_TERMINAL')
         if current.players[0]['hitstop'] or current.players[0]['hp'] <= 0:
             if self.runner is not None:
                 self.invalidate('HITSTOP_OR_TERMINAL')
@@ -389,7 +402,7 @@ class ContinuousSourceTeacher:
             plan_invalidation_reasons=dict(self.reasons),
             valid_label_fraction=self.counts['labels']/max(1,self.counts['queries']),
             average_recovery_frames=self.counts['recovery_frames']/max(1,self.counts['recoveries']),
-            state=self.state.value, native_verified=False, training_ready=False,
+            state=self.state.value, ended=self.ended, native_verified=False, training_ready=False,
             tactical_state=self.tactics.report(),
             dependency='caller-proven input consumption and legal masks required',
             semantics='source adaptation; observation-before-decision; main writes plan-local')

@@ -71,6 +71,54 @@ def test_native_smoke_rejects_unbounded_or_unknown_profile(character,frames,rese
         smoke_profile(character,frames,reset_frames)
 
 
+def test_complete_episode_requires_explicit_original_horizon():
+    from smoke_teacher_native import smoke_profile
+    assert smoke_profile('reimu',7200,64,complete_episode=True)['windows']==(7200,64)
+    with pytest.raises(ValueError):
+        smoke_profile('marisa',7200,64)
+    with pytest.raises(ValueError):
+        smoke_profile('marisa',1024,64,complete_episode=True)
+
+
+def test_terminal_slots_allow_subset_progress_without_auto_reset():
+    from smoke_teacher_native import completed_slots
+    from soku_rl.env.encoding import AGENTS
+    flags=lambda value:dict.fromkeys(AGENTS,value)
+    assert completed_slots({0:flags(True),1:flags(False)},{0:flags(False),1:flags(False)})=={0}
+    assert completed_slots({1:flags(False)},{1:flags(True)})=={1}
+    with pytest.raises(ValueError):
+        completed_slots({0:flags(True)},{0:flags(True)})
+    with pytest.raises(ValueError):
+        completed_slots({0:{AGENTS[0]:True,AGENTS[1]:False}},{0:flags(False)})
+
+
+@pytest.mark.parametrize('script',['01_marisa_main.ai','00_reimu_main.ai'])
+def test_terminal_receipt_closes_without_running_next_input_and_requires_new_actor(script):
+    from soku_rl.policy.god.continuous import ExecutionReceipt
+    actor=teacher(script)
+    install_decision(actor,b'key_reset();key_on(ACT_B);yield();error("MAIN_RESUMED_AFTER_TERMINAL")')
+    first=actor.query(packet(0,script),schema=SCHEMA,trusted_boundary=True,legal_actions=MASK)
+    receipt=ExecutionReceipt(0,first['training_label'],1,0,True,True,
+        accepted_plan_id=actor.serial,accepted_buttons=('ACT_B',))
+    result=actor.query(packet(1,script),schema=SCHEMA,receipt=receipt,terminal=True)
+    assert result['training_label'] is None and result['reason']=='EPISODE_TERMINAL'
+    assert result['reconciliation']['stage']=='ACCEPTED'
+    assert actor.counts['accepted']==1 and actor.counts['observations']==2
+    assert actor.ended and actor.runner is actor.pending is None
+    assert actor.counts['terminal_closures']==1
+    with pytest.raises(ValueError,match='new teacher at Reset'):
+        actor.query(packet(2,script),schema=SCHEMA,legal_actions=MASK,trusted_boundary=True)
+    fresh=teacher(script)
+    assert not fresh.ended and fresh.counts['queries']==0 and fresh.serial==0
+
+
+def test_terminal_flag_is_explicit_and_invalid_flag_does_not_advance_teacher():
+    actor=teacher()
+    with pytest.raises(ValueError,match='terminal flag'):
+        actor.query(packet(0),schema=SCHEMA,terminal=1)
+    assert actor.frame==-1 and not actor.ended
+
+
 def events(frame,keys,*,scope=True):
     common=dict(frame=frame,segment=7,attacker_seat=0,native_inputs_before=keys,
         buffered_inputs_before=(0,)*8)

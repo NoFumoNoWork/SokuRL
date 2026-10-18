@@ -1,7 +1,8 @@
 param([Parameter(Mandatory=$true)][string]$Output,
     [ValidateSet('marisa','reimu')][string]$Character='marisa',
-    [ValidateRange(1,1024)][int]$Frames=128,
-    [ValidateRange(1,128)][int]$ResetFrames=64)
+    [ValidateRange(1,7200)][int]$Frames=128,
+    [ValidateRange(1,128)][int]$ResetFrames=64,
+    [switch]$CompleteEpisode)
 $ErrorActionPreference='Stop'
 $root=Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $destination=[IO.Path]::GetFullPath((Join-Path $root $Output))
@@ -21,11 +22,14 @@ try{
     Invoke-BridgeSession -GameDirectory "$root/th123_jp" `
         -Dll "$root/platform/build/bridge/Release/SokuRLBridge.dll" `
         -EvidenceDirectory "$destination/session" -Action {
+            [string[]]$extra=@()
+            if($CompleteEpisode){$extra=@('--complete-episode')}
             & $python -B "$root/rl/run.py" smoke_teacher_native --output "$destination/run" `
-                --character $Character --frames $Frames --reset-frames $ResetFrames
+                --character $Character --frames $Frames --reset-frames $ResetFrames @extra
             if(-not $?){throw 'Native teacher smoke failed;preserve evidence'}
             $nativeReport=Get-Content -LiteralPath "$destination/run/report.json" -Raw|ConvertFrom-Json
-            if($nativeReport.status -ne 'PASS_BOUNDED_NATIVE_SIDECAR'){throw 'Native guidance acceptance not PASS'}
+            $expected=if($CompleteEpisode){'PASS_EPISODE_NATIVE_SIDECAR'}else{'PASS_BOUNDED_NATIVE_SIDECAR'}
+            if($nativeReport.status -ne $expected){throw 'Native guidance acceptance not PASS'}
         }.GetNewClosure()
 }catch{
     $failure=$_
