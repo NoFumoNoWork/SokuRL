@@ -86,10 +86,13 @@ return env, execute, function(n) remaining=n; last=''; blocked_at=nil end,
 
 def validate_spec(spec):
     keys = {'package', 'api_source', 'script', 'reaction_frames', 'instruction_limit', 'seed'}
-    if not isinstance(spec, dict) or set(spec) not in (keys, keys | {'mode'}):
+    if not isinstance(spec, dict) or not keys <= set(spec) or set(spec) - keys - {'mode', 'source_adapter'}:
         raise ValueError('expert requires explicit package/API/script, reaction_frames, instruction_limit and seed')
     if spec.get('mode', 'input') not in ('input', 'intent'):
         raise ValueError('expert mode must be input or intent')
+    if 'source_adapter' in spec and (spec.get('mode') != 'intent' or
+            spec['source_adapter'] != 'th123ai_20110925'):
+        raise ValueError('source_adapter requires reviewed th123ai_20110925 intent mode')
     if any(not isinstance(spec[k], str) or not spec[k] for k in ('package', 'api_source', 'script')):
         raise ValueError('expert source paths and script must be nonempty')
     if type(spec['reaction_frames']) is not int or spec['reaction_frames'] < 1:
@@ -111,6 +114,10 @@ class QueryTeacher:
         self.interface, self.spec = interface, dict(spec)
         self.package = ScriptPackage(spec['package'], spec['api_source'])
         self.package.source(spec['script'])
+        self.adapter = None
+        if 'source_adapter' in spec:
+            from .source_adapter import CommunityIntentAdapter
+            self.adapter = CommunityIntentAdapter(self.package, spec['script'])
         if self.package.repairs:
             # Do not silently apply the privileged opponent's documented repairs.
             self.repairs = tuple(sorted(self.package.repairs))
@@ -119,7 +126,8 @@ class QueryTeacher:
         self.fingerprint = hashlib.sha256(json.dumps({
             'package': self.package.original_fingerprint, 'spec': spec,
             'implementation': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                               for name in ('query.py', 'intents.py', 'api.py', 'runtime.py', 'package.py')},
+                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'api.py', 'runtime.py', 'package.py')},
+            'adapter': self.adapter.report if self.adapter else None,
             'projection': 'student_animation_shared_world_v2' if getattr(episode, 'animation_world_coordinates', False) else 'student_animation_only_v1',
             'home_advantage': 'disabled',
         }, sort_keys=True).encode()).hexdigest()
@@ -161,7 +169,10 @@ class QueryEpisode:
         alias = package.resolve_name(name)
         relative = package.aliases[alias]
         # Original bytes only, even if the old privileged adapter has a repair.
-        return self.execute(package.files[relative], b'@community/' + relative.encode('utf-8'))
+        data = package.files[relative]
+        if self.teacher.adapter is not None:
+            data = self.teacher.adapter.sources.get(relative, data)
+        return self.execute(data, b'@community/' + relative.encode('utf-8'))
 
     def query(self, observation, *, opportunity=None, boundary_id=None):
         interface = self.teacher.interface

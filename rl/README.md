@@ -595,7 +595,7 @@ Output comparisons use rtol=1e-6/atol=1e-7; do not generalize fixture equality t
 native trajectory equivalence. `train_combat_kickstarting_world.yaml` requires
 `SOKURL_WORLD_STUDENT` explicitly; it does not silently substitute an old model.
 
-The original scripts now pass their world-coordinate reads but remain blocked
+In legacy input mode the original scripts pass world-coordinate reads but block
 on native vertical velocity (`my_yspeed`). Position finite differences are not
 silently substituted for that field. Spirit/maxSpirit, full object API, cards,
 skills, collision flags/boxes and special timers also need explicit treatment.
@@ -614,9 +614,9 @@ supports a reviewed Lua adapter exposing `teacher_decide()`. The adapter may cal
 `command('236B')` or `propose_intent('236B')`. This captures a proposal, not keys:
 the decision coroutine is immediately discarded and never resumed. Lua globals,
 closure upvalues and actor-local RNG persist for that episode. The source file is
-loaded once, not every frame. Only code executed before the proposal can update
-memory; outcome-dependent code after it must be rewritten by the source adapter
-to consume actual observations, never assumed teacher execution.
+loaded once, not every frame. Generic reviewed adapters retain pre-proposal
+memory writes; the pinned original-source adapter below is stricter and rolls
+back decision writes. Outcome-dependent code after a proposal never executes.
 
 `advice.intent` and `advice.intent_id` identify a proposal. Reject it with
 `actor.intents.reject(advice.intent_id)`; the next trusted boundary can propose
@@ -629,10 +629,48 @@ Between boundaries the query returns a masked wait, not a macro continuation.
 
 Proposals have no 90-action target, no game-control side effects and no native
 acceptance claim. Unsupported commands and masked intents are not neutral labels.
-Raw key/wait/background-thread operations in a decision adapter fail explicitly.
-The original full AI has no reviewed `teacher_decide` entry: it is reported
-`BLOCKED_INTENT_ADAPTER`, rather than restarted or automatically source-rewritten.
-Its background calculation and missing student fields remain unresolved.
+Raw key/wait/background-thread operations mask the current decision segment,
+without blocking the episode. Source/dependency failures remain explicit BLOCKED.
+An unadapted main-only script still reports `BLOCKED_INTENT_ADAPTER`.
+
+`teacher.source_adapter: th123ai_20110925` now selects a byte-pinned adapter for
+the external 2011 `01_marisa_main.ai` / `00_reimu_main.ai`, `def_clc.lua` and
+`function_command.txt`. It keeps original source line IDs and conditions, splits
+the reviewed outer loops into initialize/observe/decide, and rejects other source
+versions. Source assets are not edited or copied into the formal RL package.
+Initialization runs once; the original calculation body runs once per delayed
+observation, even without a decision boundary. This perception-before-decision
+order is an intentional adaptation, NOT original scheduler equivalence.
+
+Original decision globals/table writes are rolled back after every query, keeping
+the committed perception memory and table aliases. This prevents unexecuted
+plans from committing charge/combo flags. It also drops some legitimate original
+strategic writes: those require individual review before retention. The bounded
+transaction is not a general closure-upvalue rollback mechanism. Source analysis
+found no `local` declarations in these pinned main/perception files.
+
+The reviewed `lvr236`, `lvr214`, `lvr623` and `lvr22` helpers emit intents instead
+of input coroutines. Both orientation branches are preserved: for example the
+original lvr236 uses opposite-facing input when `is_dir_front` is false, so that
+branch maps to 214, not blindly to 236. A mirrored 623 becomes 421, which remains
+unrepresentable in the existing command catalog. Held variants, raw-key movement
+and other unaudited operations are masked; no motion timing equivalence is claimed.
+
+With the shared-world contract both original source probes currently block in
+`def_clc.lua:670` on `enemy_obj_n`, before any decision. Full object counts/data,
+box geometry and other native fields are not silently synthesized from capped
+visible tokens. Thus the original entry split is implemented but **not yet a
+usable original-AI teacher**. Run the existing synthetic audit for precise source
+hashes, split boundaries, contract blockers and optional model initialization:
+
+```powershell
+.\.venv\python.exe -B rl/run.py audit_god_teacher --world-coordinates `
+  --student-directory rl/runs/teacher-world-20261018/student --check-student `
+  --output rl/runs/NEW-source-intent-audit
+```
+
+The directory argument must identify an existing explicitly migrated artifact.
+Weight checks do not attach the teacher or bypass the formal PPO readiness guard.
 
 Legacy `mode: input` (also the old omitted-mode contract) remains for existing
 checkpoints/offline tests only. Its unexecuted-prefix guard still masks until

@@ -3,6 +3,7 @@
 No game process, native reads, student training or new gameplay measurement.
 """
 import argparse
+import copy
 from collections import Counter
 import hashlib
 from importlib.metadata import version
@@ -111,7 +112,8 @@ def main():
         for _ in range(spec['reaction_frames']+2):
             answer = actor.query(obs)
             statuses[answer.status] += 1
-        probe.append(dict(script=script, statuses=dict(statuses), last=answer.record()))
+        probe.append(dict(script=script, statuses=dict(statuses), last=answer.record(),
+                          source_adapter=variant.adapter.report if variant.adapter else None))
     result = dict(status='BLOCKED_TEACHER_ADAPTATION' if any(
         p['last']['status'] != 'VALID_INPUT' for p in probe) else 'PASS_FIXTURE_ONLY',
         evidence_level='SYNTHETIC_CONTRACT_PROBE_NOT_GAMEPLAY_COVERAGE',
@@ -123,7 +125,7 @@ def main():
         boundaries=dict(control='student only; advice never submitted',
             reaction='entire teacher animation view delayed by configured frames',
             legality='input vocabulary/card mask only, NOT engine acceptance/cancel proof',
-            time='one query step per 1F observation; episode-local coroutine and seeded RNG',
+            time='one delayed perception tick per 1F observation; disposable intent coroutine only at trusted boundary',
             coverage='no real student/native rollout tested in this audit',
             next='adapt remaining source dependencies without inventing hidden state'))
     result['dependency_inventory'] = [
@@ -143,7 +145,10 @@ def main():
             ('enemy hidden inputs','PROHIBITED','no allowed student source','remove teacher dependency; do not add a reader'),
             ('independent RNG/delay/query sandbox','IMPLEMENTED','existing ScriptAPI LCG + restricted query','native equivalence not claimed'),
             ('accepted move/cancel legality','NOT_IMPLEMENTED','existing diagnostic action events; no complete allowed legal mask','observable legality contract + bounded native validation'),
-            ('teacher coroutine resynchronization','NOT_IMPLEMENTED_FAIL_CLOSED','existing query + own actual input history','safe decision-boundary/restart adapter; mismatch masks episode, coincidence does not repair a macro prefix'),
+            ('teacher intent lifecycle','OFFLINE_VERIFIED','query/intents.py + pinned source_adapter.py',
+             'native boundary and 90-action lowering still absent; unsupported segments mask, no old coroutine resumes'),
+            ('original decision/perception split','PINNED_SOURCE_ADAPTATION','2011 Marisa/Reimu/main+def_clc hashes',
+             'perception dependencies must be shared or explicitly adapted; decision writes rollback, not original policy equivalence'),
             ('joint loss/masks/decay/save','OFFLINE_VERIFIED','existing PPO + opt-in KickstartingPPO','native rollout/coverage verification still required'),
             ('native teacher rollout/training','NOT_TESTED','existing Worker/Bridge infrastructure','unblock teacher labels first; no new deployment system needed'),
         )]
@@ -154,7 +159,11 @@ def main():
         env = gym.Env()
         env.observation_space, env.action_space = interface.observation_space, interface.action_space
         source = config['algorithm']['initial_policy']
-        model, metadata = create_ppo(env, interface, config['rl'], source, 'cpu', config['seed'])
+        # Initialization audit is not a live teacher/PPO attachment. Preserve the
+        # explicit attachment BLOCKED guard rather than bypassing it in training.
+        initialization = copy.deepcopy(config['rl'])
+        initialization.pop('kickstarting', None)
+        model, metadata = create_ppo(env, interface, initialization, source, 'cpu', config['seed'])
         original = PPO.load(source['path'], device='cpu')
         before, after = parameter_hash(original.policy), parameter_hash(model.policy)
         if before != after:
@@ -162,6 +171,7 @@ def main():
         result['student'] = dict(status='PASS_EXACT_EXISTING_PPO_WEIGHTS', source=metadata,
             original_parameters=before, initialized_parameters=after,
             optimizer='fresh PPO Adam, no teacher-specific optimizer',
+            scope='weight initialization only; no expert attachment or trainability claim',
             native_steps=0, gradient_updates=0)
     (output/'report.json').write_text(json.dumps(result, indent=2), encoding='utf-8')
     print(json.dumps(dict(status=result['status'], report=str(output/'report.json'), probes=probe), indent=2))
