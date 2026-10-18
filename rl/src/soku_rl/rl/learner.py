@@ -18,8 +18,8 @@ def learner_kind(config):
     kind = config.get("learner", "ppo")
     if kind not in {"ppo", "dqn"}:
         raise ValueError("rl.learner must be ppo or dqn")
-    if kind == "dqn" and any(option in config for option in ("rehearsal", "online_anchor", "online_teacher")):
-        raise ValueError("rehearsal, online_anchor and online_teacher require the PPO learner")
+    if kind == "dqn" and any(option in config for option in ("rehearsal", "online_anchor", "online_teacher", "kickstarting")):
+        raise ValueError("rehearsal, online_anchor, online_teacher and kickstarting require the PPO learner")
     if kind == "dqn" and "freeze_actor_representation" in config.get("ppo", {}):
         raise ValueError("freeze_actor_representation requires the PPO learner")
     return kind

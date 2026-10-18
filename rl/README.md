@@ -526,3 +526,41 @@ outside verified scope. Old checkpoints may still contain absolute historical
 paths; handle those explicitly rather than making a legacy junction a silent
 dependency. Private Agent instructions, progress/history, reports, models, traces
 and run outputs are local-only, not part of the RL Git payload.
+## Restricted God-AI Kickstarting
+
+This is an opt-in auxiliary objective on the existing 1F, 90-action PPO, not a
+new policy network. Student samples alone control the environment. Expert CE is
+averaged over valid labels and added to the same PPO optimizer step; reward,
+GAE and value loss remain unchanged. `lambda_initial` decays linearly to zero
+over `decay_transitions` collected transitions (sampled at each rollout start),
+with its clock saved in models. The joint-loss adapter is pinned to SB3 2.9.x.
+Old `online_teacher` is a separate post-PPO optimizer and is not this method.
+
+The current original Marisa/Reimu scripts are **BLOCKED for training** under the
+student visibility contract. Their `x` is a world coordinate; student animation
+positions are screen coordinates. Missing coordinates, boxes, timers, enemy keys
+and skill/card state are never filled with guessed values. No new native Hook or
+state extraction is included. The entire teacher view is delayed (default 6F),
+neutral home/BGM context is explicit, RNG/coroutines are episode-local, and Lua
+has no file/process access. A continuation whose input prefix was not executed
+by the student is masked, not replaced by the student's own previous action.
+
+`VALID_INPUT` proves vocabulary/card-mask compatibility only, **not** that the
+engine accepted a move or opened a cancel window. Advice is never submitted, so
+teacher move acceptance cannot be measured by pretending advice was executed.
+Unknowns remain masked; positive-weight rollouts with zero labels stop before
+any optimizer update. Full legal-decision/teacher adaptation and native rollout
+validation are still required before formal training.
+
+From the prepared SokuRL root (install the existing `god` optional dependency):
+
+```powershell
+.\.venv\python.exe -B rl/run.py audit_god_teacher --output rl/runs/NEW-expert-audit --check-student
+```
+
+The audit uses existing external Lua sources and an explicitly **synthetic**
+student observation compatibility probe, not gameplay coverage. It records
+source hashes/lines and missing dependencies. `train_combat_kickstarting.yaml`
+is a bounded correctness profile, not a ready teacher-training recipe. Retain
+original PPO/BC checkpoints; use `kind: weights` to start a new objective with a
+fresh optimizer, or identical kickstarting contracts for checkpoint continuation.

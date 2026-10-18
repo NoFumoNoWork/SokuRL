@@ -18,7 +18,7 @@ def ppo_settings(config):
             continue
         if learner[name] != shared[name]:
             raise ValueError(f"algorithm-specific {name} differs from the shared rl configuration; configure rl.{name}")
-    for option in ("rehearsal", "online_anchor", "online_teacher"):
+    for option in ("rehearsal", "online_anchor", "online_teacher", "kickstarting"):
         if option in learner and (option not in shared or learner[option] != shared[option]):
             raise ValueError(f"algorithm-specific {option} differs from shared rl.{option}")
         if option in shared:

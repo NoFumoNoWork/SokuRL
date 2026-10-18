@@ -129,6 +129,8 @@ class EpisodeRecords(BaseCallback):
             self.timings[-1]["online_anchor"] = dict(self.model.anchor_state["last_update"])
         if hasattr(self.model, "teacher_state"):
             self.timings[-1]["online_teacher"] = dict(self.model.teacher_state["last_update"])
+        if hasattr(self.model, 'kickstarting_state'):
+            self.timings[-1]['kickstarting'] = copy_kickstarting_metrics(self.model)
         steps = self.model.num_timesteps
         if self.model._n_updates and (not self.last_saved_steps
                 or steps // self.checkpoint_every > self.last_saved_steps // self.checkpoint_every):
@@ -177,6 +179,12 @@ class EpisodeRecords(BaseCallback):
         if (self.directory/'reward_batches.jsonl').exists():
             from soku_rl.rl.reward_batches import plot_batches
             plot_batches(self.directory)
+
+
+def copy_kickstarting_metrics(model):
+    state = model.kickstarting_state
+    return dict(state.get('last_update', {}), statuses=dict(state['statuses']),
+                examples=list(state['examples']))
 
 
 def train_ppo(env, config, device, seed, directory):
