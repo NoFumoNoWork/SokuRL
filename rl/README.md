@@ -811,6 +811,40 @@ If the previous proposal was not executed it stops the stale coroutine. This
 demonstrates the control-alignment boundary; it is NOT a completed local recovery
 teacher and must not replace the ongoing intent/replanning design.
 
+`policy/god/continuous.py` now supplies a separate, **offline-validated**
+`ContinuousSourceTeacher`. It runs the pinned original `calculation` body once
+per supplied consecutive observation, independently of whether the student follows
+advice. Original `main` decision writes live in a disposable plan scope; observed
+history tables are read-only to decisions. Rejection discards only the affected
+coroutine and input queue, never the episode VM, observation history or actor RNG.
+States are `READY`, `ACTIVE`, `INVALIDATED`, `WAITING`. Fresh plans require a
+caller-proven legal boundary, an explicit 90-action mask, and actual preceding
+input evidence. The existing `LearningInterface` supplies all action conversion;
+there is no second 90-action vocabulary or game-input writer.
+
+`ExecutionReceipt` distinguishes input consumption from separately attributed
+native acceptance, including the accepted plan identity. Matching keys alone do
+not prove an attack started. Missing receipts, poll gaps, facing changes,
+interrupts, hitstop and unknown dependencies mask advice rather than inventing
+progress. A caller-proven cancel/replan boundary may replace an active wait.
+Source helper/call-site provenance and per-frame reconciliation are retained.
+The initial action must be supplied explicitly. Reset creates an isolated actor.
+
+This is a conservative source adaptation, **not original policy equivalence**:
+observation-before-decision changes scheduling; main-only tactical flags are not
+promoted into historical facts. Full charge/release and unproven acceptance paths
+remain masked. A partially failed calculation requires Reset because its memory
+cannot be trusted. Original-source synthetic recovery tests and fixture motion
+tests do not establish native coverage. No production PPO attachment is enabled.
+`audit_continuous_teacher` reuses a source-hash-bound existing Lua AST audit:
+
+```powershell
+.\.venv\python.exe -B rl/run.py audit_continuous_teacher `
+  --audit rl/runs/EXISTING-AUDIT/branches.json `
+  --package third_party/th123_ai/package/th123ai/script `
+  --output rl/runs/NEW-continuous-teacher/lua-state-audit.json
+```
+
 The native Worker still uses its existing observations. Combining the existing
 paused-frame privileged reader with animation capture changes a protected read
 timing and requires the separately presented approval. Native paired-frame,
