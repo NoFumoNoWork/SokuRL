@@ -7,7 +7,7 @@ import pytest
 from game_runtime import observation as readers
 from soku_rl.env.observation.shared_native import SCHEMA,assemble_shared
 from soku_rl.policy.god.native_feedback import NativeTeacherFeedback
-from test_teacher_continuous import teacher,packet,MASK
+from test_teacher_continuous import teacher,packet,MASK,install_decision
 from test_teacher_shared_native import native_example
 
 
@@ -51,6 +51,24 @@ def test_opt_in_reader_never_reads_private_deck_and_default_is_unchanged():
     reader.value=lambda *args:(_ for _ in ()).throw(AssertionError('must not read private deck'))
     assert reader.deck(0)==reader.deck(1)==(0,)*20
     assert PrivilegedReader.deck is Original.deck
+
+
+@pytest.mark.parametrize('character,learner,script',[
+    ('marisa',1,'01_marisa_main.ai'),('reimu',0,'00_reimu_main.ai')])
+def test_bounded_native_smoke_profiles(character,learner,script):
+    from smoke_teacher_native import smoke_profile
+    profile=smoke_profile(character,1024,64)
+    assert profile['learner']==learner and profile['opponent']==1-learner
+    assert profile['script']==script and profile['windows']==(1024,64)
+
+
+@pytest.mark.parametrize('character,frames,reset_frames',[
+    ('unknown',128,64),('reimu',0,64),('marisa',1025,64),
+    ('reimu',128,0),('marisa',128,129),('marisa',True,64)])
+def test_native_smoke_rejects_unbounded_or_unknown_profile(character,frames,reset_frames):
+    from smoke_teacher_native import smoke_profile
+    with pytest.raises(ValueError):
+        smoke_profile(character,frames,reset_frames)
 
 
 def events(frame,keys,*,scope=True):
@@ -114,3 +132,40 @@ def test_native_acceptance_reuses_platform_direct_scope_rule(ambiguous):
     receipt,_,evidence=join.observe(1,stream,action,actor,native_example(1))
     assert receipt.accepted is (not ambiguous)
     assert evidence['accepted_roots']==([] if ambiguous else [42])
+
+
+@pytest.mark.parametrize('script',['01_marisa_main.ai','00_reimu_main.ai'])
+@pytest.mark.parametrize('helper',['lvr236','lvr623','lvr236h'])
+def test_original_command_to_receipt_to_teacher_is_integrated_synthetic_only(script,helper):
+    """Original input program,synthetic state/events;NOT original-game acceptance."""
+    from soku_rl.env.encoding import decode_action
+    actor=teacher(script)
+    install_decision(actor,('key_reset();'+helper+'(ACT_B);wait(3);key_reset();wait(2)').encode())
+    join=NativeTeacherFeedback(actor.interface,0,7,initial_facing=1)
+    receipt=None
+    accepted=0
+    emitted=[]
+    # Include the query after release:the last step's receipt is only reconciled
+    # on the following decision,not when the input is first submitted.
+    for frame in range(8):
+        advice=actor.query(packet(frame,script),schema=SCHEMA,receipt=receipt,
+            trusted_boundary=frame==0,legal_actions=MASK)
+        action=advice['training_label']
+        assert action is not None,advice
+        keys=decode_action(actor.interface.command(action)).inputs
+        emitted.append(keys)
+        stream=events(frame+1,keys)
+        if keys[3] and not accepted:
+            stream.insert(1,dict(frame=frame+1,segment=7,order=2,attacker_seat=0,
+                kind='ACTION_TRANSITION',native_input_scope=12,accepted=True,lineage='DIRECT',
+                attack_instance=42,native_inputs_before=keys,released_inputs_before=(0,)*6,
+                buffered_inputs_before=(0,)*8))
+            accepted+=1
+        current=native_example(frame+1)
+        current.players[0]['char']=0 if script.startswith('00_') else 1
+        receipt,_,_=join.observe(frame+1,stream,action,actor,current)
+    assert accepted==actor.counts['accepted']==1
+    assert actor.serial==1 and actor.counts['invalidations']==0
+    assert emitted[0][:2]==((0,1) if helper.startswith('lvr236') else (1,0))
+    assert actor.counts['input:pressed:B']==1
+    assert actor.counts['input:released:B']==1

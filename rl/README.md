@@ -880,6 +880,9 @@ checkpoint shown above and the existing x86 Bridge build:
 
 ```powershell
 .\rl\tools\smoke_teacher_native.ps1 -Output rl/runs/NEW-native-teacher
+# Optional bounded coverage profile;default remains Marisa128+64F/instance.
+.\rl\tools\smoke_teacher_native.ps1 -Output rl/runs/NEW-reimu-teacher `
+  -Character reimu -Frames 1024 -ResetFrames 64
 ```
 
 It runs Marisa PPO on both seats against the unchanged Reimu pressure opponent,
@@ -887,10 +890,17 @@ It runs Marisa PPO on both seats against the unchanged Reimu pressure opponent,
 game/DLL identity and model parameters. Native control verification observed
 384queries,280candidate labels and269recoveries;no known stale prefix labels in
 the recorded window. Separate student-action diagnostics found5native acceptance
-receipts,NOT5adopted teacher attacks. Most suggestions were neutral/movement;
-high-level skills,charge and Reimu-teacher coverage remain unverified. Per-actor
-readiness markers are intentionally not promoted by this bounded smoke. Do not
-enable formal expert training on this evidence alone.
+receipts,NOT5adopted teacher attacks. Most suggestions were neutral/movement.
+The extended1024+64F profiles were also checked separately for both original
+teachers and both seats,4352queries total. Marisa1913/2176candidate labels and
+Reimu1924/2176;no observed stale rejected prefixes. Original lvr66 was reached
+by both teachers;Reimu lvr623 was reached3times,but the student rejected its
+prefix each time. These are proposed first inputs,NOT3accepted skills. Complete
+skill/charge native acceptance remains unverified. Separate student acceptance
+diagnostics23/33 are not teacher adoption(0/0). The same fixed checkpoint was
+used for wiring tests in both roles,not a Reimu policy-strength evaluation.
+Per-actor readiness markers are intentionally not promoted by this bounded
+smoke. Do not enable formal expert training on this evidence alone.
 
 ### Scoped Original Decisions
 

@@ -29,17 +29,35 @@ from soku_rl.rl.ppo import parameter_hash
 from soku_rl.replay.human_dataset import sha256
 
 
+def smoke_profile(character, frames, reset_frames):
+    """Bound native validation,never expand into an unattended rollout campaign."""
+    if character not in ('marisa','reimu'):
+        raise ValueError('reviewed original teacher required')
+    if type(frames) is not int or not 1<=frames<=1024 or type(reset_frames) is not int or not 1<=reset_frames<=128:
+        raise ValueError('bounded smoke:1..1024 frames and1..128 reset frames')
+    learner = 1 if character=='marisa' else 0
+    return dict(character=character,learner=learner,opponent=1-learner,
+        script='01_marisa_main.ai' if learner else '00_reimu_main.ai',
+        windows=(frames,reset_frames))
+
+
 def main():
     parser=argparse.ArgumentParser(__doc__)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--character',choices=('marisa','reimu'),default='marisa')
+    parser.add_argument('--frames',type=int,default=128)
+    parser.add_argument('--reset-frames',type=int,default=64)
     args=parser.parse_args();root=Path(__file__).resolve().parents[2];out=args.output.resolve()
+    profile=smoke_profile(args.character,args.frames,args.reset_frames)
     if out.exists() or not out.is_relative_to(root/'rl/runs'):
         raise ValueError('NEW project-local output required')
     out.mkdir(parents=True)
     def save(name,data):
         (out/name).write_text(json.dumps(data,indent=2),encoding='utf-8')
     report=dict(status='RUNNING',native_frames=[0,0],episodes=[],training_steps=0,
-        student_only=True,teacher_game_writes=0,move_legality='NOT_A_COMPLETE_ENGINE_LEGAL_TABLE')
+        student_only=True,teacher_game_writes=0,profile=profile,
+        student_role_note='Same fixed checkpoint,not a claim of Reimu-specific policy quality',
+        move_legality='NOT_A_COMPLETE_ENGINE_LEGAL_TABLE')
     started=time.perf_counter();before=fingerprints();save('before.json',before)
     checkpoint=root/'rl/runs/teacher-shared-native-20261018/student-v1/model.zip'
     cfg=OmegaConf.to_container(OmegaConf.load(root/'rl/runs/combat-v2-adaptive-20261015/campaign/train-4/config.yaml'),resolve=True)
@@ -67,19 +85,20 @@ def main():
             pressure_entry=next(e for e in cfg['algorithm']['opponents'] if e['name']=='pressure')
             opponent_interface=LearningInterface(replace(episode,shared_teacher_context=False),learning)
             pressure=load_policy('pressure',pressure_entry['policy'],opponent_interface,'cpu')
-            matches={0:MatchConfig(PlayerSetup(1,0,0),PlayerSetup(0,0,0)),
-                1:MatchConfig(PlayerSetup(0,0,0),PlayerSetup(1,0,0))}
+            learner,opponent_char=profile['learner'],profile['opponent']
+            matches={0:MatchConfig(PlayerSetup(learner,0,0),PlayerSetup(opponent_char,0,0)),
+                1:MatchConfig(PlayerSetup(opponent_char,0,0),PlayerSetup(learner,0,0))}
             neutral=env.interface.action(encode_action((0,)*8))
             mask=tuple(not any(decode_action(env.interface.command(i)).inputs[-2:]) for i in range(90))
             pids_before=None
-            for round_index,frames in enumerate((128,64)):
+            for round_index,frames in enumerate(profile['windows']):
                 seeds={0:71303101+round_index*10,1:71303102+round_index*10}
                 observations,infos=env.reset_matchups(seeds,matches)
                 pids={s:info['pid'] for s,info in backend.request('status',[0,1]).items()}
                 if round_index and pids!=pids_before:
                     raise RuntimeError('fast Reset replaced game instances')
                 pids_before=pids
-                actors={s:ContinuousSourceTeacher(package,'01_marisa_main.ai',seeds[s]+3,
+                actors={s:ContinuousSourceTeacher(package,profile['script'],seeds[s]+3,
                     env.interface,initial_action=neutral) for s in (0,1)}
                 joins={s:NativeTeacherFeedback(env.interface,s,infos[s][AGENTS[s]]['segment'],
                     initial_facing=int(decode_shared(observations[s][AGENTS[s]],schema=SCHEMA).players[0]['dir'])) for s in (0,1)}
@@ -94,7 +113,7 @@ def main():
                     for s in (0,1):
                         value=observations[s][AGENTS[s]]
                         native=decode_shared(value,schema=SCHEMA)
-                        if native.players[0]['char']!=1 or native.players[1]['char']!=0:
+                        if native.players[0]['char']!=learner or native.players[1]['char']!=opponent_char:
                             raise RuntimeError('wrong learner role/seat')
                         advice=actors[s].query(value,schema=SCHEMA,receipt=previous[s],
                             trusted_boundary=boundaries[s],legal_actions=mask)
@@ -114,6 +133,7 @@ def main():
                         previous[s],boundaries[s],evidence[s]=joins[s].observe(frame+1,
                             info['native_combat_events'],actions[s][AGENTS[s]],actors[s],
                             decode_shared(observations[s][AGENTS[s]],schema=SCHEMA))
+                        rows[-2+s]['execution_receipt']=asdict(previous[s])
                         # Independent acceptance diagnostic for the student's
                         # ACTUAL sampled input,not a claim it adopted the teacher.
                         probe=SimpleNamespace(pending={'candidate':actions[s][AGENTS[s]]},serial=frame+1)
