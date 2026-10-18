@@ -33,10 +33,16 @@ def time_step(raw, dropped_frames, observations, pid):
 
 
 class ObservationReader:
-    def __init__(self, pid, mode, visibility, animation_slots=16, horizon=7200, passive_policy=None):
+    shared_teacher_context = False
+
+    def __init__(self, pid, mode, visibility, animation_slots=16, horizon=7200, passive_policy=None,
+                 shared_teacher_context=False):
         if mode not in {"privileged_state", "image", "state", "diagnostic_state", "animation"}:
             raise ValueError("unsupported observation mode")
         self.pid, self.mode, self.visibility = pid, mode, visibility
+        if type(shared_teacher_context) is not bool or (shared_teacher_context and mode != 'animation'):
+            raise ValueError('shared context requires opt-in animation mode')
+        self.shared_teacher_context = shared_teacher_context
         self.animation_slots, self.horizon = animation_slots, horizon
         self.combat_events = CombatEventTracker() if mode == 'animation' else None
         self.native_combat = None
@@ -70,8 +76,21 @@ class ObservationReader:
             if os.environ.get('SOKURL_NATIVE_INPUT_COUNTERS')=='1' and not self.native_combat.native_input_counters:
                 self.close()
                 raise RuntimeError('installed Bridge does not advertise enabled native input counters')
+        if shared_teacher_context:
+            from game_runtime.privileged import SharedCurrentReader, ProcessMemory
+            try:
+                self.shared_reader = SharedCurrentReader(ProcessMemory(pid))
+                self.resources.append(self.shared_reader)
+            except BaseException:
+                self.close()
+                raise
 
     def read(self, raw, bridge, *, known_dropped=None):
+        if self.shared_teacher_context:
+            before = bridge.snapshot()
+            if (before.run_state_name!='PAUSED' or before.game_frame!=raw.frameId or
+                    before.latest.segmentId!=raw.segmentId):
+                raise RuntimeError('paired observation requires exact paused frame')
         if self.mode == "privileged_state":
             observations = self.privileged.observe(raw, bridge)
         elif self.mode == "image":
@@ -85,6 +104,14 @@ class ObservationReader:
             observations = self.diagnostic.observe(raw, bridge)
         dropped = bridge.snapshot().dropped_frames if known_dropped is None else known_dropped
         result = time_step(raw, dropped, observations, self.pid)
+        if self.shared_teacher_context:
+            from soku_rl.env.observation.shared_native import sanitize_native
+            native = self.shared_reader.observe(raw, bridge)
+            after = bridge.snapshot()
+            if (after.run_state_name != 'PAUSED' or after.game_frame != raw.frameId or
+                    after.latest.segmentId != raw.segmentId):
+                raise RuntimeError('paired observation advanced during capture')
+            result.diagnostics['shared_native_context'] = tuple(sanitize_native(o) for o in native)
         if self.mode == 'animation':
             # Events stay outside encoded policy observations and the old reward.
             result.diagnostics['combat_events'] = self.combat_events.observe(raw)

@@ -859,11 +859,38 @@ tests do not establish native coverage. No production PPO attachment is enabled.
   --output rl/runs/NEW-continuous-teacher/lua-state-audit.json
 ```
 
-The native Worker still uses its existing observations. Combining the existing
-paused-frame privileged reader with animation capture changes a protected read
-timing and requires the separately presented approval. Native paired-frame,
-multi-instance Reset and continuous student-disagreement acceptance remain
-unverified. Do not enable expert training merely because offline tests pass.
+The default Worker still uses its existing observations. The separately approved
+opt-in `episode.shared_teacher_context: true` now pairs the existing animation
+capture and `SharedCurrentReader` at the same paused frame. It requires world
+coordinates,16public object slots,1F/zero latency and the unchanged1832 learning
+prefix. Only the current sanitized native context is appended,not eight copies.
+The shared reader never reads future deck order;its zero padding is redaction,
+not an observed20-card deck. The normal complete Reader is unchanged.
+
+`policy/god/native_feedback.py` requires matching frame-end keys AND an observed
+native input-handling scope. It retains native scope/order IDs separately from
+its verified receipt sequence;neither frame IDs nor event order are represented
+as EXE/REP poll counters. Action acceptance reuses Platform CommandPlayer rules,
+rejects ambiguous attack-button evidence and records actual attack roots.
+Parser reentry authorizes re-evaluating original main,NOT every high-level move.
+Native feedback and the interpreter never write teacher inputs to the game.
+
+A bounded two-instance smoke is available after preparing the explicit migrated
+checkpoint shown above and the existing x86 Bridge build:
+
+```powershell
+.\rl\tools\smoke_teacher_native.ps1 -Output rl/runs/NEW-native-teacher
+```
+
+It runs Marisa PPO on both seats against the unchanged Reimu pressure opponent,
+128then64frames/instance with same-process Reset,without training. It preserves
+game/DLL identity and model parameters. Native control verification observed
+384queries,280candidate labels and269recoveries;no known stale prefix labels in
+the recorded window. Separate student-action diagnostics found5native acceptance
+receipts,NOT5adopted teacher attacks. Most suggestions were neutral/movement;
+high-level skills,charge and Reimu-teacher coverage remain unverified. Per-actor
+readiness markers are intentionally not promoted by this bounded smoke. Do not
+enable formal expert training on this evidence alone.
 
 ### Scoped Original Decisions
 

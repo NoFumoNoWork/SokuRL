@@ -30,6 +30,9 @@ class ExecutionReceipt:
 
     Synthetic fixtures must not be described as native proof. accepted is an
     independently attributed native action acceptance, NOT key equality.
+    poll_index is a historical name for a contiguous verified receipt ordinal.
+    A live adapter must retain actual native scope/order IDs separately; this
+    field must not be presented as an EXE or REP input-consumption counter.
     """
     frame: int
     action: int

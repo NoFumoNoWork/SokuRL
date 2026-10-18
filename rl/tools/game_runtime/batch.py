@@ -25,12 +25,16 @@ class SokuGameBatch(EngineBatch):
         self.max_frames = configuration["max_frames"]
         self.animation_slots = configuration.get('animation_object_slots', 16)
         self.passive_policy=configuration.get('passive_policy',{})
+        self.shared_teacher_context=configuration.get('shared_teacher_context',False)
+        if type(self.shared_teacher_context) is not bool or (self.shared_teacher_context and mode!='animation'):
+            raise ValueError('shared context requires opt-in animation mode')
         if type(self.max_frames) is not int or self.max_frames < 1:
             raise ValueError("a positive episode frame limit is required")
 
     def _create_reader(self, pid):
         return ObservationReader(pid, self.observation_mode, self.visibility,
-                                 self.animation_slots, self.max_frames, self.passive_policy)
+                                 self.animation_slots, self.max_frames, self.passive_policy,
+                                 **({'shared_teacher_context':True} if getattr(self,'shared_teacher_context',False) else {}))
 
     def _create_recording(self, pid, slot, seed):
         from game_runtime.recording import EpisodeRecording

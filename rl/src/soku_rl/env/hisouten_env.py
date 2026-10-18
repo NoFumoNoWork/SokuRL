@@ -31,6 +31,7 @@ class EpisodeConfig:
     animation_object_slots: int = 16
     combat_reward: dict | None = None
     animation_world_coordinates: bool = False
+    shared_teacher_context: bool = False
 
     def __post_init__(self):
         if isinstance(self.match, dict):
@@ -46,6 +47,10 @@ class EpisodeConfig:
         if not isinstance(self.visibility, VisibilityConfig):
             raise TypeError("visibility must be a VisibilityConfig or its configuration dictionary")
         frame_width(self.animation_object_slots)
+        if type(self.shared_teacher_context) is not bool or (self.shared_teacher_context and
+                (self.observation_mode!='animation' or not self.animation_world_coordinates or
+                 self.animation_object_slots!=16 or self.decision_frames!=1 or self.latency_frames!=0)):
+            raise ValueError('shared context requires animation/world16/1F/zero latency')
         if type(self.animation_world_coordinates) is not bool or (self.animation_world_coordinates and self.observation_mode != 'animation'):
             raise ValueError('world coordinates require explicit animation mode')
         if self.observation_mode == "animation" and self.history_frames != len(HISTORY_OFFSETS):
@@ -61,6 +66,8 @@ class EpisodeConfig:
         result = {"mode": self.observation_mode, "visibility": asdict(self.visibility),
                   "match": asdict(self.match), "max_frames": self.max_frames}
         if self.observation_mode == 'animation':
+            if self.shared_teacher_context:
+                result['shared_teacher_context'] = True
             result['animation_object_slots'] = self.animation_object_slots
             if self.combat_reward is not None:
                 reward=CombatRewardConfig(**self.combat_reward)
@@ -194,6 +201,9 @@ class Episode:
                            if self.config.observation_mode == 'animation' else {}),
                         **({"native_combat_events": time_step.diagnostics['native_combat_events']}
                            if 'native_combat_events' in time_step.diagnostics else {}),
+                        **({'shared_native_context':time_step.diagnostics['shared_native_context'][seat],
+                            'segment':time_step.diagnostics['segment']}
+                           if self.config.shared_teacher_context else {}),
                         **({"input_metrics": self.input_metrics.snapshot(seat)} if self.ended else {})}
                 for seat, agent in enumerate(AGENTS)}
 

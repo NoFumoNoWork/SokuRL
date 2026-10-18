@@ -51,6 +51,12 @@ class LearningInterface:
             self.observation_space = spaces.Box(low, high, dtype=np.float32)
         else:
             self.observation_space = self.base_space
+        if getattr(episode,'shared_teacher_context',False):
+            from soku_rl.env.observation.shared_native import PUBLIC_FEATURES,SHARED_FEATURES
+            if (self.observation_space.shape!=(PUBLIC_FEATURES,) or config.action_set!='combat' or
+                    config.relative_features or config.action_history!=8):
+                raise ValueError('shared context requires unchanged1832 combat/world history contract')
+            self.observation_space = spaces.Box(-np.inf,np.inf,(SHARED_FEATURES,),np.float32)
 
     def command(self, action):
         if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
@@ -115,8 +121,13 @@ class LearningEpisode:
         return scale * health_potential(observation, self.interface.episode.observation_mode) if scale else 0.
 
     def _observations(self, observations, infos):
-        return {agent: self.observation(agent, observation, infos[agent]["frame"])
-                for agent, observation in observations.items()}
+        result = {agent: self.observation(agent, observation, infos[agent]["frame"])
+                  for agent, observation in observations.items()}
+        if getattr(self.interface.episode,'shared_teacher_context',False):
+            from soku_rl.env.observation.shared_native import assemble_shared
+            result = {agent:assemble_shared(value,infos[agent]['shared_native_context'],
+                        public_frame=infos[agent]['frame']) for agent,value in result.items()}
+        return result
 
     def observation(self, agent, observation, frame):
         if isinstance(self.interface.observation_space, spaces.Dict):
