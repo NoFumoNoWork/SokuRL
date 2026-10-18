@@ -165,8 +165,8 @@ def test_budget_failure_and_rewind_not_masked_as_missing_memory():
 
 def test_memory_roles_do_not_imply_trust_or_native_equivalence():
     assert classify('after_guard_count')[0]=='EVENT_MEMORY'
-    assert classify('RnI_B')[0]=='EXECUTION_PROGRESS'
-    assert classify('rapid')[0]=='TACTICAL_INTENT'
+    assert classify('RnI_B')[0]=='SCRIPT_CONSTANT'
+    assert classify('rapid')[0]=='STATIC_AI_PARAMETER'
     assert classify('enemy_obj_id')[1]=='UNTRUSTED_MISSING_SHARED_DEPENDENCIES'
     assert classify('new_unknown')[0]=='UNKNOWN'
 

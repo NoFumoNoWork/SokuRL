@@ -86,7 +86,7 @@ return env, execute, function(n) remaining=n; last=''; blocked_at=nil end,
 
 def validate_spec(spec):
     keys = {'package', 'api_source', 'script', 'reaction_frames', 'instruction_limit', 'seed'}
-    if not isinstance(spec, dict) or not keys <= set(spec) or set(spec) - keys - {'mode', 'source_adapter', 'task_context', 'perception', 'memory'}:
+    if not isinstance(spec, dict) or not keys <= set(spec) or set(spec) - keys - {'mode', 'source_adapter', 'task_context', 'perception', 'memory', 'decisions'}:
         raise ValueError('expert requires explicit package/API/script, reaction_frames, instruction_limit and seed')
     if spec.get('mode', 'input') not in ('input', 'intent'):
         raise ValueError('expert mode must be input or intent')
@@ -99,6 +99,8 @@ def validate_spec(spec):
             spec.get('perception') != 'student_visible_v1' or
             spec.get('source_adapter') != 'th123ai_20110925'):
         raise ValueError('observed_source_v1 memory requires pinned source adapter and visible perception')
+    if 'decisions' in spec and (spec['decisions']!='source_scoped_v1' or spec.get('memory')!='observed_source_v1'):
+        raise ValueError('source_scoped_v1 decisions require observed_source_v1 memory')
     if any(not isinstance(spec[k], str) or not spec[k] for k in ('package', 'api_source', 'script')):
         raise ValueError('expert source paths and script must be nonempty')
     if type(spec['reaction_frames']) is not int or spec['reaction_frames'] < 1:
@@ -142,7 +144,7 @@ class QueryTeacher:
         self.fingerprint = hashlib.sha256(json.dumps({
             'package': self.package.original_fingerprint, 'spec': spec,
             'implementation': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'perception.py', 'observed_memory.py', 'api.py', 'runtime.py', 'package.py')},
+                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'perception.py', 'observed_memory.py', 'scoped_state.py', 'card_only_gates.json', 'api.py', 'runtime.py', 'package.py')},
             'adapter': self.adapter.report if self.adapter else None,
             'projection': 'student_animation_shared_world_v2' if getattr(episode, 'animation_world_coordinates', False) else 'student_animation_only_v1',
             'home_advantage': 'disabled',
@@ -184,6 +186,10 @@ class QueryEpisode:
         if teacher.spec.get('memory') == 'observed_source_v1':
             from .observed_memory import ObservedMemory
             self.observed_memory = ObservedMemory(self)
+        self.scoped_decisions=None
+        if teacher.spec.get('decisions')=='source_scoped_v1':
+            from .scoped_state import ScopedDecisions
+            self.scoped_decisions=ScopedDecisions(self)
 
     def require(self, name):
         package = self.teacher.package
@@ -215,6 +221,8 @@ class QueryEpisode:
         if not (current[0] and current[10]):
             if self.observed_memory is not None:
                 self.observed_memory.interrupt('UNAVAILABLE_VISIBLE_FIGHTER')
+                if self.scoped_decisions is not None:
+                    self.scoped_decisions.invalidate_observation()
             return Advice('UNAVAILABLE_VISIBLE_FIGHTER')
         for offset, prefix in ((0, b'my_'), (10, b'enemy_')):
             token = current[offset:offset+10]
@@ -252,6 +260,9 @@ class QueryEpisode:
             self.perception_history.append((fields['teacher_observation_index'],dict(fields),view))
             if self.observed_memory is not None:
                 self.observed_memory.observe(fields['teacher_observation_index'])
+                if self.scoped_decisions is not None:
+                    self.scoped_decisions.observe(fields['teacher_observation_index'])
+                    return self.scoped_decisions.query(opportunity,boundary_id)
                 return Advice('PHASE2_OBSERVED_MEMORY_READY',
                     detail='Selective source memory only; unsupported groups untrusted; Phase3 labels disabled',
                     decision_frame=self.frame)

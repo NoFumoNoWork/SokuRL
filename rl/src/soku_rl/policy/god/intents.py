@@ -85,6 +85,45 @@ class IntentSession:
             raise ValueError('reject requires the currently pending intent identity')
         self.pending = None
         self.invalidations += 1
+        scoped=getattr(self.episode,'scoped_decisions',None)
+        if scoped is not None:
+            scoped.discard_plan('STUDENT_REJECTED')
+
+    def boundary(self, opportunity, boundary_id):
+        from .query import Advice
+        if (not isinstance(opportunity, Opportunity) or
+                opportunity.legality_source != 'PROVIDED_ENGINE_LEGAL_SET' or
+                not opportunity.can_respond or opportunity.forced):
+            return Advice('WAIT_TRUSTED_DECISION_BOUNDARY')
+        if (type(boundary_id) is not int or boundary_id != self.episode.frame or
+                boundary_id <= self.last_boundary):
+            return Advice('STALE_DECISION_BOUNDARY')
+        if (len(opportunity.legal_actions) != len(self.catalog) or
+                any(type(x) is not bool for x in opportunity.legal_actions)):
+            raise ValueError('intent opportunity must use the existing command catalog')
+        self.last_boundary=boundary_id
+        self.pending=None
+
+    def interpret(self, value, opportunity, boundary_id):
+        from .query import Advice
+        if value is not None and hasattr(value,'__getitem__') and value[b'kind']==b'UNSUPPORTED_OPERATION':
+            return Advice('UNSUPPORTED_INTENT_SEGMENT',source=value[b'source'].decode('utf-8','replace'),
+                detail=value[b'operation'].decode('utf-8','replace'),decision_frame=boundary_id)
+        if value is None or not hasattr(value,'__getitem__') or value[b'kind']!=b'INTENT':
+            return Advice('NO_INTENT',decision_frame=boundary_id)
+        command,source=value[b'command'],value[b'source'].decode('utf-8','replace')
+        if not isinstance(command,bytes):
+            return Advice('UNMAPPABLE_INTENT',source=source,decision_frame=boundary_id)
+        name=command.decode('ascii','strict')
+        index=self.indices.get(name)
+        if index is None:
+            return Advice('UNMAPPABLE_INTENT',intent=name,source=source,decision_frame=boundary_id)
+        if not opportunity.legal_actions[index]:
+            return Advice('MASKED_INTENT',intent=name,source=source,decision_frame=boundary_id)
+        self.serial+=1
+        self.pending=Advice('INTENT_PROPOSED',intent=name,intent_id=self.serial,source=source,
+            decision_frame=boundary_id,detail='Proposal only; no native acceptance or 90-action label asserted')
+        return self.pending
 
     def query(self, opportunity, boundary_id):
         from .query import Advice
@@ -100,17 +139,8 @@ class IntentSession:
             except (LuaError, LuaMemoryError, ValueError, FileNotFoundError,
                     AttributeError, TypeError) as error:
                 return self.source_error(error)
-        if (not isinstance(opportunity, Opportunity) or
-                opportunity.legality_source != 'PROVIDED_ENGINE_LEGAL_SET' or
-                not opportunity.can_respond or opportunity.forced):
-            return Advice('WAIT_TRUSTED_DECISION_BOUNDARY')
-        if (type(boundary_id) is not int or boundary_id != episode.frame or
-                boundary_id <= self.last_boundary):
-            return Advice('STALE_DECISION_BOUNDARY')
-        if (len(opportunity.legal_actions) != len(self.catalog) or
-                any(type(x) is not bool for x in opportunity.legal_actions)):
-            raise ValueError('intent opportunity must use the existing command catalog')
-        self.last_boundary = boundary_id
+        blocked=self.boundary(opportunity,boundary_id)
+        if blocked is not None:return blocked
         # A new boundary always reassesses the actual observed world. Never finish
         # the preceding coroutine or inject its keys, even if the intent repeats.
         self.pending = None
@@ -132,30 +162,7 @@ class IntentSession:
             finally:
                 if restore is not None:
                     restore()
-            if value is not None and hasattr(value, '__getitem__') and value[b'kind'] == b'UNSUPPORTED_OPERATION':
-                return Advice('UNSUPPORTED_INTENT_SEGMENT',
-                    source=value[b'source'].decode('utf-8', 'replace'),
-                    detail=value[b'operation'].decode('utf-8', 'replace'),
-                    decision_frame=boundary_id)
-            if (value is None or not hasattr(value, '__getitem__') or value[b'kind'] != b'INTENT'):
-                return Advice('NO_INTENT', decision_frame=boundary_id)
-            command = value[b'command']
-            source = value[b'source'].decode('utf-8', 'replace')
-            if not isinstance(command, bytes):
-                return Advice('UNMAPPABLE_INTENT', source=source, decision_frame=boundary_id)
-            name = command.decode('ascii', 'strict')
-            index = self.indices.get(name)
-            if index is None:
-                return Advice('UNMAPPABLE_INTENT', intent=name, source=source,
-                    decision_frame=boundary_id)
-            if not opportunity.legal_actions[index]:
-                return Advice('MASKED_INTENT', intent=name, source=source,
-                    decision_frame=boundary_id)
-            self.serial += 1
-            self.pending = Advice('INTENT_PROPOSED', intent=name, intent_id=self.serial,
-                source=source, decision_frame=boundary_id,
-                detail='Proposal only; no native acceptance or 90-action label asserted')
-            return self.pending
+            return self.interpret(value,opportunity,boundary_id)
         except (LuaError, LuaMemoryError, ValueError, FileNotFoundError,
                 AttributeError, UnicodeError, TypeError) as error:
             return self.source_error(error)

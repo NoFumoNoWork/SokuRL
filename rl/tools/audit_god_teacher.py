@@ -136,6 +136,7 @@ def main():
     parser.add_argument('--branch-parser-site',help='explicit isolated rl/.tools Lua AST parser site; launches a separate -I -S process')
     parser.add_argument('--visible-perception',action='store_true',help='Phase1 data-only route; requires --world-coordinates, does not enable legacy memory/labels')
     parser.add_argument('--observed-memory',action='store_true',help='Phase2 passive source memories; requires --visible-perception; no decision labels')
+    parser.add_argument('--scoped-decisions',action='store_true',help='Offline original-decision scope probe with an explicitly synthetic supplied mask; requires --observed-memory; no native legality or primitive labels')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = Path(args.output).resolve()
@@ -163,6 +164,10 @@ def main():
         if not args.visible_perception:
             raise ValueError('observed memory requires --visible-perception')
         spec['memory']='observed_source_v1'
+    if args.scoped_decisions:
+        if not args.observed_memory:
+            raise ValueError('scoped decisions require --observed-memory')
+        spec['decisions']='source_scoped_v1'
     teacher = QueryTeacher(interface, spec)
     package = Path(spec['package'])
     sources = [package/spec['script'], package/'00_reimu_main.ai', package/'def_clc.lua',
@@ -186,12 +191,20 @@ def main():
                     np.zeros(8*interface.config.action_history, np.float32)]
         statuses = Counter()
         for _ in range(spec['reaction_frames']+2):
-            answer = actor.query(obs)
+            kwargs={}
+            if args.scoped_decisions:
+                from soku_rl.policy.hierarchical_control import Opportunity,command_catalog
+                kwargs=dict(opportunity=Opportunity(True,tuple(True for _ in command_catalog()),
+                    'OFFLINE_SYNTHETIC_SUPPLIED_MASK_NOT_NATIVE_LEGALITY','PROVIDED_ENGINE_LEGAL_SET'),
+                    boundary_id=actor.frame+1)
+            answer = actor.query(obs,**kwargs)
             statuses[answer.status] += 1
         probe.append(dict(script=script, statuses=dict(statuses), last=answer.record(),
                           source_adapter=variant.adapter.report if variant.adapter else None,
+                          source_adapter_report_usage='LEGACY_SPLIT_METADATA_NOT_ACTIVE_SCHEDULING' if variant.visible_perception else 'LEGACY_EXECUTION_PATH',
                           visible_view=actor.visible_view.report() if hasattr(actor,'visible_view') else None,
                           observed_memory=actor.observed_memory.report() if actor.observed_memory else None,
+                          scoped_state=actor.scoped_decisions.report() if actor.scoped_decisions else None,
                           legacy_adapter_executed=bool(actor.intents and actor.intents.loaded),
                           perception_history_rows=len(actor.perception_history)))
     result = dict(status='BLOCKED_TEACHER_ADAPTATION' if any(
@@ -216,6 +229,22 @@ def main():
     if args.observed_memory and all(p['last']['status']=='PHASE2_OBSERVED_MEMORY_READY' for p in probe):
         result['status']='PASS_PHASE2_PASSIVE_MEMORY_ONLY'
         result['boundaries']['next']='Original tactical writes/execution progress remain untrusted; Phase3 labels and Phase4 native validation required'
+    if args.scoped_decisions:
+        result['status']='BLOCKED_SCOPED_SOURCE' if any(p['scoped_state']['fatal'] for p in probe) else 'PASS_SCOPED_STATE_INFRASTRUCTURE_ONLY'
+        result['boundaries']['opportunity']='synthetic all-candidate test mask, NOT observed engine legality'
+        result['boundaries']['active_perception']='passive source memories plus observed flags; original decision scope, no global rollback'
+        result['boundaries']['next']='Resolve remaining source-state/action dependencies and Phase3 labels; Phase4 native validation still required'
+        result['readiness']=dict(state_infrastructure=result['status'],
+            primitive_labels='NOT_IMPLEMENTED',native_opportunities='NOT_IMPLEMENTED',
+            native_validation='NOT_TESTED',training='BLOCKED',
+            original_source_proposals=sum(p['statuses'].get('INTENT_PROPOSED',0) for p in probe),
+            source_queries='synthetic observation probes only; local masks are NOT trusted labels')
+        evidence_files=[root/'third_party/th123_ai/source/th123_ai/scriptLua.cpp',
+            root/'third_party/th123_ai/source/th123_ai/obj_base.h',
+            root/'platform/src/sokurl_platform/bridge_shared.py',
+            root/'platform/native/SokuRLBridge/SokuRLBridge.cpp']
+        result['scope_evidence']=[dict(path=str(p),sha256=hashlib.sha256(p.read_bytes()).hexdigest())
+                                  for p in evidence_files if p.is_file()]
     from soku_rl.policy.god.perception import FIELD_MAP, ALIASES
     result['perception_mapping'] = FIELD_MAP
     result['task_context'] = teacher.context
@@ -249,6 +278,10 @@ def main():
                              for r in RULES+HISTORY_RULES) or
                          (1094<=assignment['line']<=1097 and name.endswith(('_preact','_preframe')))))
                     trust='SELECTIVE_RULE_RUNTIME_VALIDITY_REQUIRED' if reviewed else 'UNTRUSTED_UNEXECUTED_SOURCE_WRITE'
+                if name in ('ex_combo','crush_combo'):
+                    observed=(assignment['source']=='00_reimu_main.ai' and 53<=assignment['line']<=63)
+                    role='OBSERVED_TACTICAL_MEMORY' if observed else 'SPECULATIVE_EXECUTION_PLAN'
+                    trust='SOURCE_GUARD_PROOF_REQUIRED' if observed else 'QUERY_LOCAL_NOT_ASSUMED_EXECUTED'
                 inventory.append(dict(assignment,name=name,role=role,trust=trust))
         memory_inventory=dict(schema='teacher_memory_inventory_v1',
             evidence='STATIC_SOURCE_WRITE_SITES_AND_SELECTIVELY_REVIEWED_ROLES_NOT_RUNTIME_TRUST',
@@ -261,7 +294,7 @@ def main():
         result['branch_audit'] = dict(path=str(output/'branches.json'),counts=branch_result['counts'],
             path_counts=branch_result['path_counts'],
             guard_probes=str(output/'guard_probes.json'),
-            status='STATIC_ONLY_NO_BRANCH_EXECUTION_ENABLED',
+            status='STATIC_ORIGINAL_STRUCTURE_PLUS_SCOPED_FIXTURE_NOT_BRANCH_COVERAGE' if args.scoped_decisions else 'STATIC_ONLY_NO_BRANCH_EXECUTION_ENABLED',
             priority='Unknown earlier guards are not silently treated as false')
         result['memory_inventory']=dict(path=str(output/'memory_inventory.json'),counts=memory_inventory['counts'])
     result['dependency_inventory'] = [

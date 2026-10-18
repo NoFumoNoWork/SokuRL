@@ -1,0 +1,12 @@
+defaults:
+  - train_combat_kickstarting_memory
+  - _self_
+
+# Original decisions run only at externally supplied trusted opportunities.
+# Missing source state masks only the current query. Atomic labels/native gates
+# are still unimplemented: this profile must not attach to PPO for training.
+rl:
+  kickstarting:
+    teacher:
+      decisions: source_scoped_v1
+output: ${oc.env:SOKURL_RL_ROOT}/runs/kickstarting-scoped-${now:%Y%m%d-%H%M%S}

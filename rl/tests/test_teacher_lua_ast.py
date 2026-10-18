@@ -70,3 +70,61 @@ end
     last=next(x for x in probe['branches'] if x['id'].endswith(':else'))
     assert last['path']=='UNKNOWN_PRECEDING_OR_ENCLOSING_GUARD'
     assert all(x['atomic_label'] is None for x in probe['branches'])
+
+
+def test_card_gate_classifier_rejects_mixed_unknown_dynamic_and_guard_inputs(tmp_path):
+    if not (SITE/'luaparser/ast.py').is_file():pytest.skip('optional isolated AST auditor not prepared')
+    package=tmp_path/'script';package.mkdir()
+    text='''function card_helper() key_off(ACT_LEFT);key_event(ACT_BC) end
+function dynamic_helper(key) key_on(key) end
+function recursive_helper() recursive_helper() end
+function main()
+ if a==1 then card_helper() end -- card_only
+ if a==2 then card_helper();key_event(ACT_A) end -- mixed
+ if a==3 then unknown_helper();card_helper() end -- unknown
+ if a==4 then dynamic_helper(ACT_BC) end -- dynamic
+ if a==5 then recursive_helper();card_helper() end -- recursive
+ if a==6 then -- mixed_parent
+  if b==1 then card_helper() else key_on(ACT_D) end -- inner_card
+ end
+ if a==7 and key_on(ACT_D) then card_helper() end -- active_guard
+end
+'''
+    (package/'01_marisa_main.ai').write_text(text,encoding='ascii')
+    for name in ('00_reimu_main.ai','def_clc.lua','function_command.txt'):
+        (package/name).write_text('-- empty',encoding='ascii')
+    api=tmp_path/'api.ai';api.write_text('ACT_AB=8;ACT_BC=9;ACT_A=4',encoding='ascii')
+    allowed=tmp_path/'allowed.json';allowed.write_text('[]',encoding='ascii')
+    output=tmp_path/'gates.json'
+    subprocess.run([sys.executable,'-B','-I','-S',str(ROOT/'rl/tools/teacher_lua_ast.py'),
+        '--site',str(SITE),'--package',str(package),'--api',str(api),
+        '--available',str(allowed),'--output',str(output)],check=True,timeout=120)
+    result=json.loads(output.read_text('utf-8'))
+    gates={g['line']:g for g in result['card_only_task_gates']}
+    line=lambda tag:next(i for i,v in enumerate(text.splitlines(),1) if v.endswith('-- '+tag))
+    assert set(gates)=={line('card_only'),line('inner_card')}
+    for gate in gates.values():
+        assert gate['body_effects']==['CARD'] and gate['guard_effects']==[]
+        raw=(package/'01_marisa_main.ai').read_bytes()[gate['condition_start']:gate['condition_end']]
+        import hashlib
+        assert hashlib.sha256(raw).hexdigest()==gate['condition_sha256']
+
+
+def test_formal_card_gate_registry_reproduces_from_pinned_original_source(tmp_path):
+    package=ROOT/'third_party/th123_ai/package/th123ai/script'
+    api=ROOT/'third_party/th123_ai/source/th123_ai/api.ai'
+    if not (SITE/'luaparser/ast.py').is_file() or not api.is_file():
+        pytest.skip('optional isolated parser/original package unavailable')
+    import hashlib
+    registry=json.loads((ROOT/'rl/src/soku_rl/policy/god/card_only_gates.json').read_text('utf-8'))
+    allowed=tmp_path/'allowed.json';allowed.write_text('[]',encoding='ascii')
+    output=tmp_path/'reproduced.json'
+    generator=ROOT/'rl/tools/teacher_lua_ast.py'
+    subprocess.run([sys.executable,'-B','-I','-S',str(generator),
+        '--site',str(SITE),'--package',str(package),'--api',str(api),
+        '--available',str(allowed),'--output',str(output)],check=True,timeout=120)
+    result=json.loads(output.read_text('utf-8'))
+    assert registry['sources']==result['sources']
+    assert registry['gates']==result['card_only_task_gates']
+    assert registry['api_sha256']==hashlib.sha256(api.read_bytes()).hexdigest()
+    assert registry['generator_sha256']==hashlib.sha256(generator.read_bytes()).hexdigest()

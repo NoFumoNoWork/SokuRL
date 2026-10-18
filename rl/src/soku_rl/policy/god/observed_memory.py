@@ -38,9 +38,12 @@ HISTORY_RULES = (Rule('my_history',797,802,('my_preact','my_preframe'),'OBSERVAT
     Rule('enemy_history',804,809,('enemy_preact','enemy_preframe'),'OBSERVATION_MEMORY'))
 HISTORY_NAMES = ('my_preact','my_preframe','enemy_preact','enemy_preframe')
 SUPPORTED = {name for rule in RULES+HISTORY_RULES for name in rule.writes}
-EXECUTION = {'RnI_B','RnI_C','B_count','C_count','countD','loop_count'}
-TACTICAL = {'true_math','rapid','ex_combo','base_chain','crush_combo','graze_atk',
-    'caution_range','muteki','m300_rapid','in_of_ranges','out_of_ranges'}
+EXECUTION = {'countD','loop_count'}
+SOURCE_CONSTANTS = {'RnI_B','RnI_C','B_count','C_count'}
+PARAMETERS = {'rapid','stand_neutral','stand_front','stand_back','caution_range',
+              'base_chain','muteki','graze_atk','m300_rapid'}
+SCRATCH = {'i','true_math','in_of_ranges','out_of_ranges','JFP_No','JFP_hp','true_obj_n'}
+TACTICAL = {'ex_combo','crush_combo'}
 HIDDEN_MEMORY = {'bio_math','my_airEX','enemy_airEX','my_xspeedEX','enemy_xspeedEX',
     'old_bt','old_x','old_ex','old_m_ys','old_e_ys','m_gs','e_gs','old_obj_dis',
     'obj_speedEX','obj_disEX','old_obj_disEX','pre0_enemy_obj_n','flag_kishitu',
@@ -54,6 +57,12 @@ def classify(name):
                 'SELECTIVE_SOURCE_RULE_RUNTIME_VALIDITY_REQUIRED')
     if name in EXECUTION:
         return 'EXECUTION_PROGRESS','UNTRUSTED_REQUIRES_ACTUAL_INPUT_AND_ACCEPTANCE'
+    if name in SOURCE_CONSTANTS:
+        return 'SCRIPT_CONSTANT','PINNED_PACKAGE_UNUSED_HOLD_FLAGS_NOT_STUDENT_KEY_STATE'
+    if name in PARAMETERS:
+        return 'STATIC_AI_PARAMETER','SOURCE_PARAMETER_NOT_GAMEPLAY_MEASUREMENT'
+    if name in SCRATCH:
+        return 'QUERY_SCRATCH','DISPOSABLE_NOT_PERSISTENT_TACTICAL_MEMORY'
     if name in TACTICAL:
         return 'TACTICAL_INTENT','UNTRUSTED_DECISION_WRITES_NOT_ENABLED'
     if name in HIDDEN_MEMORY or name.startswith(('enemy_obj_','pre0_enemy_obj_', 'enemy_hitarea_')):

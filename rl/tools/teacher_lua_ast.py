@@ -120,6 +120,43 @@ def audit(package, api, available):
 
     branches = []
     assignments = []
+    card_gates=[]
+    effect_cache={}
+    passive_calls={'print','tonumber','tostring','type','pairs','ipairs','unpack',
+        'key_reset','key_off','wait','yield','get_card_id','get_card_cost','get_card_cost2',
+        'get_skill_lv','get_fflags','get_aflags','get_special_data','get_hitarea','get_attackarea',
+        'get_obj_data','get_obj_attackarea','get_obj_hitarea','get_correction','get_key_stat',
+        'get_key_map','get_deck_list','get_opt_xy'}
+    safe_math={'floor','ceil','sqrt','abs','sin','cos','rad','min','max','random'}
+    def effects(node, stack=frozenset()):
+        """Active input effects only; unknown helpers/keys never prove card-only."""
+        result=set()
+        if isinstance(node,n.Call):
+            function=node.func
+            if isinstance(function,n.Name):
+                name=function.id
+                if name in functions:
+                    if name in stack:return {'UNKNOWN_RECURSIVE_CALL'}
+                    if name not in effect_cache:
+                        effect_cache[name]=effects(functions[name][1].body,stack|{name})
+                    result.update(effect_cache[name])
+                elif name in ('key_on','key_event','key_event2'):
+                    keys=node.args
+                    result.add('CARD' if keys and all(isinstance(k,n.Name) and k.id in ('ACT_AB','ACT_BC') for k in keys)
+                               else 'NONCARD_OR_DYNAMIC_INPUT')
+                elif name in passive_calls:
+                    pass
+                else:
+                    result.add('UNKNOWN_CALL')
+            elif not (isinstance(function,n.Index) and isinstance(function.value,n.Name)
+                    and function.value.id=='math' and isinstance(function.idx,n.Name) and function.idx.id in safe_math):
+                result.add('UNKNOWN_CALL')
+            for argument in node.args:result.update(effects(argument,stack))
+            return result
+        if isinstance(node,(n.Function,n.LocalFunction)):
+            return {'UNKNOWN_NESTED_FUNCTION'}
+        for child in children(node):result.update(effects(child,stack))
+        return result
     def visit(node, source, path=(), scope=None, bound=frozenset(), loops=()):
         if isinstance(node,(n.Function,n.LocalFunction)):
             args={x.id for x in node.args if isinstance(x,n.Name)}
@@ -156,6 +193,16 @@ def audit(package, api, available):
             reads,calls,writes = expand(node.test,bound)
             br,bc,bw = expand(node.body,bound)
             missing = reasons(reads)
+            if source in ('01_marisa_main.ai','00_reimu_main.ai') and scope=='main':
+                body_effects=effects(node.body)
+                guard_effects=effects(node.test)
+                if body_effects=={'CARD'} and guard_effects<={'CARD'}:
+                    first,last=offsets[source][node.test.first_token.start],offsets[source][node.test.last_token.stop+1]
+                    card_gates.append(dict(source=source,line=line,kind=type(node).__name__,
+                        condition_start=first,condition_end=last,
+                        condition_sha256=hashlib.sha256(sources[source][first:last]).hexdigest(),
+                        body_effects=sorted(body_effects),guard_effects=sorted(guard_effects),body_calls=sorted(bc),
+                        policy='DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION'))
             branches.append(dict(id=f'{source}:{line}',source=source,line=line,enclosing_function=scope,
                 kind=type(node).__name__,
                 enclosing_bindings=sorted(bound),loop_context=list(loops),
@@ -165,7 +212,7 @@ def audit(package, api, available):
                 path=list(path),guard_reads=sorted(reads),guard_calls=sorted(calls),
                 missing_guard=missing,body_missing=reasons(br),body_calls=sorted(bc),body_writes=sorted(bw),
                 guard_status='DEPENDENCY_READY_ONLY' if not missing else 'UNSUPPORTED_GUARD',
-                execution_status='NOT_ENABLED_REQUIRES_PHASE2_3',
+                execution_status='NOT_ENABLED_BY_STATIC_AUDIT_REQUIRES_RUNTIME_TRUST',
                 priority='earlier false guards in path must be known; no skipping them as if false'))
             visit(node.body,source,path+((line,True),),scope,bound,loops)
             if node.orelse is not None:
@@ -177,7 +224,7 @@ def audit(package, api, available):
                         enclosing_bindings=sorted(bound),loop_context=list(loops),
                         path=list(otherwise),guard_reads=[],guard_calls=[],missing_guard=[],
                         body_missing=reasons(er),body_calls=sorted(ec),body_writes=sorted(ew),
-                        guard_status='DEPENDENCY_READY_ONLY',execution_status='NOT_ENABLED_REQUIRES_PHASE2_3',
+                        guard_status='DEPENDENCY_READY_ONLY',execution_status='NOT_ENABLED_BY_STATIC_AUDIT_REQUIRES_RUNTIME_TRUST',
                         priority='else requires ALL preceding guards false; local readiness is not enough'))
                 visit(node.orelse,source,otherwise,scope,bound,loops)
         else:
@@ -202,6 +249,7 @@ def audit(package, api, available):
         path_counts=dict(Counter(x['path_status'] for x in branches)),
         branches=branches,
         assignments=assignments,
+        card_only_task_gates=card_gates,
         functions={name:dict(source=source,line=node.first_token.line,
             reads=sorted(expand(node)[0]),writes=sorted(expand(node)[2]))
             for name,(source,node) in functions.items()})
@@ -214,6 +262,7 @@ def main():
     parser.add_argument('--api',required=True)
     parser.add_argument('--available',required=True)
     parser.add_argument('--output',required=True)
+    parser.add_argument('--gate-registry',help='explicit generated formal JSON under rl/src/soku_rl/policy/god; no raw scripts included')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     site = Path(args.site).resolve(strict=True)
@@ -224,6 +273,17 @@ def main():
     sys.path.insert(0,str(site))
     result = audit(Path(args.package),Path(args.api),json.loads(Path(args.available).read_text('utf-8')))
     output.write_text(json.dumps(result,indent=2,ensure_ascii=True),encoding='utf-8')
+    if args.gate_registry:
+        target=Path(args.gate_registry).resolve()
+        if target.parent!=root/'rl/src/soku_rl/policy/god' or target.suffix!='.json':
+            raise ValueError('formal gate registry must be a JSON in the teacher source module')
+        if target.exists():raise FileExistsError(target)
+        registry=dict(schema='teacher_card_only_gates_v1',sources=result['sources'],
+            api_sha256=hashlib.sha256(Path(args.api).read_bytes()).hexdigest(),
+            generator_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            evidence='CONSERVATIVE_TRANSITIVE_ACTIVE_INPUT_CLASSIFICATION_NOT_ORIGINAL_POLICY_EQUIVALENCE',
+            gates=result['card_only_task_gates'])
+        target.write_text(json.dumps(registry,indent=2),encoding='utf-8')
     print(json.dumps(dict(counts=result['counts'],branches=len(result['branches']),output=str(output))))
 
 

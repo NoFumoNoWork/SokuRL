@@ -774,3 +774,64 @@ The additional `memory_inventory.json` records source-specific assignment sites,
 direct dependencies and reviewed role/trust status. Reports remain local under
 the run directory. No teacher actions are submitted, no weights are updated, and
 this command does not replace Phase 3 atomic-label or Phase 4 native validation.
+
+### Scoped Original Decisions
+
+`train_combat_kickstarting_scoped.yaml` adds the opt-in `source_scoped_v1`
+decision environment. It keeps the episode Lua VM, definitions, RNG, static AI
+parameters and observation-confirmed flags, but separates each query's scratch
+variables and speculative plan writes. No global snapshot/rollback is used.
+An intent rejection discards the plan, not observed history. A later supplied
+trusted boundary reevaluates the actual delayed student state. Missing fields,
+unreviewed writes and unsupported key/wait operations mask the current segment;
+unexpected source errors and resource-limit failures require Reset.
+
+The four original scripts and original API are SHA-pinned. Only complete helper
+definition regions are loaded from `def_clc.lua`; its unused object/history
+initializers and full calculation thread are not executed. The original
+`base_states()` and static defaults supply AI parameters, not verified native
+move timing. `rapid` and library tables are read-only during decisions. Unused
+source hold flags are constant zero in this exact package, **not** a statement
+about student-held buttons. Reimu's observed flag updates at source53..63 are
+separate from execution-dependent Combo plans; unexecuted plans never establish
+those flags for the next query.
+
+Three reviewed pure guard reorderings check necessary action/height conditions
+before missing velocity or read-only frame flags. They preserve Boolean results
+for complete numeric inputs; no flag or velocity value is substituted. When an
+explicit Clear/cards-disabled task is bound, weather21/display21/counter0 are
+declared task premises derived from existing Platform enforcement, **not new
+native reads or proof of deployment correctness**. A generated, SHA-bound
+`card_only_gates.json` identifies card-only conditions by conservative transitive
+active-input effects in the original AST. It is a formal runtime registry, not
+a run report; runtime does not import the AST parser. Mixed attacks, dynamic
+keys, unknown/recursive calls and active non-card guard inputs cannot prove
+card-only behavior and are not pruned. Current source has84 Marisa/72 Reimu
+eligible conditions. This is deliberate restricted-policy pruning, not original
+policy equivalence. Hand/skill/object APIs stay unavailable, rather than being
+filled with false values. Unsupported `else` branches are not rewritten.
+
+```powershell
+.\.venv\python.exe -B rl/run.py audit_god_teacher --world-coordinates `
+  --visible-perception --observed-memory --scoped-decisions `
+  --branch-parser-site rl/.tools/lua-parser/site `
+  --output rl/runs/NEW-scoped-teacher-audit
+```
+
+This audit supplies an explicitly synthetic opportunity mask to exercise the
+original decision entry without a game. It is **not native legality evidence**.
+The report distinguishes state infrastructure, actual source proposals, missing
+dependencies, source call stacks and unimplemented primitive/native/training
+gates. A local mask is not a teacher label. Generated hashes, source regions,
+task gates and original source identities are recorded separately. The original
+PPO attachment remains BLOCKED: no formal training before actual-prefix
+90-action supervision and native continuous-query validation are complete.
+
+`test_formal_card_gate_registry_reproduces_from_pinned_original_source` regenerates
+the classification and checks exact source/API/generator hashes and all entries.
+The AST tool's optional `--gate-registry` writes only a new JSON in the teacher
+source module and refuses overwrite; preserve an existing registry before an
+explicit regeneration. Ordinary audits output the same candidate list under
+`card_only_task_gates` without modifying formal source. Do not edit condition
+offsets or hashes to bypass a mismatch. Snapshot/compiled/runtime data are not
+inputs to this registry, and original scripts are never modified on disk.

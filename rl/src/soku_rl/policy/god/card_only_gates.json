@@ -1,0 +1,2923 @@
+{
+  "schema": "teacher_card_only_gates_v1",
+  "sources": {
+    "01_marisa_main.ai": "10f53fa1d1c53fc731d4d4862117617d0162c15d6986442dc7f13bea8bad27ae",
+    "00_reimu_main.ai": "32c11da92f29135672a8b660d8a6f977622dc4347ebe4caff74ae40f478a6423",
+    "def_clc.lua": "732029a309f5b348ef04228f3f19f48c8dac4b47e2f4b5a6c7cbfd9b2ad3fc76",
+    "function_command.txt": "e4f0ed14af9a3b49c78a02a2a1b65852590503336835f9c6d20afee18a87dd8b"
+  },
+  "api_sha256": "61cb6a24af1d60d86305481fd8bf4a6b12cc801a57c4a23f91be0e8355489d58",
+  "generator_sha256": "c6a1ebf92b39308b366620d774bcd324ed3d4194302937d713e7727fa820402e",
+  "evidence": "CONSERVATIVE_TRANSITIVE_ACTIVE_INPUT_CLASSIFICATION_NOT_ORIGINAL_POLICY_EQUIVALENCE",
+  "gates": [
+    {
+      "source": "01_marisa_main.ai",
+      "line": 54,
+      "kind": "If",
+      "condition_start": 1862,
+      "condition_end": 1957,
+      "condition_sha256": "74075c2f975f7927567d564574cfe52f491b88bee956dec0cf8f9e3ab805c41f",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "get_special_data",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 58,
+      "kind": "If",
+      "condition_start": 2009,
+      "condition_end": 2244,
+      "condition_sha256": "a1ee94569fd8236483e72347dac7bd291a7c0351eebaada378d2566a3356e753",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 62,
+      "kind": "If",
+      "condition_start": 2258,
+      "condition_end": 2274,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 68,
+      "kind": "If",
+      "condition_start": 2361,
+      "condition_end": 2377,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 123,
+      "kind": "ElseIf",
+      "condition_start": 3936,
+      "condition_end": 4032,
+      "condition_sha256": "8745cec321f4cc7d045ed978323890ebcb348d8cbb604934a60ae5850e310008",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 126,
+      "kind": "ElseIf",
+      "condition_start": 4115,
+      "condition_end": 4404,
+      "condition_sha256": "ecd6cda49f1cfdff69207221b7dc526048de6e897d65e796413b2d82eaf341a1",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print",
+        "wait",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 144,
+      "kind": "ElseIf",
+      "condition_start": 4655,
+      "condition_end": 4735,
+      "condition_sha256": "677634768b32c11d4cc3f5ab1cc34ffe6599a8397aca5a54b409a2330ea2c20f",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 147,
+      "kind": "ElseIf",
+      "condition_start": 4832,
+      "condition_end": 4898,
+      "condition_sha256": "511a0f0dc0dce0b11e29ee0329bd89e653234285ae6c8ae8e34b1a6bd39eaaf5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 150,
+      "kind": "ElseIf",
+      "condition_start": 4995,
+      "condition_end": 5075,
+      "condition_sha256": "04f818ed3187b2bbc49966b4eebc128f7047877d31b1fefd4b2e99a0251b31e5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 168,
+      "kind": "If",
+      "condition_start": 6078,
+      "condition_end": 6175,
+      "condition_sha256": "a51886104ba82b468d7681fe4378a8b135fa5006fd948e7e101f2aacae182bcc",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 214,
+      "kind": "If",
+      "condition_start": 8226,
+      "condition_end": 8255,
+      "condition_sha256": "296813b80345b4669a4a99d005c04c525e547669e607ffe3ffdf8279f176bdf1",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 215,
+      "kind": "If",
+      "condition_start": 8270,
+      "condition_end": 8286,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 221,
+      "kind": "If",
+      "condition_start": 8379,
+      "condition_end": 8395,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 230,
+      "kind": "ElseIf",
+      "condition_start": 8571,
+      "condition_end": 8950,
+      "condition_sha256": "ea49da0b17a80f441ff0c82de854fcc7746cbdc4807c953c8f559d147bf35426",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on",
+        "print",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 237,
+      "kind": "If",
+      "condition_start": 9037,
+      "condition_end": 9120,
+      "condition_sha256": "3eb107179b63642c34d64fe3ba35d91cdffd1f7bcd1dc63f6597200e7a81c92c",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 238,
+      "kind": "If",
+      "condition_start": 9135,
+      "condition_end": 9151,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 244,
+      "kind": "If",
+      "condition_start": 9244,
+      "condition_end": 9260,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 497,
+      "kind": "ElseIf",
+      "condition_start": 18909,
+      "condition_end": 19229,
+      "condition_sha256": "9324708cb6105bbe77cdd184847ef7c5a00afd0f396c2194790b914b17d7c199",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 503,
+      "kind": "ElseIf",
+      "condition_start": 19344,
+      "condition_end": 19492,
+      "condition_sha256": "f47f1b753a12925f6dd8c9c346d9363d2295a3f4cb995ff9d48abb982511d425",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 508,
+      "kind": "ElseIf",
+      "condition_start": 19655,
+      "condition_end": 19779,
+      "condition_sha256": "14720016d99c3f618d4f38cf810d1f28ee355c71c6a57184111ac1803a99086e",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 512,
+      "kind": "ElseIf",
+      "condition_start": 19888,
+      "condition_end": 20178,
+      "condition_sha256": "d5ff83ab91ab376a1d648a92e6772f0d9b2a610f7f03311e3471ca51ef69c222",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 527,
+      "kind": "ElseIf",
+      "condition_start": 20730,
+      "condition_end": 21011,
+      "condition_sha256": "626dc52d80c8f047ce8cae9b44ccfe268a85dba90ea5c423c8059c8c64143a09",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 530,
+      "kind": "ElseIf",
+      "condition_start": 21094,
+      "condition_end": 21520,
+      "condition_sha256": "9c12cb96a9082dc98bb63a13ebfa78eaad21c8dc400f788f6758eb8487022661",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1323,
+      "kind": "ElseIf",
+      "condition_start": 57198,
+      "condition_end": 57381,
+      "condition_sha256": "71e18e52249af4564c033df089d8d9fe7675a9880247333730404396a86c1a72",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1326,
+      "kind": "ElseIf",
+      "condition_start": 57475,
+      "condition_end": 57901,
+      "condition_sha256": "52ec497101897babace4fae2210c09020795968291fbd57709aa259182febdc3",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1420,
+      "kind": "ElseIf",
+      "condition_start": 64463,
+      "condition_end": 64599,
+      "condition_sha256": "d1a243f04f31199a50d6ddffaf4909ba2622ce385eb26f3cfcad51db3691d487",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1423,
+      "kind": "ElseIf",
+      "condition_start": 64661,
+      "condition_end": 65376,
+      "condition_sha256": "49eeb91c9439eba1c03ad771d8ec6b071a7687011390cf231ac55a6db1d66792",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on",
+        "print",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1758,
+      "kind": "ElseIf",
+      "condition_start": 80604,
+      "condition_end": 80695,
+      "condition_sha256": "eed26e473f4c9d92d66b00b3dee5e0b63da380242a545a53e109a52fbf77a629",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1759,
+      "kind": "If",
+      "condition_start": 80710,
+      "condition_end": 80725,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1762,
+      "kind": "If",
+      "condition_start": 80772,
+      "condition_end": 80803,
+      "condition_sha256": "3dd92f99f067b3a5b5f7ad7f37305bedf174165763dc7ecf131e698ba7cdfce5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1766,
+      "kind": "ElseIf",
+      "condition_start": 80915,
+      "condition_end": 81006,
+      "condition_sha256": "5d36e626e15f1735dfb180ae763e3f2e6265820d47999990f7775cfee2a4a707",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1767,
+      "kind": "If",
+      "condition_start": 81021,
+      "condition_end": 81036,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1770,
+      "kind": "If",
+      "condition_start": 81083,
+      "condition_end": 81114,
+      "condition_sha256": "3dd92f99f067b3a5b5f7ad7f37305bedf174165763dc7ecf131e698ba7cdfce5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1774,
+      "kind": "ElseIf",
+      "condition_start": 81222,
+      "condition_end": 81313,
+      "condition_sha256": "e8ec53fbe87e1d313cf3a5a8773d19e5220836423d607dfeb9ebd88626e4c322",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1775,
+      "kind": "If",
+      "condition_start": 81328,
+      "condition_end": 81343,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1778,
+      "kind": "If",
+      "condition_start": 81390,
+      "condition_end": 81421,
+      "condition_sha256": "3dd92f99f067b3a5b5f7ad7f37305bedf174165763dc7ecf131e698ba7cdfce5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1782,
+      "kind": "ElseIf",
+      "condition_start": 81543,
+      "condition_end": 81634,
+      "condition_sha256": "960be2849cd25c23f2c1f29d03f466cbe2804ee0e054b90bbb607a44f76a4840",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1783,
+      "kind": "If",
+      "condition_start": 81649,
+      "condition_end": 81664,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1786,
+      "kind": "If",
+      "condition_start": 81711,
+      "condition_end": 81742,
+      "condition_sha256": "3dd92f99f067b3a5b5f7ad7f37305bedf174165763dc7ecf131e698ba7cdfce5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1878,
+      "kind": "If",
+      "condition_start": 85547,
+      "condition_end": 85562,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_check",
+        "get_card_id",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1879,
+      "kind": "If",
+      "condition_start": 85575,
+      "condition_end": 85590,
+      "condition_sha256": "08d09b08acd03dc227d54a000ab798840aded92b430ae3bcd0d584d5d5bb59ff",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1881,
+      "kind": "ElseIf",
+      "condition_start": 85628,
+      "condition_end": 85643,
+      "condition_sha256": "1428d9676a63d6ecc5e2dd1e947a0ab4dee2678e4531b08338a2619d8c7cebd4",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1883,
+      "kind": "ElseIf",
+      "condition_start": 85680,
+      "condition_end": 85695,
+      "condition_sha256": "be9779c1f6d8c0e2711f6e4d0b251d03e4bc76081eff2cf294db3778be5c8b4b",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1888,
+      "kind": "If",
+      "condition_start": 85803,
+      "condition_end": 85818,
+      "condition_sha256": "08d09b08acd03dc227d54a000ab798840aded92b430ae3bcd0d584d5d5bb59ff",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1890,
+      "kind": "ElseIf",
+      "condition_start": 85855,
+      "condition_end": 85870,
+      "condition_sha256": "1428d9676a63d6ecc5e2dd1e947a0ab4dee2678e4531b08338a2619d8c7cebd4",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1892,
+      "kind": "ElseIf",
+      "condition_start": 85907,
+      "condition_end": 85922,
+      "condition_sha256": "be9779c1f6d8c0e2711f6e4d0b251d03e4bc76081eff2cf294db3778be5c8b4b",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1906,
+      "kind": "If",
+      "condition_start": 86233,
+      "condition_end": 86306,
+      "condition_sha256": "115f83439df4cd2122e0e36fb1cec3be9eb25903b9f92061352c49b0721c599d",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1907,
+      "kind": "If",
+      "condition_start": 86320,
+      "condition_end": 86335,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1910,
+      "kind": "If",
+      "condition_start": 86379,
+      "condition_end": 86537,
+      "condition_sha256": "b90190dbce28fcef02282e5d2eb4819f1e8b8cf07e6fc00360d48307ccb7bb83",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1915,
+      "kind": "ElseIf",
+      "condition_start": 86656,
+      "condition_end": 86707,
+      "condition_sha256": "927d0042e15cc7d2b44584072cad4d5625b4d515e48d58493ca0cd066dd4b09e",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1916,
+      "kind": "If",
+      "condition_start": 86721,
+      "condition_end": 86736,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1919,
+      "kind": "If",
+      "condition_start": 86780,
+      "condition_end": 86914,
+      "condition_sha256": "37787b044fdaf4cef1c532c17622eee97b81b0673043d60a3c6f213acf6b5874",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1963,
+      "kind": "If",
+      "condition_start": 88220,
+      "condition_end": 88327,
+      "condition_sha256": "11cfb6babf23e5ee4656767f0d49833345b65465b4501e75bb399146d2e1480c",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1964,
+      "kind": "If",
+      "condition_start": 88340,
+      "condition_end": 88355,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1967,
+      "kind": "If",
+      "condition_start": 88396,
+      "condition_end": 88427,
+      "condition_sha256": "3dd92f99f067b3a5b5f7ad7f37305bedf174165763dc7ecf131e698ba7cdfce5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1971,
+      "kind": "ElseIf",
+      "condition_start": 88535,
+      "condition_end": 88664,
+      "condition_sha256": "fae028018dcd2f509f0c66598f9eac63528de7880cb0b3257d9eca1039a593ee",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1972,
+      "kind": "If",
+      "condition_start": 88677,
+      "condition_end": 88692,
+      "condition_sha256": "e13b10faade36e41ac4847f944aed6c02618e35e11696c58f396020089829d24",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1975,
+      "kind": "If",
+      "condition_start": 88733,
+      "condition_end": 88764,
+      "condition_sha256": "3dd92f99f067b3a5b5f7ad7f37305bedf174165763dc7ecf131e698ba7cdfce5",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1982,
+      "kind": "ElseIf",
+      "condition_start": 88896,
+      "condition_end": 88964,
+      "condition_sha256": "861dd3337e62a2e71e242e481c3e758da9764ef419665d3ab187953ed288c1c2",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1984,
+      "kind": "ElseIf",
+      "condition_start": 88999,
+      "condition_end": 89244,
+      "condition_sha256": "c5218c5e6e63c85607bcb01fa08e21973f967bbb5af89d6a1530952208cedda6",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1993,
+      "kind": "ElseIf",
+      "condition_start": 89686,
+      "condition_end": 89754,
+      "condition_sha256": "a1e1ec04c90b0202ee673685cc02b3f4344a3738c506ba089566265b238cbc5e",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 1995,
+      "kind": "ElseIf",
+      "condition_start": 89789,
+      "condition_end": 90034,
+      "condition_sha256": "2963a6d007414b27a866d415dce549077cb4cbc4ee47da4a48d99c017f320e11",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2005,
+      "kind": "ElseIf",
+      "condition_start": 90522,
+      "condition_end": 90590,
+      "condition_sha256": "b88d4f61f674cdabadcb8dc0c4d52d0e44480b3cc3f7e6ce4ffea3599f7a1449",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2007,
+      "kind": "ElseIf",
+      "condition_start": 90625,
+      "condition_end": 90869,
+      "condition_sha256": "146294e011813433a22854d59ed5e895f368554f30ff260f767fbe3614c7f110",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2016,
+      "kind": "ElseIf",
+      "condition_start": 91310,
+      "condition_end": 91378,
+      "condition_sha256": "adb28e9eace2633474fbdb1ac8b3add17da770f61e361fbe62d3cd616d080e3f",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2018,
+      "kind": "ElseIf",
+      "condition_start": 91413,
+      "condition_end": 91657,
+      "condition_sha256": "83507ed0992b93560a5ad5b1c892b6b171176f3067c56b6251dd7d840b273c13",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2027,
+      "kind": "ElseIf",
+      "condition_start": 92113,
+      "condition_end": 92181,
+      "condition_sha256": "09543761fe0a7aa2bbb027f76e6f04f60c944b4bec97c951cb5e977f93cd3055",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2029,
+      "kind": "ElseIf",
+      "condition_start": 92216,
+      "condition_end": 92370,
+      "condition_sha256": "cc9abbc8e04525560ee7460c942cbc2010f763a57c2abb3ed9ed27acbc728764",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2038,
+      "kind": "ElseIf",
+      "condition_start": 92717,
+      "condition_end": 92785,
+      "condition_sha256": "b1f386ed5c6a6f470105cb0d09141873b364e77f95386d4f3f4b32af7e7a3032",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2040,
+      "kind": "ElseIf",
+      "condition_start": 92820,
+      "condition_end": 92974,
+      "condition_sha256": "9e82d4a516f6f72058159ada6a1fbc2f88494dd7be85854ef3f91a319207da69",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2050,
+      "kind": "ElseIf",
+      "condition_start": 93367,
+      "condition_end": 93435,
+      "condition_sha256": "3f05e42b584f0a346622409e8f315509800b0e1014a0f7cb9d3f66116f3fc0d1",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2052,
+      "kind": "ElseIf",
+      "condition_start": 93470,
+      "condition_end": 93623,
+      "condition_sha256": "afa3d6c56145857001eb504fa70ee1247eb5c37e9399fde7ada24626a013e870",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2061,
+      "kind": "ElseIf",
+      "condition_start": 93969,
+      "condition_end": 94037,
+      "condition_sha256": "bbc988f6182f757473e4d6da9a8de7c1cca12c438a992afb1b3d5929eac80b2e",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2063,
+      "kind": "ElseIf",
+      "condition_start": 94072,
+      "condition_end": 94225,
+      "condition_sha256": "d9628f808fc151a6fe30eecbea6a68204b51fbfde5c64e92ad2691344136099d",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2073,
+      "kind": "ElseIf",
+      "condition_start": 94642,
+      "condition_end": 94726,
+      "condition_sha256": "3401aa46bdb1ec581c0ef19c97888591091513f7681a2abc3ecf476f9df9e388",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2075,
+      "kind": "ElseIf",
+      "condition_start": 94758,
+      "condition_end": 94918,
+      "condition_sha256": "f4a94da18a238a67e5c0ca939cf4183596daf2ff81c78697c5174fa8986e95be",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2079,
+      "kind": "ElseIf",
+      "condition_start": 95037,
+      "condition_end": 95174,
+      "condition_sha256": "31b25d915fc9c97af23353e98617da2b0fbd7ade713c370d2ab209b18b027612",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2080,
+      "kind": "If",
+      "condition_start": 95186,
+      "condition_end": 95202,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2086,
+      "kind": "ElseIf",
+      "condition_start": 95361,
+      "condition_end": 95469,
+      "condition_sha256": "aa7d526cedce658c7f4911244497c24df34e89b8e935317bdf1eedfafb63fb0e",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2088,
+      "kind": "ElseIf",
+      "condition_start": 95501,
+      "condition_end": 95697,
+      "condition_sha256": "cb10106eb5fa351965c0d80eb3a5c46bcd92615faa95125fc2114c954922831e",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2092,
+      "kind": "ElseIf",
+      "condition_start": 95814,
+      "condition_end": 95951,
+      "condition_sha256": "75e4c173dc643ac7c51684316048c82fe66f51cd2f5e118aab2d4f5fa145baac",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2093,
+      "kind": "If",
+      "condition_start": 95963,
+      "condition_end": 95979,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2101,
+      "kind": "ElseIf",
+      "condition_start": 96102,
+      "condition_end": 96347,
+      "condition_sha256": "1e767e5650ea7a90f76f7dfd75d3c5690c5cfdbb4da4efee707bb4f4a4707b96",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "01_marisa_main.ai",
+      "line": 2111,
+      "kind": "ElseIf",
+      "condition_start": 96757,
+      "condition_end": 97259,
+      "condition_sha256": "022196ebea7e918ae7e7c0a07c1ff7068167f70f8e0feee2896ee66ad1dc3621",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 66,
+      "kind": "If",
+      "condition_start": 2161,
+      "condition_end": 2256,
+      "condition_sha256": "74075c2f975f7927567d564574cfe52f491b88bee956dec0cf8f9e3ab805c41f",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "get_special_data",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 70,
+      "kind": "If",
+      "condition_start": 2308,
+      "condition_end": 2543,
+      "condition_sha256": "a1ee94569fd8236483e72347dac7bd291a7c0351eebaada378d2566a3356e753",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 74,
+      "kind": "If",
+      "condition_start": 2557,
+      "condition_end": 2573,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 80,
+      "kind": "If",
+      "condition_start": 2660,
+      "condition_end": 2676,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 135,
+      "kind": "ElseIf",
+      "condition_start": 4235,
+      "condition_end": 4331,
+      "condition_sha256": "8745cec321f4cc7d045ed978323890ebcb348d8cbb604934a60ae5850e310008",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 138,
+      "kind": "ElseIf",
+      "condition_start": 4414,
+      "condition_end": 4703,
+      "condition_sha256": "ecd6cda49f1cfdff69207221b7dc526048de6e897d65e796413b2d82eaf341a1",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print",
+        "wait",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 157,
+      "kind": "ElseIf",
+      "condition_start": 5021,
+      "condition_end": 5248,
+      "condition_sha256": "f114c7fd5d7d874b48f088aeb87dc3f2e368fc19962de0f08ebf34d3fcc3cce8",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 160,
+      "kind": "If",
+      "condition_start": 5350,
+      "condition_end": 5362,
+      "condition_sha256": "a314ac0b86cc305b0d25def17b4dc0305c3a51c53c8b34eec05f72e5e912e2df",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 162,
+      "kind": "ElseIf",
+      "condition_start": 5397,
+      "condition_end": 5409,
+      "condition_sha256": "cd87bb3414932e629c9eb98868b874be08938833bec644d48fb0fd4af09d1dfb",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 173,
+      "kind": "If",
+      "condition_start": 5995,
+      "condition_end": 6092,
+      "condition_sha256": "a51886104ba82b468d7681fe4378a8b135fa5006fd948e7e101f2aacae182bcc",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 181,
+      "kind": "If",
+      "condition_start": 6586,
+      "condition_end": 6618,
+      "condition_sha256": "ecb94cc2d132b38c2e40a9e6c96dc264f4aac4a2f2b3166227dbd599937146a0",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 183,
+      "kind": "ElseIf",
+      "condition_start": 6657,
+      "condition_end": 6669,
+      "condition_sha256": "ebd6aa8e5f2bc423065b614ae35e7c936269210ddcdff6005707e3ce679ed4a7",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 193,
+      "kind": "If",
+      "condition_start": 6853,
+      "condition_end": 6885,
+      "condition_sha256": "ecb94cc2d132b38c2e40a9e6c96dc264f4aac4a2f2b3166227dbd599937146a0",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 195,
+      "kind": "ElseIf",
+      "condition_start": 6924,
+      "condition_end": 6936,
+      "condition_sha256": "ebd6aa8e5f2bc423065b614ae35e7c936269210ddcdff6005707e3ce679ed4a7",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 212,
+      "kind": "If",
+      "condition_start": 7617,
+      "condition_end": 7649,
+      "condition_sha256": "59bd471bc49be87202b0b17906f435b76e04e23f2ae757a620942dd66fdd750d",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 214,
+      "kind": "ElseIf",
+      "condition_start": 7688,
+      "condition_end": 7700,
+      "condition_sha256": "49640d57a107b737cb1c8e065022a3cfbd5abcdf17e72b6b420a7114a83ec492",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 224,
+      "kind": "If",
+      "condition_start": 7884,
+      "condition_end": 7916,
+      "condition_sha256": "59bd471bc49be87202b0b17906f435b76e04e23f2ae757a620942dd66fdd750d",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 226,
+      "kind": "ElseIf",
+      "condition_start": 7955,
+      "condition_end": 7967,
+      "condition_sha256": "49640d57a107b737cb1c8e065022a3cfbd5abcdf17e72b6b420a7114a83ec492",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 245,
+      "kind": "If",
+      "condition_start": 8843,
+      "condition_end": 8872,
+      "condition_sha256": "296813b80345b4669a4a99d005c04c525e547669e607ffe3ffdf8279f176bdf1",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 246,
+      "kind": "If",
+      "condition_start": 8887,
+      "condition_end": 8903,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 252,
+      "kind": "If",
+      "condition_start": 8996,
+      "condition_end": 9012,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 261,
+      "kind": "ElseIf",
+      "condition_start": 9188,
+      "condition_end": 9567,
+      "condition_sha256": "ea49da0b17a80f441ff0c82de854fcc7746cbdc4807c953c8f559d147bf35426",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on",
+        "print",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 267,
+      "kind": "If",
+      "condition_start": 9650,
+      "condition_end": 9733,
+      "condition_sha256": "3eb107179b63642c34d64fe3ba35d91cdffd1f7bcd1dc63f6597200e7a81c92c",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 268,
+      "kind": "If",
+      "condition_start": 9748,
+      "condition_end": 9764,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 274,
+      "kind": "If",
+      "condition_start": 9857,
+      "condition_end": 9873,
+      "condition_sha256": "ebc6d0bba066c0a582d90d5b4dd7f6d21cd7fbbda6a66baf1906d2a5b3ff2462",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 528,
+      "kind": "ElseIf",
+      "condition_start": 19517,
+      "condition_end": 19857,
+      "condition_sha256": "08aa4640519f5e1d08e296ef3150b306b63e0768f00b4626413b4a742451bd72",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 534,
+      "kind": "ElseIf",
+      "condition_start": 19962,
+      "condition_end": 20110,
+      "condition_sha256": "703a32ff24eda29359d26862a01fc1c6a01ad05698ecca93c43c2cc3bc8aa2ee",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 539,
+      "kind": "ElseIf",
+      "condition_start": 20235,
+      "condition_end": 20575,
+      "condition_sha256": "63b455fac5935d4f2b90e4cd6618fffb0f99dcb6a7a0ce645c5a1886f3833663",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 545,
+      "kind": "ElseIf",
+      "condition_start": 20680,
+      "condition_end": 20828,
+      "condition_sha256": "1bfbefdb8ee71bad1734bf62141e52e7868e43316c4d8a4cfcdc002513c4fd1d",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 550,
+      "kind": "ElseIf",
+      "condition_start": 20953,
+      "condition_end": 21304,
+      "condition_sha256": "db45ef280512c0466bcd258679b8e5f8ab5a231a0f05a79dbd4fe52f05493286",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 556,
+      "kind": "ElseIf",
+      "condition_start": 21409,
+      "condition_end": 21557,
+      "condition_sha256": "5deafcda8c68c9b8de119c1f75b8005d35b6ceb70cd1ff03f1a5f465249421ef",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 561,
+      "kind": "ElseIf",
+      "condition_start": 21678,
+      "condition_end": 22018,
+      "condition_sha256": "3d384e243e8694570c7c156b9f55608c242b6157c3c60a4656dc17f3020a8b0d",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 567,
+      "kind": "ElseIf",
+      "condition_start": 22119,
+      "condition_end": 22267,
+      "condition_sha256": "c98eb7d7599cc58cb0ad1a995eb9d9a702193e6c73f3b254dc88239aca992863",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 572,
+      "kind": "ElseIf",
+      "condition_start": 22448,
+      "condition_end": 22572,
+      "condition_sha256": "4987d631b6add60c01a631f258fa7412f4dcc9ad16aaa49cac0963453975b2c6",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 576,
+      "kind": "ElseIf",
+      "condition_start": 22669,
+      "condition_end": 22995,
+      "condition_sha256": "38bd2924fa6de5c8a452d74ee4a883a7df96fafc1af410ed5bf04782488fd242",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 591,
+      "kind": "ElseIf",
+      "condition_start": 23502,
+      "condition_end": 23819,
+      "condition_sha256": "6e652b23c51f09581e42d20b3ac1f1e1f6dfe69fd51709250e9e67e1ad529867",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 606,
+      "kind": "ElseIf",
+      "condition_start": 24331,
+      "condition_end": 24612,
+      "condition_sha256": "626dc52d80c8f047ce8cae9b44ccfe268a85dba90ea5c423c8059c8c64143a09",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 609,
+      "kind": "ElseIf",
+      "condition_start": 24695,
+      "condition_end": 25121,
+      "condition_sha256": "9c12cb96a9082dc98bb63a13ebfa78eaad21c8dc400f788f6758eb8487022661",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1402,
+      "kind": "ElseIf",
+      "condition_start": 60799,
+      "condition_end": 60982,
+      "condition_sha256": "71e18e52249af4564c033df089d8d9fe7675a9880247333730404396a86c1a72",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1405,
+      "kind": "ElseIf",
+      "condition_start": 61076,
+      "condition_end": 61502,
+      "condition_sha256": "52ec497101897babace4fae2210c09020795968291fbd57709aa259182febdc3",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_event",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1499,
+      "kind": "ElseIf",
+      "condition_start": 68064,
+      "condition_end": 68200,
+      "condition_sha256": "d1a243f04f31199a50d6ddffaf4909ba2622ce385eb26f3cfcad51db3691d487",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "key_off",
+        "key_on",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1502,
+      "kind": "ElseIf",
+      "condition_start": 68262,
+      "condition_end": 68977,
+      "condition_sha256": "49eeb91c9439eba1c03ad771d8ec6b071a7687011390cf231ac55a6db1d66792",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_off",
+        "key_on",
+        "print",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1886,
+      "kind": "ElseIf",
+      "condition_start": 84799,
+      "condition_end": 85032,
+      "condition_sha256": "4afe57295cbf23e421bdb83c2165ea63151aacd4d44511d36e690febfb6a7685",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1888,
+      "kind": "If",
+      "condition_start": 85060,
+      "condition_end": 85072,
+      "condition_sha256": "58cc0b7f4185e97772fedba6529cd2ca720e6538a8ec3da82815050609fee520",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1892,
+      "kind": "ElseIf",
+      "condition_start": 85138,
+      "condition_end": 85150,
+      "condition_sha256": "c1eb384a73bf5ef89dad43daf745a54fdc4c41d241031b4fab78843db84401bc",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1898,
+      "kind": "ElseIf",
+      "condition_start": 85268,
+      "condition_end": 85460,
+      "condition_sha256": "e4881c3acdc1781df3637bc356b41a19ae5bb2db11d83ecb82c404d398eef0f1",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1900,
+      "kind": "If",
+      "condition_start": 85488,
+      "condition_end": 85500,
+      "condition_sha256": "58cc0b7f4185e97772fedba6529cd2ca720e6538a8ec3da82815050609fee520",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1904,
+      "kind": "ElseIf",
+      "condition_start": 85566,
+      "condition_end": 85578,
+      "condition_sha256": "c1eb384a73bf5ef89dad43daf745a54fdc4c41d241031b4fab78843db84401bc",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1910,
+      "kind": "ElseIf",
+      "condition_start": 85674,
+      "condition_end": 85754,
+      "condition_sha256": "57216ae7f34f6abcac280c2dff23113ed24394d41228b254f932282a5a8b3c53",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 1912,
+      "kind": "If",
+      "condition_start": 85782,
+      "condition_end": 85794,
+      "condition_sha256": "58cc0b7f4185e97772fedba6529cd2ca720e6538a8ec3da82815050609fee520",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2123,
+      "kind": "ElseIf",
+      "condition_start": 95691,
+      "condition_end": 95767,
+      "condition_sha256": "9afc064006068293b0be375fc3f87950b52586d49910a752d12a320b7dd6ef53",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2210,
+      "kind": "If",
+      "condition_start": 99015,
+      "condition_end": 99094,
+      "condition_sha256": "7b1783d55cba2df194b5a103e0d9b393694983754b0467a5aee83b4a3b3187b7",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2215,
+      "kind": "ElseIf",
+      "condition_start": 99177,
+      "condition_end": 99248,
+      "condition_sha256": "40b0b1bf2b8bca686888ceea1fc46d6ba3f12aaf874328ec798ef873dff213cd",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2269,
+      "kind": "If",
+      "condition_start": 101202,
+      "condition_end": 101262,
+      "condition_sha256": "d1283054fe228a3e71e1ec82c4724bf6500ca30ff7f5f4c7d1cb724751bef1d6",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2274,
+      "kind": "ElseIf",
+      "condition_start": 101345,
+      "condition_end": 101405,
+      "condition_sha256": "92f4667f9a336bdf5607afb26b4358c808ac0715647d8ac94705073ef7e46c99",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2299,
+      "kind": "If",
+      "condition_start": 102273,
+      "condition_end": 102333,
+      "condition_sha256": "8abd3f76b3940d75474ef0496a087b9aab8a094b00fae8a36c3768b44181a01a",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2308,
+      "kind": "If",
+      "condition_start": 102721,
+      "condition_end": 102827,
+      "condition_sha256": "d9e7fe5bb3c802dad454a78cfbfd82ce0a52e30ec7766bd770170d5fbf2aabf6",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2311,
+      "kind": "ElseIf",
+      "condition_start": 102879,
+      "condition_end": 103090,
+      "condition_sha256": "45182019a4ca6b8713e49bcf7c79f04a0582efe4eea52428a1dc110698f196d1",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "key_on",
+        "key_reset",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2319,
+      "kind": "ElseIf",
+      "condition_start": 103399,
+      "condition_end": 103538,
+      "condition_sha256": "81538af8a9a9ad47b52a808c1d844b421fea75fc33471c4fb6b6fb0f4c291bc7",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2328,
+      "kind": "ElseIf",
+      "condition_start": 104154,
+      "condition_end": 104382,
+      "condition_sha256": "c0f203840af020fe42df6aa20a2ad06b5a5d25af708f4cb711087e74372dceea",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2337,
+      "kind": "ElseIf",
+      "condition_start": 104825,
+      "condition_end": 104906,
+      "condition_sha256": "b1fdab9dff0051ee3afd96acb5b04d6ae1aebb2c6114cff751ba0f60dbda352c",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2353,
+      "kind": "If",
+      "condition_start": 105437,
+      "condition_end": 105562,
+      "condition_sha256": "cd79298a6667fd38d4eb61cf5b2c6988d7ed336ea9239808c12ba543ac0c1189",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "print",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2375,
+      "kind": "ElseIf",
+      "condition_start": 106214,
+      "condition_end": 106319,
+      "condition_sha256": "012bfedc0c437cd03c4a4bbbf4e43324074b799e9e59a113c980a872d8ea0017",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_1st",
+        "card_check",
+        "card_use",
+        "get_card_id",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "print",
+        "wait",
+        "yield"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2388,
+      "kind": "ElseIf",
+      "condition_start": 106595,
+      "condition_end": 106676,
+      "condition_sha256": "b1fdab9dff0051ee3afd96acb5b04d6ae1aebb2c6114cff751ba0f60dbda352c",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "print"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2422,
+      "kind": "ElseIf",
+      "condition_start": 107694,
+      "condition_end": 107842,
+      "condition_sha256": "381f9edf1d4269ad236d27c4d9cd31a98aa0136abdbdbbb6ffb8a4b58638c6b7",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2427,
+      "kind": "ElseIf",
+      "condition_start": 107919,
+      "condition_end": 108067,
+      "condition_sha256": "c9a9e029dab96b994148c987c59b94a3946a66fce6386d8aa7eb062376401a6f",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset",
+        "wait"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2433,
+      "kind": "ElseIf",
+      "condition_start": 108205,
+      "condition_end": 108326,
+      "condition_sha256": "4dbc2d2c41f4aeefb6d44085dd552cd386570174aa05c6526c6fe38bef103b22",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2436,
+      "kind": "ElseIf",
+      "condition_start": 108375,
+      "condition_end": 108520,
+      "condition_sha256": "a2a9e970ab7124370ea448b3701957a2a85ee219f431172a76f9144172552c96",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2439,
+      "kind": "ElseIf",
+      "condition_start": 108569,
+      "condition_end": 108673,
+      "condition_sha256": "e1cc36b188baf53a453a4ff6b511d8a8045589f12f87de14b84b5494846f0ac0",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2534,
+      "kind": "ElseIf",
+      "condition_start": 111946,
+      "condition_end": 112219,
+      "condition_sha256": "8d4edc3edac426e541437fc98c36744c76c92913087b1a2ab7ea7ccc11eff723",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2538,
+      "kind": "If",
+      "condition_start": 112479,
+      "condition_end": 112549,
+      "condition_sha256": "4f8dfb49e6b12825220b72074d36764df04bb1b277e33846f2f8cab99df6b758",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2552,
+      "kind": "ElseIf",
+      "condition_start": 112912,
+      "condition_end": 113172,
+      "condition_sha256": "5264d8a6b5560d73cc2295ef582c745938afee1f5d4957e0dade55bfa54c7383",
+      "body_effects": [
+        "CARD"
+      ],
+      "guard_effects": [],
+      "body_calls": [
+        "card_use",
+        "key_event",
+        "key_off",
+        "key_on",
+        "key_reset"
+      ],
+      "policy": "DISABLED_BY_DECLARED_NO_CARD_TASK_NOT_A_FALSE_HAND_OBSERVATION"
+    }
+  ]
+}
