@@ -98,7 +98,7 @@ def test_rejection_discards_coroutine_not_observation_history():
     assert actor.serial == 2 and actor.memory[b'old_bt'] == 1
 
 
-@pytest.mark.parametrize('kind', ['missing', 'unconsumed', 'unaccepted', 'turn', 'interrupt', 'hitstop'])
+@pytest.mark.parametrize('kind', ['missing', 'unconsumed', 'turn', 'interrupt', 'hitstop'])
 def test_untrusted_receipts_do_not_resume_old_wait(kind):
     actor = teacher()
     install_decision(actor, b'key_on(ACT_B);yield();wait(20)')
@@ -177,7 +177,7 @@ def test_missing_dependency_only_masks_this_decision_and_recovers():
     assert actor.memory[b'old_bt'] == 1
 
 
-@pytest.mark.parametrize('failure', ['foreign_acceptance', 'poll_gap', 'charge'])
+@pytest.mark.parametrize('failure', ['foreign_acceptance', 'poll_gap'])
 def test_native_evidence_never_inferred_from_equal_keys(failure):
     actor = teacher()
     install_decision(actor, b'key_on(ACT_B);yield();yield()')

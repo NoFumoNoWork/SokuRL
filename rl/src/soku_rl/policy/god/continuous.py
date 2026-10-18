@@ -14,6 +14,7 @@ from soku_rl.env.observation.shared_native import decode_shared
 from .shared_native import SharedNativeAPI
 from .source_adapter import SOURCES, digest, split_loop
 from .scoped_state import API_SHA256
+from .tactical_state import TacticalState
 
 
 class PlanState(str, Enum):
@@ -38,6 +39,7 @@ class ExecutionReceipt:
     accepted: bool = False
     interrupted: bool = False
     accepted_plan_id: int | None = None
+    accepted_buttons: tuple[str, ...] = ()
 
     def __post_init__(self):
         if (type(self.frame) is not int or self.frame < 0 or
@@ -45,13 +47,17 @@ class ExecutionReceipt:
                 type(self.facing) is not int or self.facing not in (-1, 1) or
                 (self.poll_index is not None and (type(self.poll_index) is not int or self.poll_index < 0)) or
                 any(type(v) is not bool for v in (self.consumed, self.accepted, self.interrupted)) or
+                type(self.accepted_buttons) is not tuple or
+                any(k not in ('ACT_A','ACT_B','ACT_C') for k in self.accepted_buttons) or
+                len(set(self.accepted_buttons)) != len(self.accepted_buttons) or
+                (self.accepted_buttons and not self.accepted) or
                 (self.accepted and (not self.consumed or type(self.accepted_plan_id) is not int
                                     or self.accepted_plan_id <= 0))):
             raise ValueError('invalid execution receipt')
 
 
 SCOPE = br'''function(public)
- local mode, memory, plan = 'init', {}, {}
+ local mode, memory, plan, writes = 'init', {}, {}, {}
  local protected=setmetatable({}, {__mode='k'})
  local function readonly(t)
    if protected[t] then return protected[t] end
@@ -69,9 +75,13 @@ SCOPE = br'''function(public)
    if mode=='decision' and type(v)=='table' then return readonly(v) end
    return v
  end,__newindex=function(_,k,v)
-   if mode=='decision' then plan[k]=v else memory[k]=v end
+   if mode=='decision' then
+     plan[k]=v
+     local at=debug.getinfo(2,'Sl')
+     writes[#writes+1]={name=k,value=v,source=at.source,line=at.currentline}
+   else memory[k]=v end
  end})
- return env,function(m) mode=m end,function() plan={} end,memory,
+ return env,function(m) mode=m end,function() plan={};writes={} end,memory,
    function(code,name)
      local f,e=loadstring(code,name);if not f then error(e) end
      setfenv(f,env);return f
@@ -82,7 +92,7 @@ SCOPE = br'''function(public)
        local ok,v=coroutine.resume(t);if not ok then error(v) end
        return coroutine.status(t)=='dead',v
      end
-   end
+   end,function() return writes end
 end'''
 
 
@@ -111,7 +121,7 @@ class ContinuousSourceTeacher:
         self.api = SharedNativeAPI(self.lua, seed)
         self.lua.execute(package.api)
         (self.env, self.mode, self.clear_plan, self.memory,
-         self.compile, self.coroutine) = self.lua.eval(SCOPE)(self.lua.globals())
+         self.compile, self.coroutine, self.plan_writes) = self.lua.eval(SCOPE)(self.lua.globals())
         self.env[b'require'] = self.require
         self.env[b'print'] = lambda *args: None
         self.loaded = set()
@@ -144,6 +154,9 @@ class ContinuousSourceTeacher:
         self.initialized = False
         self.fatal = None
         self.last_submitted = None
+        self.confirmed_inputs = decode_action(self.interface.command(initial_action)).inputs
+        self.write_cursor = 0
+        self.tactics = TacticalState(self)
         self.last_reconciliation = None
         self.budget = self.lua.eval(br'''function(n)
           debug.sethook(function() error('TEACHER_INSTRUCTION_BUDGET') end,'',n)
@@ -174,6 +187,8 @@ class ContinuousSourceTeacher:
     def invalidate(self, reason):
         self.runner = self.pending = None
         self.clear_plan()
+        self.write_cursor = 0
+        self.tactics.discard()
         self.api.events.clear()
         self.state = PlanState.INVALIDATED
         self.invalidated_at = self.frame
@@ -204,6 +219,10 @@ class ContinuousSourceTeacher:
             reason = 'STUDENT_DIVERGED'
         elif receipt.accepted and receipt.accepted_plan_id != self.serial:
             reason = 'FOREIGN_NATIVE_ACCEPTANCE'
+        elif any(not (decode_action(self.interface.command(receipt.action)).inputs[
+                    int(self.env[key.encode()])-2] or self.confirmed_inputs[
+                    int(self.env[key.encode()])-2]) for key in receipt.accepted_buttons):
+            reason = 'ACCEPTANCE_INPUT_MISMATCH'
         else:
             self.last_poll = receipt.poll_index
             self.last_submitted = receipt.action
@@ -212,9 +231,20 @@ class ContinuousSourceTeacher:
             if receipt.accepted:
                 self.counts['accepted'] += 1
                 self.last_reconciliation['stage'] = 'ACCEPTED'
-            # An attack key does not prove that the original action started.
-            if any(decode_action(self.interface.command(receipt.action)).inputs[2:5]) and not receipt.accepted:
-                reason = 'ACTION_ACCEPTANCE_UNPROVEN'
+            actual_inputs = decode_action(self.interface.command(receipt.action)).inputs
+            self.tactics.input_transition(self.confirmed_inputs, actual_inputs, receipt)
+            changes = dict(pressed=[], held=[], released=[])
+            for i, key in enumerate(('A','B','C','D','SWITCH','CARD'), 2):
+                before, after = self.confirmed_inputs[i], actual_inputs[i]
+                kind = 'pressed' if after and not before else 'held' if after else 'released' if before else None
+                if kind:
+                    changes[kind].append(key)
+                    self.counts['input:'+kind+':'+key] += 1
+            self.confirmed_inputs = actual_inputs
+            self.last_reconciliation.update(input_changes=changes,
+                action_acceptance='CONFIRMED' if receipt.accepted else 'NOT_OBSERVED')
+            # Input-program time follows actual consumed frames, including hold,
+            # wait and release. It never implies that a native move has started.
         if reason:
             self.last_reconciliation['reason'] = reason
             self.invalidate(reason)
@@ -223,6 +253,8 @@ class ContinuousSourceTeacher:
             if p['done']:
                 self.runner = None
                 self.clear_plan()
+                self.write_cursor = 0
+                self.tactics.discard()
                 self.state = PlanState.READY
 
     def query(self, values, *, schema, receipt=None, legal_actions=None,
@@ -292,6 +324,8 @@ class ContinuousSourceTeacher:
                 self.counts['recovery_frames'] += frame - self.invalidated_at
                 self.invalidated_at = None
             self.clear_plan()
+            self.write_cursor = 0
+            self.tactics.discard()
             # Start from real submitted keys, never the rejected proposal.
             actual = self.initial_action if receipt is None else receipt.action
             keys = decode_action(self.interface.command(actual)).inputs
@@ -301,6 +335,7 @@ class ContinuousSourceTeacher:
             self.api.applied[:] = raw
             self.api.events.clear()
             self.last_poll = None if receipt is None else receipt.poll_index
+            self.confirmed_inputs = keys
             self.serial += 1
             self.runner = self.coroutine(self.env[b'teacher_decide'])
             self.counts['plans'] += 1
@@ -310,6 +345,12 @@ class ContinuousSourceTeacher:
         self.mode(b'decision')
         try:
             done, provenance = self.call(self.runner)
+            writes = self.plan_writes()
+            rows = [{k: writes[i][k.encode()].decode('ascii') if k in ('name','source')
+                     else writes[i][k.encode()] for k in ('name','source','line','value')}
+                    for i in range(self.write_cursor+1, len(writes)+1)]
+            self.write_cursor = len(writes)
+            self.tactics.observe_writes(rows)
             candidate = self.interface.action(encode_action(self.api.inputs()))
             if candidate % 10 in (5, 6) or not legal_actions[candidate]:
                 self.invalidate('MASKED_OR_UNREPRESENTABLE_INPUT')
@@ -346,5 +387,6 @@ class ContinuousSourceTeacher:
             valid_label_fraction=self.counts['labels']/max(1,self.counts['queries']),
             average_recovery_frames=self.counts['recovery_frames']/max(1,self.counts['recoveries']),
             state=self.state.value, native_verified=False, training_ready=False,
+            tactical_state=self.tactics.report(),
             dependency='caller-proven input consumption and legal masks required',
             semantics='source adaptation; observation-before-decision; main writes plan-local')

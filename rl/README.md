@@ -828,12 +828,26 @@ not prove an attack started. Missing receipts, poll gaps, facing changes,
 interrupts, hitstop and unknown dependencies mask advice rather than inventing
 progress. A caller-proven cancel/replan boundary may replace an active wait.
 Source helper/call-site provenance and per-frame reconciliation are retained.
+Consumed inputs now explicitly distinguish press, hold and release. A held attack
+key does not require a fresh acceptance event on every frame: original wait/hold
+helpers advance only through confirmed consumed input frames, while action
+acceptance remains `NOT_OBSERVED` unless independently reported. This also permits
+release inputs without pretending that a charge completed in the native engine.
+`ExecutionReceipt.accepted_buttons` identifies the independently attributed attack
+button; matching plan id alone cannot commit a tactical variable. Contradictory
+button evidence is rejected.
 The initial action must be supplied explicitly. Reset creates an isolated actor.
 
 This is a conservative source adaptation, **not original policy equivalence**:
-observation-before-decision changes scheduling; main-only tactical flags are not
-promoted into historical facts. Full charge/release and unproven acceptance paths
-remain masked. A partially failed calculation requires Reset because its memory
+observation-before-decision changes scheduling. `tactical_state.py` binds the five
+reviewed Reimu `ex_combo` write sites to the corresponding next or preceding
+accepted attack. Unconfirmed writes are discarded on rejection or unaccepted
+release; confirmed memory survives later plan rejection. These are Lua variable
+write sites, not a per-game-action handler table. `crush_combo` has only the source
+observation reset, and the main `flag_kishitu=2` card-use write is not enabled in
+the cards-disabled task. Calculation-owned weather memory remains independent.
+Unreviewed writes stay plan-local. No native charge timing or full policy
+equivalence is asserted. A partially failed calculation requires Reset because its memory
 cannot be trusted. Original-source synthetic recovery tests and fixture motion
 tests do not establish native coverage. No production PPO attachment is enabled.
 `audit_continuous_teacher` reuses a source-hash-bound existing Lua AST audit:

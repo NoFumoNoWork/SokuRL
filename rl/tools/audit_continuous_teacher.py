@@ -27,8 +27,10 @@ def build(audit, package):
                 'MAIN_PLAN_OR_INITIALIZATION' if 'main' in funcs else 'HELPER_OR_INITIALIZATION')
         policy = ('calculation writes persist; main writes plan-local; no inferred card execution'
                   if name == 'flag_kishitu' else
-                  'main writes plan-local; only Reimu lines53-63 observation rules persist'
-                  if name in ('ex_combo', 'crush_combo') else
+                  'Reimu reviewed tactical writes commit only on attributed accepted input;observation resets persist'
+                  if name == 'ex_combo' else
+                  'original observation reset only;no active producer in pinned main'
+                  if name == 'crush_combo' else
                   'source initialization/per-frame observation persist; decision writes disposable')
         rows.append(dict(name=name, role=role, policy=policy, sites=sites))
     return dict(schema='continuous_teacher_state_audit_v1', sources=SOURCES,
@@ -44,7 +46,7 @@ def build(audit, package):
             rng='persistent actor-local RNG, draws are teacher randomness not environment facts',
             delay='v1 requires zero key/data delay; no delayed rejected input queue retained'),
         adaptations=['observation-before-decision differs from original scheduler',
-            'main-only tactical writes deliberately not retained across replans',
+            'unconfirmed main tactical writes discarded;reviewed acceptance-confirmed ex_combo persists',
             'observed-table mutation in decision masks current plan',
             'unsupported/private API path masks query; partial calculation error requires Reset'],
         native_status='BLOCKED_EXISTING_PAIRED_CAPTURE_TIMING_AND_RECEIPT_ADAPTER_NOT_APPROVED')
