@@ -127,4 +127,5 @@ def test_formal_card_gate_registry_reproduces_from_pinned_original_source(tmp_pa
     assert registry['sources']==result['sources']
     assert registry['gates']==result['card_only_task_gates']
     assert registry['api_sha256']==hashlib.sha256(api.read_bytes()).hexdigest()
-    assert registry['generator_sha256']==hashlib.sha256(generator.read_bytes()).hexdigest()
+    assert registry['generator_hash_format']=='LF_NORMALIZED_SOURCE_NOT_THIRD_PARTY_BYTES'
+    assert registry['generator_sha256']==hashlib.sha256(generator.read_bytes().replace(b'\r\n',b'\n')).hexdigest()

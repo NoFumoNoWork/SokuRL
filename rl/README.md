@@ -835,3 +835,5 @@ explicit regeneration. Ordinary audits output the same candidate list under
 `card_only_task_gates` without modifying formal source. Do not edit condition
 offsets or hashes to bypass a mismatch. Snapshot/compiled/runtime data are not
 inputs to this registry, and original scripts are never modified on disk.
+Only the generator's text identity normalizes CRLF to LF for Git-checkout
+portability; original Lua/API bytes and condition hashes remain strictly exact.

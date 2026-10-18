@@ -280,7 +280,8 @@ def main():
         if target.exists():raise FileExistsError(target)
         registry=dict(schema='teacher_card_only_gates_v1',sources=result['sources'],
             api_sha256=hashlib.sha256(Path(args.api).read_bytes()).hexdigest(),
-            generator_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            generator_sha256=hashlib.sha256(Path(__file__).read_bytes().replace(b'\r\n',b'\n')).hexdigest(),
+            generator_hash_format='LF_NORMALIZED_SOURCE_NOT_THIRD_PARTY_BYTES',
             evidence='CONSERVATIVE_TRANSITIVE_ACTIVE_INPUT_CLASSIFICATION_NOT_ORIGINAL_POLICY_EQUIVALENCE',
             gates=result['card_only_task_gates'])
         target.write_text(json.dumps(registry,indent=2),encoding='utf-8')
