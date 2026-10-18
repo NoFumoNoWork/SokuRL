@@ -679,7 +679,7 @@ native decision-boundary validation is claimed by the intent unit tests.
 
 ### Restricted Teacher Phase 1
 
-The active staged profile is `train_combat_kickstarting_visible.yaml`, based on
+The perception-only staged profile is `train_combat_kickstarting_visible.yaml`, based on
 the unchanged 1,832-float world observation, 1F decisions and 90 primitive actions.
 It is **perception-only**, not a teacher-training recipe. It returns
 `PHASE1_PERCEPTION_READY` without a target action; legacy complete-list calculation,
@@ -731,3 +731,46 @@ guard probes evaluate only pure conditions; branch bodies and labels stay disabl
 Unknown earlier conditions are not treated as false to reach a later `else`.
 `branches.json`, `guard_probes.json` and `report.json` provide the lists and reasons;
 they are local audit evidence, not implicit runtime dependencies or Git assets.
+
+### Restricted Teacher Passive Memory
+
+`train_combat_kickstarting_memory.yaml` adds `observed_source_v1` memory to the
+same 1,832-float contract. It is still **not trainable teacher guidance**. The
+profile returns `PHASE2_OBSERVED_MEMORY_READY` without an action label; the PPO
+intent-attachment guard remains BLOCKED. Original main, complete-list calculation,
+and global decision rollback are not run.
+
+The adapter executes byte-pinned, original `def_clc.lua` slices for action/frame
+history, same-action frame rewinds, enemy ground/air counters, the AI's
+`after_guard_count` heuristic and facing-relative wall-distance heuristics. Each
+has source lines, source/code hashes and independent runtime validity. The latter
+two are **AI heuristics**, not recovered native stun timers or verified stage
+geometry. The observer ticks once per consecutive delayed student observation;
+this is not a native battle_time alias or proof of original scheduler equivalence.
+
+Pre-snapshot history, unknown counter durations and missing dependencies are not
+initialized to zero or the original script's defaults. Read-only sparse history
+tables fail on unknown slots rather than letting nil select an arbitrary branch.
+Observation gaps invalidate continuity; groups recover when actual observations
+establish their dependencies. The episode VM is preserved. Rejecting a proposal
+does not advance an unexecuted coroutine or rewrite observed history. A source
+error or instruction-limit failure stops the memory adapter until Reset rather
+than silently continuing a partially executed update.
+
+Tactical writes, B/C hold progress, object identity/prediction, native timers and
+other privileged-dependent memory are not enabled. Their source write sites are
+listed by role and trust, with unreviewed variables explicitly UNKNOWN. Merely
+classifying a variable does not make its initialization or every writer trusted.
+Local synthetic lifecycle tests do not demonstrate native teacher coverage.
+
+```powershell
+.\.venv\python.exe -B rl/run.py audit_god_teacher --world-coordinates `
+  --visible-perception --observed-memory `
+  --branch-parser-site rl/.tools/lua-parser/site `
+  --output rl/runs/NEW-teacher-memory-audit
+```
+
+The additional `memory_inventory.json` records source-specific assignment sites,
+direct dependencies and reviewed role/trust status. Reports remain local under
+the run directory. No teacher actions are submitted, no weights are updated, and
+this command does not replace Phase 3 atomic-label or Phase 4 native validation.

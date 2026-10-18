@@ -40,6 +40,7 @@ end
         '--site',str(SITE),'--package',str(package),'--api',str(api),
         '--available',str(allowed),'--output',str(output)],check=True,timeout=120)
     result=json.loads(output.read_text('utf-8'))
+    assert not result['assignments']  # loop targets and function parameters are not global memory writes
     first=next(x for x in result['branches'] if x['line']==7)
     assert first['guard_status']=='DEPENDENCY_READY_ONLY' and first['path_status']=='DEPENDENCY_READY_ONLY'
     raw=(package/'01_marisa_main.ai').read_bytes()

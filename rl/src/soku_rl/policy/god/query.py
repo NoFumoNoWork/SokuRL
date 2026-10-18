@@ -86,7 +86,7 @@ return env, execute, function(n) remaining=n; last=''; blocked_at=nil end,
 
 def validate_spec(spec):
     keys = {'package', 'api_source', 'script', 'reaction_frames', 'instruction_limit', 'seed'}
-    if not isinstance(spec, dict) or not keys <= set(spec) or set(spec) - keys - {'mode', 'source_adapter', 'task_context', 'perception'}:
+    if not isinstance(spec, dict) or not keys <= set(spec) or set(spec) - keys - {'mode', 'source_adapter', 'task_context', 'perception', 'memory'}:
         raise ValueError('expert requires explicit package/API/script, reaction_frames, instruction_limit and seed')
     if spec.get('mode', 'input') not in ('input', 'intent'):
         raise ValueError('expert mode must be input or intent')
@@ -95,6 +95,10 @@ def validate_spec(spec):
         raise ValueError('source_adapter requires reviewed th123ai_20110925 intent mode')
     if 'perception' in spec and (spec['perception'] != 'student_visible_v1' or spec.get('mode') != 'intent'):
         raise ValueError('restricted perception requires student_visible_v1 intent mode')
+    if 'memory' in spec and (spec['memory'] != 'observed_source_v1' or
+            spec.get('perception') != 'student_visible_v1' or
+            spec.get('source_adapter') != 'th123ai_20110925'):
+        raise ValueError('observed_source_v1 memory requires pinned source adapter and visible perception')
     if any(not isinstance(spec[k], str) or not spec[k] for k in ('package', 'api_source', 'script')):
         raise ValueError('expert source paths and script must be nonempty')
     if type(spec['reaction_frames']) is not int or spec['reaction_frames'] < 1:
@@ -138,7 +142,7 @@ class QueryTeacher:
         self.fingerprint = hashlib.sha256(json.dumps({
             'package': self.package.original_fingerprint, 'spec': spec,
             'implementation': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'perception.py', 'api.py', 'runtime.py', 'package.py')},
+                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'perception.py', 'observed_memory.py', 'api.py', 'runtime.py', 'package.py')},
             'adapter': self.adapter.report if self.adapter else None,
             'projection': 'student_animation_shared_world_v2' if getattr(episode, 'animation_world_coordinates', False) else 'student_animation_only_v1',
             'home_advantage': 'disabled',
@@ -176,6 +180,10 @@ class QueryEpisode:
         if teacher.spec.get('mode') == 'intent':
             from .intents import IntentSession
             self.intents = IntentSession(self)
+        self.observed_memory = None
+        if teacher.spec.get('memory') == 'observed_source_v1':
+            from .observed_memory import ObservedMemory
+            self.observed_memory = ObservedMemory(self)
 
     def require(self, name):
         package = self.teacher.package
@@ -205,6 +213,8 @@ class QueryEpisode:
         current = interface.base_observation(old).reshape(-1, width)[-1]
         core = current[:frame_width(slots)]
         if not (current[0] and current[10]):
+            if self.observed_memory is not None:
+                self.observed_memory.interrupt('UNAVAILABLE_VISIBLE_FIGHTER')
             return Advice('UNAVAILABLE_VISIBLE_FIGHTER')
         for offset, prefix in ((0, b'my_'), (10, b'enemy_')):
             token = current[offset:offset+10]
@@ -240,6 +250,11 @@ class QueryEpisode:
         self.env[b'stage_number'], self.env[b'bgm_number'] = -1, -1
         if self.teacher.visible_perception:
             self.perception_history.append((fields['teacher_observation_index'],dict(fields),view))
+            if self.observed_memory is not None:
+                self.observed_memory.observe(fields['teacher_observation_index'])
+                return Advice('PHASE2_OBSERVED_MEMORY_READY',
+                    detail='Selective source memory only; unsupported groups untrusted; Phase3 labels disabled',
+                    decision_frame=self.frame)
             # Phase1 does not execute native-list perception or the old global
             # decision rollback. Legacy Lua memory is untrusted until Phase2;
             # branch/action supervision is deliberately not enabled yet.

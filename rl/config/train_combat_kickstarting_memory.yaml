@@ -1,0 +1,11 @@
+defaults:
+  - train_combat_kickstarting_visible
+  - _self_
+
+# Passive memory validation only. No original decision body or atomic label is
+# enabled; the PPO intent-attachment guard remains BLOCKED until native checks.
+rl:
+  kickstarting:
+    teacher:
+      memory: observed_source_v1
+output: ${oc.env:SOKURL_RL_ROOT}/runs/kickstarting-memory-${now:%Y%m%d-%H%M%S}

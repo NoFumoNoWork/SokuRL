@@ -66,6 +66,13 @@ def field_dependencies(paths, has_world):
 
 def inspect_guards(actor, registry):
     """Validate current public conditions, never execute a branch body or label."""
+    # Source definition loading also initializes original globals. Keep that
+    # audit-only activity away from the active restricted observer's trusted
+    # memory. This disposable VM is not a live per-frame teacher restart.
+    probe=actor.teacher.spawn(actor.teacher.spec['seed'])
+    for observation in actor.history:
+        probe.query(observation)
+    actor=probe
     from lupa.lua51 import LuaError
     for name,digest in registry['sources'].items():
         if hashlib.sha256(actor.teacher.package.files[name]).hexdigest()!=digest:
@@ -115,6 +122,7 @@ def inspect_guards(actor, registry):
             region='INITIALIZATION' if branch['line']<50 else 'DECISION',
             execution='DISABLED_BODY_NOT_EXECUTED',atomic_label=None))
     return dict(evidence='SYNTHETIC_LUA_GUARDS_ONLY_NO_NATIVE_OR_BEHAVIOR_VERIFICATION',
+                isolation='definitions evaluated in a disposable audit VM, not the active observer',
                 counts=dict(Counter(x['condition_status'] for x in records)),branches=records)
 
 
@@ -127,6 +135,7 @@ def main():
     parser.add_argument('--student-directory',help='explicit migrated model.zip/config.yaml directory')
     parser.add_argument('--branch-parser-site',help='explicit isolated rl/.tools Lua AST parser site; launches a separate -I -S process')
     parser.add_argument('--visible-perception',action='store_true',help='Phase1 data-only route; requires --world-coordinates, does not enable legacy memory/labels')
+    parser.add_argument('--observed-memory',action='store_true',help='Phase2 passive source memories; requires --visible-perception; no decision labels')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = Path(args.output).resolve()
@@ -150,6 +159,10 @@ def main():
         if not args.world_coordinates:
             raise ValueError('visible perception requires --world-coordinates')
         spec['perception']='student_visible_v1'
+    if args.observed_memory:
+        if not args.visible_perception:
+            raise ValueError('observed memory requires --visible-perception')
+        spec['memory']='observed_source_v1'
     teacher = QueryTeacher(interface, spec)
     package = Path(spec['package'])
     sources = [package/spec['script'], package/'00_reimu_main.ai', package/'def_clc.lua',
@@ -178,6 +191,8 @@ def main():
         probe.append(dict(script=script, statuses=dict(statuses), last=answer.record(),
                           source_adapter=variant.adapter.report if variant.adapter else None,
                           visible_view=actor.visible_view.report() if hasattr(actor,'visible_view') else None,
+                          observed_memory=actor.observed_memory.report() if actor.observed_memory else None,
+                          legacy_adapter_executed=bool(actor.intents and actor.intents.loaded),
                           perception_history_rows=len(actor.perception_history)))
     result = dict(status='BLOCKED_TEACHER_ADAPTATION' if any(
         p['last']['status'] != 'VALID_INPUT' for p in probe) else 'PASS_FIXTURE_ONLY',
@@ -198,6 +213,9 @@ def main():
         result['status']='PASS_PHASE1_PERCEPTION_ONLY'
         result['boundaries']['active_perception']='restricted public projection only; original native-list calculation quarantined'
         result['boundaries']['next']='Phase2 state classification/local recovery, then Phase3 atomic labels; no training authorization'
+    if args.observed_memory and all(p['last']['status']=='PHASE2_OBSERVED_MEMORY_READY' for p in probe):
+        result['status']='PASS_PHASE2_PASSIVE_MEMORY_ONLY'
+        result['boundaries']['next']='Original tactical writes/execution progress remain untrusted; Phase3 labels and Phase4 native validation required'
     from soku_rl.policy.god.perception import FIELD_MAP, ALIASES
     result['perception_mapping'] = FIELD_MAP
     result['task_context'] = teacher.context
@@ -219,6 +237,24 @@ def main():
             '--api',spec['api_source'],'--available',str(allowed_path),
             '--output',str(output/'branches.json')],check=True,timeout=120)
         branch_result = json.loads((output/'branches.json').read_text('utf-8'))
+        from soku_rl.policy.god.observed_memory import classify
+        from soku_rl.policy.god.observed_memory import RULES,HISTORY_RULES,SUPPORTED
+        inventory=[]
+        for assignment in branch_result['assignments']:
+            for name in assignment['writes']:
+                role,trust=classify(name)
+                if name in SUPPORTED:
+                    reviewed=(assignment['source']=='def_clc.lua' and
+                        (any(r.first<=assignment['line']<=r.last and name in r.writes
+                             for r in RULES+HISTORY_RULES) or
+                         (1094<=assignment['line']<=1097 and name.endswith(('_preact','_preframe')))))
+                    trust='SELECTIVE_RULE_RUNTIME_VALIDITY_REQUIRED' if reviewed else 'UNTRUSTED_UNEXECUTED_SOURCE_WRITE'
+                inventory.append(dict(assignment,name=name,role=role,trust=trust))
+        memory_inventory=dict(schema='teacher_memory_inventory_v1',
+            evidence='STATIC_SOURCE_WRITE_SITES_AND_SELECTIVELY_REVIEWED_ROLES_NOT_RUNTIME_TRUST',
+            counts=dict(Counter(x['role'] for x in inventory)),writes=inventory,
+            unknown_policy='UNREVIEWED_IS_UNKNOWN_NOT_INITIALIZED_ZERO')
+        (output/'memory_inventory.json').write_text(json.dumps(memory_inventory,indent=2),encoding='utf-8')
         guard_probes=[dict(script=actor.teacher.spec['script'],
             probe=inspect_guards(actor,branch_result)) for actor in actors]
         (output/'guard_probes.json').write_text(json.dumps(guard_probes,indent=2),encoding='utf-8')
@@ -227,6 +263,7 @@ def main():
             guard_probes=str(output/'guard_probes.json'),
             status='STATIC_ONLY_NO_BRANCH_EXECUTION_ENABLED',
             priority='Unknown earlier guards are not silently treated as false')
+        result['memory_inventory']=dict(path=str(output/'memory_inventory.json'),counts=memory_inventory['counts'])
     result['dependency_inventory'] = [
         dict(feature=name,status=status,existing_source=source,needed=needed)
         for name,status,source,needed in (
@@ -237,7 +274,7 @@ def main():
             ('action/sequence/facing','IMPLEMENTED','student animation tokens','none'),
             ('world distance/front/back','IMPLEMENTED_OPT_IN','derived shared world coordinates','none'),
             ('native spirit/maxSpirit','NOT_EXPOSED','existing RawFrameState','new shared observation approval; no new Hook needed'),
-            ('weather/cards-disabled context','NOT_IMPLEMENTED','existing runtime configuration','bind verified environment constants into teacher contract'),
+            ('weather/cards-disabled context','DECLARED_CONFIG_ONLY','existing runtime configuration','native enforcement remains separate validation'),
             ('card/skill state','NOT_EXPOSED','existing Platform privileged reader','restricted teacher branch adaptation OR separately approved shared fields'),
             ('object get_obj_data full tuple','PARTIAL_DATA_ONLY','visible object tokens/world positions','do not invent native HP/stable pointer/box counts; adapt API/script'),
             ('boxes/flags/special timers','DISALLOWED_CURRENT_CONTRACT','existing Platform privileged reader','permission/observability decision before any new adapter'),
@@ -247,7 +284,7 @@ def main():
             ('teacher intent lifecycle','OFFLINE_VERIFIED','query/intents.py + pinned source_adapter.py',
              'native boundary and 90-action lowering still absent; unsupported segments mask, no old coroutine resumes'),
             ('original decision/perception split','PINNED_SOURCE_ADAPTATION','2011 Marisa/Reimu/main+def_clc hashes',
-             'perception dependencies must be shared or explicitly adapted; decision writes rollback, not original policy equivalence'),
+             'visible profiles quarantine legacy main/rollback; passive source groups opt-in; original tactical/execution writes remain untrusted'),
             ('joint loss/masks/decay/save','OFFLINE_VERIFIED','existing PPO + opt-in KickstartingPPO','native rollout/coverage verification still required'),
             ('native teacher rollout/training','NOT_TESTED','existing Worker/Bridge infrastructure','unblock teacher labels first; no new deployment system needed'),
         )]

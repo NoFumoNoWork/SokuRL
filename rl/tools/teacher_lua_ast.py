@@ -119,12 +119,20 @@ def audit(package, api, available):
         return missing
 
     branches = []
+    assignments = []
     def visit(node, source, path=(), scope=None, bound=frozenset(), loops=()):
         if isinstance(node,(n.Function,n.LocalFunction)):
             args={x.id for x in node.args if isinstance(x,n.Name)}
             name=node.name.id if isinstance(node.name,n.Name) else 'UNKNOWN'
             visit(node.body,source,(),name,bound|args)
             return
+        if isinstance(node,n.Assign):
+            reads,calls,writes=scan(node,bound)
+            if writes:
+                assignments.append(dict(source=source,line=node.first_token.line,
+                    enclosing_function=scope,writes=sorted(writes),reads=sorted(reads),
+                    calls=sorted(calls),path=list(path),
+                    note='direct statement dependencies; enclosing guards/loops remain necessary'))
         if isinstance(node,(n.While,n.Fornum,n.Forin,n.Repeat)):
             if isinstance(node,(n.While,n.Repeat)):
                 expressions=[node.test]
@@ -193,6 +201,7 @@ def audit(package, api, available):
         available=sorted(available),counts=dict(Counter(x['guard_status'] for x in branches)),
         path_counts=dict(Counter(x['path_status'] for x in branches)),
         branches=branches,
+        assignments=assignments,
         functions={name:dict(source=source,line=node.first_token.line,
             reads=sorted(expand(node)[0]),writes=sorted(expand(node)[2]))
             for name,(source,node) in functions.items()})
