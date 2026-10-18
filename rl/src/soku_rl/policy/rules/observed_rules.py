@@ -44,7 +44,8 @@ class RulePolicy(RulePolicyBase):
     def __post_init__(self):
         if self.episode.observation_mode == 'animation':
             # Existing rule baselines receive an explicitly reduced public view.
-            object.__setattr__(self, 'episode', replace(self.episode, observation_mode='state', combat_reward=None))
+            object.__setattr__(self, 'episode', replace(self.episode, observation_mode='state', combat_reward=None,
+                                                       animation_world_coordinates=False))
         if self.name == "god":
             self.god_policy
             return
@@ -59,6 +60,8 @@ class RulePolicy(RulePolicyBase):
         if self.name == "god":
             return self.god_policy.fingerprint
         episode = asdict(self.episode)
+        if not episode.get('animation_world_coordinates', False):
+            episode.pop('animation_world_coordinates', None)
         if episode.get('combat_reward') is None:
             episode.pop('combat_reward',None)
         # New optional animation metadata must not rename old public opponents.
@@ -254,7 +257,8 @@ class LearningRuleEpisode:
         values = self.interface.base_observation(observation)
         if self.interface.episode.observation_mode == 'animation':
             from soku_rl.env.observation.animation import public_history
-            values = public_history(values, self.interface.episode.animation_object_slots)
+            values = public_history(values, self.interface.episode.animation_object_slots,
+                                    self.interface.episode.animation_world_coordinates)
         return self.interface.action(self.actor.act(values))
 
     def act_observation(self, observation):

@@ -1,7 +1,7 @@
 """Fail-closed Lua advice over the student's existing animation observation.
 
-This is not GodPolicy's privileged adapter. Missing world coordinates, timers,
-enemy inputs and boxes remain missing; Lua may not read the game or filesystem.
+This is not GodPolicy's privileged adapter. World positions require the explicit
+shared student contract. Timers, enemy inputs and boxes remain unavailable.
 """
 from collections import deque
 from dataclasses import asdict, dataclass
@@ -14,7 +14,7 @@ from lupa.lua51 import LuaRuntime, LuaError, LuaMemoryError
 
 from soku_rl.env.encoding import encode_action
 from soku_rl.env.observation.animation import frame_width, HISTORY_OFFSETS
-from .api import ScriptAPI
+from .api import ScriptAPI, float_difference
 from .package import ScriptPackage
 from .runtime import SCHEDULER
 
@@ -115,7 +115,8 @@ class QueryTeacher:
             'package': self.package.original_fingerprint, 'spec': spec,
             'implementation': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
                                for name in ('query.py', 'api.py', 'runtime.py', 'package.py')},
-            'projection': 'student_animation_only_v1', 'home_advantage': 'disabled',
+            'projection': 'student_animation_shared_world_v2' if getattr(episode, 'animation_world_coordinates', False) else 'student_animation_only_v1',
+            'home_advantage': 'disabled',
         }, sort_keys=True).encode()).hexdigest()
 
     def spawn(self, seed):
@@ -165,15 +166,34 @@ class QueryEpisode:
         if self.frame < self.teacher.spec['reaction_frames']:
             return Advice('REACTION_WARMUP')
         old = self.history[0]
-        width = frame_width(interface.episode.animation_object_slots)
+        slots = interface.episode.animation_object_slots
+        has_world = getattr(interface.episode, 'animation_world_coordinates', False)
+        width = frame_width(slots, has_world)
         current = interface.base_observation(old).reshape(-1, width)[-1]
+        core = current[:frame_width(slots)]
         if not (current[0] and current[10]):
             return Advice('UNAVAILABLE_VISIBLE_FIGHTER')
         for offset, prefix in ((0, b'my_'), (10, b'enemy_')):
             token = current[offset:offset+10]
             for name, value in ((b'char', int(token[4])), (b'act', int(token[5])),
-                                (b'dir', int(token[3]))):
+                                (b'dir', int(token[3])), (b'act_block', int(token[6]))):
                 self.env[prefix+name] = value
+        # Public HP gauge, not an extra exact native HP read.
+        self.env[b'my_hp'], self.env[b'enemy_hp'] = [round(float(x)*10000) for x in core[-5:-3]]
+        if has_world:
+            x, y, ex, ey = map(float, current[frame_width(slots):frame_width(slots)+4])
+            for name, value in ((b'x',x),(b'y',y),(b'ex',ex),(b'ey',ey),
+                                (b'my_x',x),(b'my_y',y),(b'enemy_x',ex),(b'enemy_y',ey)):
+                self.env[name] = value
+            dx, dy = int(abs(float_difference(x,ex))), int(abs(float_difference(y,ey)))
+            for name, value in ((b'dis',dx),(b'dis_x',dx),(b'dis_y',dy),(b'dis2',int((dx*dx+dy*dy)**.5))):
+                self.env[name] = value
+            right = x < ex or (x == ex and core[3] == 1)
+            for name,value in ((b'front',3 if right else 2),(b'back',2 if right else 3),
+                (b'd_front',11 if right else 10),(b'd_back',10 if right else 11),
+                (b'u_front',13 if right else 12),(b'u_back',12 if right else 13),
+                (b'is_dir_front',bool(core[3] == (1 if right else -1)))):
+                self.env[name] = value
         # Explicit neutral-context intervention; no stage/BGM information is read.
         self.env[b'stage_number'], self.env[b'bgm_number'] = -1, -1
         # Teacher key state is an intention, not a claim it was executed. The
@@ -181,6 +201,11 @@ class QueryEpisode:
         # Do not supervise continuations of a prefix the student did not execute.
         previous_executed = encode_action(tuple(map(int, observation[-8:])))
         aligned = self.previous_command is None or self.previous_command == previous_executed
+        if not aligned:
+            self.blocked = Advice('TEACHER_PREFIX_NOT_EXECUTED',command=self.previous_command,
+                source=self.location().decode('utf-8','replace'),
+                detail='Coroutine prefix no longer trusted; reset or verified resynchronization required')
+            return self.blocked
         try:
             self.budget(self.teacher.spec['instruction_limit'])
             if not self.started:
@@ -196,9 +221,6 @@ class QueryEpisode:
             self.blocked = Advice('BLOCKED_SOURCE_DEPENDENCY', source=self.location().decode('utf-8', 'replace'), detail=str(error))
             return self.blocked
         self.previous_command = command
-        if not aligned:
-            return Advice('TEACHER_PREFIX_NOT_EXECUTED', command=command,
-                          source=self.location().decode('utf-8', 'replace'))
         if command & 48:
             return Advice('MASKED_CARD_INPUT', command=command, source=self.location().decode('utf-8', 'replace'))
         if command not in interface.inverse:

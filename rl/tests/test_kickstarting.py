@@ -127,6 +127,8 @@ def test_unexecuted_teacher_prefix_is_not_self_supervision(tmp_path):
     answer = actor.query(obs)
     assert answer.status == 'TEACHER_PREFIX_NOT_EXECUTED'
     assert answer.command == 257 and answer.action is None
+    obs[-5],obs[-6] = 0,1  # a later coincidental A does not repair the whole prefix
+    assert actor.query(obs).status == 'TEACHER_PREFIX_NOT_EXECUTED'
 
 
 def test_seeded_expert_rng_is_episode_local(tmp_path):

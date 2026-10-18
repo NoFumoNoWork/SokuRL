@@ -30,6 +30,7 @@ class EpisodeConfig:
     match: MatchConfig
     animation_object_slots: int = 16
     combat_reward: dict | None = None
+    animation_world_coordinates: bool = False
 
     def __post_init__(self):
         if isinstance(self.match, dict):
@@ -45,6 +46,8 @@ class EpisodeConfig:
         if not isinstance(self.visibility, VisibilityConfig):
             raise TypeError("visibility must be a VisibilityConfig or its configuration dictionary")
         frame_width(self.animation_object_slots)
+        if type(self.animation_world_coordinates) is not bool or (self.animation_world_coordinates and self.observation_mode != 'animation'):
+            raise ValueError('world coordinates require explicit animation mode')
         if self.observation_mode == "animation" and self.history_frames != len(HISTORY_OFFSETS):
             raise ValueError('animation mode requires eight sparse past-frame samples')
         if self.observation_mode not in {"image", "state", "diagnostic_state", "privileged_state", "animation"}:
@@ -72,7 +75,7 @@ class EpisodeConfig:
 
     def space(self):
         if self.observation_mode == 'animation':
-            return spaces.Box(-np.inf, np.inf, (frame_width(self.animation_object_slots)*8,), np.float32)
+            return spaces.Box(-np.inf, np.inf, (frame_width(self.animation_object_slots, self.animation_world_coordinates)*8,), np.float32)
         if self.observation_mode == "privileged_state":
             return spaces.Box(-np.inf, np.inf, (PRIVILEGED_FEATURES * self.history_frames,), np.float32)
         if self.observation_mode == "image":
@@ -85,8 +88,12 @@ class EpisodeConfig:
         if self.observation_mode == 'animation':
             if not isinstance(observation, AnimationObservation):
                 raise TypeError('expected privileged animation-proxy observation')
-            values = np.asarray(observation.values, np.float32)
-            if values.shape != (frame_width(self.animation_object_slots),) or not np.isfinite(values).all():
+            core = tuple(observation.values)
+            if len(core) != frame_width(self.animation_object_slots):
+                raise ValueError('invalid core animation frame')
+            world = tuple(observation.world_positions) if self.animation_world_coordinates else ()
+            values = np.asarray(core + world, np.float32)
+            if values.shape != (frame_width(self.animation_object_slots, self.animation_world_coordinates),) or not np.isfinite(values).all():
                 raise ValueError('invalid animation-proxy frame')
             return values
         if self.observation_mode == "privileged_state":

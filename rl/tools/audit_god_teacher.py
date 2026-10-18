@@ -39,11 +39,36 @@ def source_audit(paths):
     return result
 
 
+def field_dependencies(paths, has_world):
+    """Conservative textual references, NOT proof a field is read on every path."""
+    from sokurl_platform.native_layout import FIGHTER_NAMES,WORLD_NAMES
+    available = {'char','act','act_block','dir'}
+    if has_world:
+        available |= {'x','y'}
+    result = []
+    for prefix in ('my_','enemy_'):
+        for field in FIGHTER_NAMES:
+            name = prefix+field
+            references = []
+            for path in paths:
+                for line,text in enumerate(path.read_bytes().decode('cp932','replace').splitlines(),1):
+                    if re.search(r'\b'+re.escape(name)+r'\b',text):
+                        references.append(dict(path=str(path),line=line))
+            if references:
+                status = 'AVAILABLE_SHARED' if field in available else 'NOT_IN_STUDENT_CONTRACT'
+                if field == 'hp':status = 'AVAILABLE_QUANTIZED_GAUGE_NOT_EXACT_HP'
+                result.append(dict(name=name,status=status,existing_platform='native_layout/native_reader (not enabled for student)',
+                    references=references,reference_kind='STATIC_TEXT_OVERAPPROX_INCLUDES_UNEXECUTED_CODE'))
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True)
     parser.add_argument('--check-student', action='store_true',
                         help='verify exact existing PPO weight initialization on CPU, no environment stepping')
+    parser.add_argument('--world-coordinates',action='store_true')
+    parser.add_argument('--student-directory',help='explicit migrated model.zip/config.yaml directory')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = Path(args.output).resolve()
@@ -52,6 +77,15 @@ def main():
     output.mkdir(parents=True, exist_ok=False)
     with initialize_config_dir(config_dir=str(root/'rl/config'), version_base='1.3'):
         config = OmegaConf.to_container(compose(config_name='train_combat_kickstarting'), resolve=True)
+    if args.world_coordinates:
+        config['episode']['animation_world_coordinates'] = True
+        config['rl']['ppo']['policy_kwargs']['features_extractor_kwargs']['world_coordinates'] = True
+        if args.check_student and not args.student_directory:
+            raise ValueError('world student check requires an explicit migrated --student-directory')
+    if args.student_directory:
+        source = Path(args.student_directory).resolve(strict=True)
+        config['algorithm']['initial_policy'] = dict(kind='weights',path=str(source/'model.zip'),
+                                                      training_config=str(source/'config.yaml'))
     interface = LearningInterface(EpisodeConfig.from_dict(config['episode']), LearningConfig(**config['wrappers']))
     spec = config['rl']['kickstarting']['teacher']
     teacher = QueryTeacher(interface, spec)
@@ -63,10 +97,14 @@ def main():
     for character, script in ((1,'01_marisa_main.ai'), (0,'00_reimu_main.ai')):
         variant = QueryTeacher(interface, spec | dict(script=script))
         actor = variant.spawn(spec['seed'])
-        width = frame_width(interface.episode.animation_object_slots)
+        core_width = frame_width(interface.episode.animation_object_slots)
+        width = frame_width(interface.episode.animation_object_slots,interface.episode.animation_world_coordinates)
         row = np.zeros(width, np.float32)
         row[0] = row[10] = 1
         row[3], row[13], row[4], row[14] = 1, -1, character, 1-character
+        row[core_width-5:core_width-1] = 1.
+        if args.world_coordinates:
+            row[core_width:core_width+4] = (320.,0.,800.,0.)
         obs = np.r_[np.tile(row, interface.episode.history_frames),
                     np.zeros(8*interface.config.action_history, np.float32)]
         statuses = Counter()
@@ -78,6 +116,7 @@ def main():
         p['last']['status'] != 'VALID_INPUT' for p in probe) else 'PASS_FIXTURE_ONLY',
         evidence_level='SYNTHETIC_CONTRACT_PROBE_NOT_GAMEPLAY_COVERAGE',
         config=config, teacher_fingerprint=teacher.fingerprint, source_audit=source_audit(sources),
+        field_dependencies=field_dependencies(sources,args.world_coordinates),
         probes=probe, versions={name:version(name) for name in ('lupa','torch','stable-baselines3')},
         rl_head=subprocess.check_output(['git','rev-parse','HEAD'], text=True).strip(),
         dirty=subprocess.check_output(['git','status','--porcelain'], text=True).splitlines(),
@@ -86,7 +125,28 @@ def main():
             legality='input vocabulary/card mask only, NOT engine acceptance/cancel proof',
             time='one query step per 1F observation; episode-local coroutine and seeded RNG',
             coverage='no real student/native rollout tested in this audit',
-            next='adapt source-backed teacher predicates to student-observable semantics; no fake world coordinates'))
+            next='adapt remaining source dependencies without inventing hidden state'))
+    result['dependency_inventory'] = [
+        dict(feature=name,status=status,existing_source=source,needed=needed)
+        for name,status,source,needed in (
+            ('screen positions','IMPLEMENTED','existing animation tokens','none'),
+            ('world positions','IMPLEMENTED_OPT_IN','existing RenderSnapshot; same visible slots','explicit student migration; no Hook'),
+            ('native speed','NOT_EXPOSED','existing RawFrameState.speedX/speedY','shared student feature authorization; do not substitute position finite differences'),
+            ('HP','IMPLEMENTED_QUANTIZED','student HP gauge','not exact native HP'),
+            ('action/sequence/facing','IMPLEMENTED','student animation tokens','none'),
+            ('world distance/front/back','IMPLEMENTED_OPT_IN','derived shared world coordinates','none'),
+            ('native spirit/maxSpirit','NOT_EXPOSED','existing RawFrameState','new shared observation approval; no new Hook needed'),
+            ('weather/cards-disabled context','NOT_IMPLEMENTED','existing runtime configuration','bind verified environment constants into teacher contract'),
+            ('card/skill state','NOT_EXPOSED','existing Platform privileged reader','restricted teacher branch adaptation OR separately approved shared fields'),
+            ('object get_obj_data full tuple','PARTIAL_DATA_ONLY','visible object tokens/world positions','do not invent native HP/stable pointer/box counts; adapt API/script'),
+            ('boxes/flags/special timers','DISALLOWED_CURRENT_CONTRACT','existing Platform privileged reader','permission/observability decision before any new adapter'),
+            ('enemy hidden inputs','PROHIBITED','no allowed student source','remove teacher dependency; do not add a reader'),
+            ('independent RNG/delay/query sandbox','IMPLEMENTED','existing ScriptAPI LCG + restricted query','native equivalence not claimed'),
+            ('accepted move/cancel legality','NOT_IMPLEMENTED','existing diagnostic action events; no complete allowed legal mask','observable legality contract + bounded native validation'),
+            ('teacher coroutine resynchronization','NOT_IMPLEMENTED_FAIL_CLOSED','existing query + own actual input history','safe decision-boundary/restart adapter; mismatch masks episode, coincidence does not repair a macro prefix'),
+            ('joint loss/masks/decay/save','OFFLINE_VERIFIED','existing PPO + opt-in KickstartingPPO','native rollout/coverage verification still required'),
+            ('native teacher rollout/training','NOT_TESTED','existing Worker/Bridge infrastructure','unblock teacher labels first; no new deployment system needed'),
+        )]
     if args.check_student:
         from stable_baselines3 import PPO
         import gymnasium as gym

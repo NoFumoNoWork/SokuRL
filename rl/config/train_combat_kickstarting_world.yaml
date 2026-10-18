@@ -1,0 +1,19 @@
+defaults:
+  - train_combat_kickstarting
+  - _self_
+
+# Requires an explicit separately generated prepare_world_student artifact.
+# Still BLOCKED on other original Lua dependencies; not formal training approval.
+episode:
+  animation_world_coordinates: true
+rl:
+  ppo:
+    policy_kwargs:
+      features_extractor_kwargs:
+        world_coordinates: true
+algorithm:
+  initial_policy:
+    kind: weights
+    path: ${oc.env:SOKURL_WORLD_STUDENT}/model.zip
+    training_config: ${oc.env:SOKURL_WORLD_STUDENT}/config.yaml
+output: ${oc.env:SOKURL_RL_ROOT}/runs/kickstarting-world-${now:%Y%m%d-%H%M%S}

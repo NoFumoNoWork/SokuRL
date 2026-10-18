@@ -7,14 +7,16 @@ from soku_rl.env.observation.animation import frame_width, HISTORY_OFFSETS
 
 class AnimationTokenFeatures(BaseFeaturesExtractor):
     def __init__(self, observation_space, object_slots=16, width=64, heads=4, features_dim=128,
-                 timing_vocab_size=1024):
-        base = len(HISTORY_OFFSETS) * frame_width(object_slots)
+                 timing_vocab_size=1024, world_coordinates=False):
+        base = len(HISTORY_OFFSETS) * frame_width(object_slots, world_coordinates)
         if observation_space.shape[0] < base or width % heads:
             raise ValueError('invalid animation-token observation contract')
         super().__init__(observation_space, features_dim)
         if type(timing_vocab_size) is not int or timing_vocab_size < 1024:
             raise ValueError('timing vocabulary must have at least 1024 rows')
-        self.slots, self.base, self.frame_size = object_slots, base, frame_width(object_slots)
+        self.slots, self.base, self.frame_size = object_slots, base, frame_width(object_slots, world_coordinates)
+        self.world_coordinates = world_coordinates
+        self.world_features = len(HISTORY_OFFSETS) * 2 * (2+object_slots) if world_coordinates else 0
         self.position = nn.Linear(4, width)
         # Exact bounded IDs. Out-of-vocabulary states trap, never hash or alias.
         self.categories = nn.ModuleList(nn.Embedding(size, width) for size in
@@ -25,12 +27,13 @@ class AnimationTokenFeatures(BaseFeaturesExtractor):
         self.spatial = nn.TransformerEncoder(layer(), 1, enable_nested_tensor=False)
         self.temporal = nn.TransformerEncoder(layer(), 1, enable_nested_tensor=False)
         self.time = nn.Parameter(torch.zeros(8, width))
-        self.output = nn.Sequential(nn.Linear(width+5+observation_space.shape[0]-base, features_dim), nn.Tanh())
+        self.output = nn.Sequential(nn.Linear(width+5+observation_space.shape[0]-base+self.world_features, features_dim), nn.Tanh())
         self.register_buffer('causal', torch.ones(8, 8, dtype=torch.bool).triu(1), persistent=False)
 
     def forward(self, observations):
         frames = observations[:, :self.base].reshape(-1, self.frame_size)
-        tokens = frames[:, :-5].reshape(-1, 2+self.slots, 10)
+        core = frames[:, :frame_width(self.slots)]
+        tokens = core[:, :-5].reshape(-1, 2+self.slots, 10)
         encoded = self.position(tokens[..., :4])
         for index, embedding in enumerate(self.categories):
             values = tokens[..., 4+index]
@@ -49,5 +52,8 @@ class AnimationTokenFeatures(BaseFeaturesExtractor):
         summaries = self.spatial(encoded, src_key_padding_mask=mask)[:, 0]
         history = summaries.reshape(observations.shape[0], 8, -1)
         latest = self.temporal(history+self.time, mask=self.causal)[:, -1]
-        globals_ = frames.reshape(observations.shape[0], 8, -1)[:, -1, -5:]
-        return self.output(torch.cat((latest, globals_, observations[:, self.base:]), -1))
+        globals_ = core.reshape(observations.shape[0], 8, -1)[:, -1, -5:]
+        parts = [latest, globals_, observations[:, self.base:]]
+        if self.world_coordinates:
+            parts.append(frames[:, frame_width(self.slots):].reshape(observations.shape[0], -1) / 1280.)
+        return self.output(torch.cat(parts, -1))

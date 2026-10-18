@@ -536,9 +536,9 @@ over `decay_transitions` collected transitions (sampled at each rollout start),
 with its clock saved in models. The joint-loss adapter is pinned to SB3 2.9.x.
 Old `online_teacher` is a separate post-PPO optimizer and is not this method.
 
-The current original Marisa/Reimu scripts are **BLOCKED for training** under the
-student visibility contract. Their `x` is a world coordinate; student animation
-positions are screen coordinates. Missing coordinates, boxes, timers, enemy keys
+Under the original screen-only contract Marisa/Reimu scripts are **BLOCKED for
+training**. Their `x` is a world coordinate; original student animation positions
+are screen coordinates. Missing coordinates, boxes, timers, enemy keys
 and skill/card state are never filled with guessed values. No new native Hook or
 state extraction is included. The entire teacher view is delayed (default 6F),
 neutral home/BGM context is explicit, RNG/coroutines are episode-local, and Lua
@@ -564,3 +564,47 @@ source hashes/lines and missing dependencies. `train_combat_kickstarting.yaml`
 is a bounded correctness profile, not a ready teacher-training recipe. Retain
 original PPO/BC checkpoints; use `kind: weights` to start a new objective with a
 fresh optimizer, or identical kickstarting contracts for checkpoint continuation.
+
+### Shared World Coordinates
+
+`episode.animation_world_coordinates: true` is an explicit opt-in extension.
+It appends world x/y for the same visible fighters and selected object slots to
+each animation frame, without changing existing screen tokens or exposing hidden
+objects. Positions come from the already captured Platform `RenderSnapshot`;
+there are no new native reads or Hooks. With 16 slots the frame width is 221
+(old 185), and eight frames plus eight submitted-input rows occupy 1,832 floats
+(old 1,544). Raw world coordinates remain float32; the existing feature extractor
+normalizes its new coordinate inputs internally by 1280.
+
+Old models cannot silently load this observation shape. Create an independent
+artifact with old parameters preserved and new feature columns zeroed:
+
+```powershell
+.\.venv\python.exe -B rl/run.py prepare_world_student `
+  --checkpoint rl/runs/combat-v2-adaptive-20261015/campaign/train-4/final.zip `
+  --config rl/runs/combat-v2-adaptive-20261015/campaign/train-4/config.yaml `
+  --output rl/runs/NEW-world-student
+.\.venv\python.exe -B rl/run.py audit_god_teacher --world-coordinates `
+  --student-directory rl/runs/NEW-world-student --check-student `
+  --output rl/runs/NEW-world-audit
+```
+
+The migration verifies old parameter columns, zero new columns, CPU action/value
+outputs and reload; it creates fresh Adam state, not optimizer continuation.
+Output comparisons use rtol=1e-6/atol=1e-7; do not generalize fixture equality to
+native trajectory equivalence. `train_combat_kickstarting_world.yaml` requires
+`SOKURL_WORLD_STUDENT` explicitly; it does not silently substitute an old model.
+
+The original scripts now pass their world-coordinate reads but remain blocked
+on native vertical velocity (`my_yspeed`). Position finite differences are not
+silently substituted for that field. Spirit/maxSpirit, full object API, cards,
+skills, collision flags/boxes and special timers also need explicit treatment.
+Many already exist in Platform, but that does not authorize exposing them to the
+student. Joint PPO supervision is offline-tested; original-teacher coverage,
+legal-decision proof and native rollout validation are still outstanding. Audit
+JSON separates these gaps from genuinely missing adapters and tools.
+When a student does not execute a teacher coroutine's proposed prefix, that
+episode's advice is invalidated until reset. A later matching button cannot prove
+the missing motion prefix happened. A verified decision-boundary/resynchronization
+adapter is required for useful continued advice on arbitrary student trajectories;
+this conservative guard is not such an adapter and can severely limit coverage.
