@@ -902,6 +902,59 @@ used for wiring tests in both roles,not a Reimu policy-strength evaluation.
 Per-actor readiness markers are intentionally not promoted by this bounded
 smoke. Do not enable formal expert training on this evidence alone.
 
+The optional `-CompleteEpisode -Frames 7200` profile instead waits for the
+existing environment KO/7200F boundary on each seat,keeps ended slots paused,
+closes the teacher's final receipt without another intent,and then checks Reset.
+This is one environment episode per seat,not a claim of a complete best-of-three
+match or all Lua branches. Closed actors cannot be reused after Reset.
+
+### Continuous Teacher PPO
+
+`train_combat_kickstarting_continuous` connects the shared-current observation
+to the existing joint PPO/expert-CE loss. It requires the explicit migrated
+`model.zip` plus `migration.json` from `migrate_shared_teacher`,and a restored
+both-seat full-episode sidecar report selected by
+`rl.kickstarting.teacher.validation`. These are local external artifacts,not
+files shipped by Git;keep their hashes and source identities. Stale interpreter
+or feedback-join source evidence is rejected. Default old PPO/query profiles
+are not silently upgraded.
+
+```powershell
+# Run under the existing Platform Bridge deployment/restore session.
+.\.venv\python.exe -B rl/run.py train `
+  --config-name train_combat_kickstarting_continuous
+```
+
+The profile has two balanced seats,Clear,no cards,1F/90 primitive inputs,and a
+512-transition correctness budget. It is not a long-training recommendation.
+`shared_weights` means policy-weight initialization with a fresh optimizer,
+not resuming the offline migration tool's dummy PPO training state. Native
+continuation uses the normal `checkpoint` source and its actual saved config.
+
+Students independently sample every environment action. The vector attachment
+stages post-step feedback,but fixes labels from the preceding observation and
+receipt before inspecting that new state. Native input receipts then update
+only the next decision. Automatic Reset closes the old teacher on the terminal
+observation before opening a new one. The existing lossless `PackedArray` stores
+expert rollouts;sampling,returns,GAE and the joint expert loss remain unchanged.
+Unsupported or untrusted branches stay masked;positive expert weight with no
+valid labels fails explicitly. Complete skill/charge native coverage and policy
+strength are separate from the ability to execute this training pipeline.
+
+Verification covered both original teachers through four native KO episodes,
+the formal PPO collector across two native automatic Resets,and actual native
+128-transition new training plus64-transition continuation. The default512-step
+profile(batch256,4epochs) also completed finite joint-loss updates. The collector
+test kept weights frozen and is not counted as training data. These tests show
+the supported pipeline can train,not that the policy became stronger. No long
+training run or hyperparameter search was used for this acceptance.
+
+For newly prepared artifacts,explicitly override these configuration paths:
+`algorithm.initial_policy.path`, `algorithm.initial_policy.migration`, and
+`rl.kickstarting.teacher.validation`. Use the generated migration manifest and
+the corresponding restored `-CompleteEpisode` report;do not invent validation
+JSON or relabel an inference-only artifact as a training checkpoint.
+
 ### Scoped Original Decisions
 
 `train_combat_kickstarting_scoped.yaml` adds the opt-in `source_scoped_v1`

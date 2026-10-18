@@ -48,7 +48,13 @@ def load_policy(name, spec, interface, device):
         rules = spec["rules"]
         if spec["name"] not in rules["roster"]:
             raise ValueError("rule policy must belong to the configured roster")
-        policy = RulePolicy(spec["name"], rules, interface.episode, rule_implementation())
+        episode=interface.episode
+        if getattr(episode,'shared_teacher_context',False):
+            # Legacy opponents retain the identical public rule contract. The
+            # learning wrapper already extracts the unchanged public prefix.
+            from dataclasses import replace
+            episode=replace(episode,shared_teacher_context=False)
+        policy = RulePolicy(spec["name"], rules, episode, rule_implementation())
         return LearningRulePolicy(policy, interface)
     if kind == "uniform":
         from soku_rl.policy.population import UniformPolicy

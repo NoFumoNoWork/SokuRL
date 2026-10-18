@@ -66,6 +66,11 @@ def initialize_ppo(algorithm, policy_type, env, interface, config, source, devic
     if sum(option in config for option in ("online_anchor", "rehearsal", "online_teacher", "kickstarting")) > 1:
         raise ValueError("select one of online_anchor, rehearsal, online_teacher or kickstarting; combining auxiliary objectives is not supported")
     parameters = dict(config["ppo"])
+    shared_native_context=parameters.pop('shared_native_context',False)
+    if type(shared_native_context) is not bool:
+        raise ValueError('shared_native_context must be explicit boolean')
+    if shared_native_context!=getattr(interface.episode,'shared_teacher_context',False):
+        raise ValueError('shared PPO/context configuration must agree')
     duration_aware = parameters.pop('duration_aware', False)
     if type(duration_aware) is not bool:
         raise ValueError('duration_aware must be a boolean')
@@ -152,6 +157,15 @@ def initialize_ppo(algorithm, policy_type, env, interface, config, source, devic
         if (issubclass(architecture["features_extractor_class"], CanonicalCombatFeatures)
                 and config["ppo"].get("action_frame") != "own_facing"):
             raise ValueError("canonical features require the own_facing action head")
+    if shared_native_context:
+        from soku_rl.rl.animation_features import AnimationTokenFeatures
+        from soku_rl.rl.shared_native_features import SharedNativeFeatures
+        if architecture.get('features_extractor_class') is not AnimationTokenFeatures:
+            raise ValueError('shared context requires the existing animation Transformer')
+        public=dict(architecture.get('features_extractor_kwargs',{}))
+        public['world_coordinates']=True
+        architecture['features_extractor_class']=SharedNativeFeatures
+        architecture['features_extractor_kwargs']=dict(public_kwargs=public,features_dim=public.get('features_dim',128))
     parameters["policy_kwargs"] = architecture
     if isinstance(parameters.get("rollout_buffer_class"), str):
         parameters["rollout_buffer_class"] = get_class(parameters["rollout_buffer_class"])
@@ -170,19 +184,48 @@ def initialize_ppo(algorithm, policy_type, env, interface, config, source, devic
         from soku_rl.rl.online_teacher import teacher_algorithm, validate_teacher
         validate_teacher(config["online_teacher"])
         algorithm = teacher_algorithm(algorithm)
+    continuous=False
     if 'kickstarting' in config:
-        from soku_rl.rl.kickstarting import KickstartingPPO, ExpertRolloutBuffer, validate_kickstarting
+        from soku_rl.rl.kickstarting import KickstartingPPO, ExpertRolloutBuffer, PackedExpertRolloutBuffer, validate_kickstarting
         validate_kickstarting(config['kickstarting'])
         if (algorithm is not PPO or duration_aware or not card_mask
                 or 'rollout_buffer_class' in config['ppo']):
             raise ValueError('kickstarting requires ordinary feedforward card-masked PPO, no buffer override')
         algorithm = KickstartingPPO
-        parameters['rollout_buffer_class'] = ExpertRolloutBuffer
+        continuous=config['kickstarting']['teacher'].get('provider')=='continuous_shared_v1'
+        parameters['rollout_buffer_class'] = PackedExpertRolloutBuffer if continuous else ExpertRolloutBuffer
     if source == {"kind": "fresh"}:
         model = algorithm(policy_type, env, seed=seed, device=device, **parameters)
         if "initial_action_prior" in config["ppo"]:
             initialize_action_bias(model, prior_logits)
         return attach_requested_storage(model, config), source
+    if source.get('kind')=='shared_weights':
+        # Explicit offline migration artifact,NOT a fabricated training config
+        # or continuation of the migration tool's dummy2-step PPO optimizer.
+        import json
+        from soku_rl.rl.shared_native_features import SharedNativeFeatures
+        if (set(source)!={'kind','path','migration'} or not getattr(interface.episode,'shared_teacher_context',False)
+                or 'kickstarting' not in config or not continuous):
+            raise ValueError('shared_weights requires explicit continuous shared expert configuration')
+        path=Path(source['path']).resolve(strict=True)
+        migration_path=Path(source['migration']).resolve(strict=True)
+        migration=json.loads(migration_path.read_text('utf-8-sig'))
+        digest=hashlib.sha256(path.read_bytes()).hexdigest()
+        if (migration['status']!='PASS_OFFLINE_SHARED_OBSERVATION_MIGRATION' or
+                migration['files']['model.zip']!=digest or migration['gradient_updates'] or
+                migration['max_probability_error'] or migration['max_value_error']):
+            raise ValueError('unverified or changed shared-weight artifact')
+        initial=PPO.load(path,device=device)
+        if (not isinstance(initial.policy.features_extractor,SharedNativeFeatures) or
+                initial.observation_space!=env.observation_space or initial.action_space!=env.action_space or
+                parameter_hash(initial.policy)!=migration['initialized_parameters']):
+            raise ValueError('shared artifact contract/parameter identity differs')
+        model=algorithm(policy_type,env,seed=seed,device=device,**parameters)
+        if type(model.policy) is not type(initial.policy) or model.policy_kwargs!=initial.policy_kwargs:
+            raise ValueError('shared artifact policy type differs')
+        model.policy.load_state_dict(initial.policy.state_dict(),strict=True)
+        return model,source|{'sha256':digest,'migration_sha256':hashlib.sha256(migration_path.read_bytes()).hexdigest(),
+            'source_steps':0,'optimizer':'fresh','scope':'explicit offline shared-weight initialization'}
     if set(source) != {"kind", "path", "training_config"} or source["kind"] not in {"checkpoint", "weights"}:
         raise ValueError("initial policy must be fresh, a training checkpoint, or policy weights")
     training = read_training_contract(source["training_config"], interface)

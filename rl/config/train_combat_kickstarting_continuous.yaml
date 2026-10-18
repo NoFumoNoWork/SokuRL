@@ -1,0 +1,40 @@
+defaults:
+  - train_combat_v2_credit
+  - _self_
+
+# Independent correctness profile. Not an authorization for long training.
+num_envs: 2
+episode:
+  animation_world_coordinates: true
+  shared_teacher_context: true
+runtime:
+  cwd: ${oc.env:SOKURL_PROJECT_ROOT}
+  command: ["${oc.env:SOKURL_PYTHON}", "-B", "${oc.env:SOKURL_RL_ROOT}/tools/rollout_worker.py"]
+  fresh_reset: true
+  cards_disabled: true
+  fixed_weather: clear
+  combat_events: true
+  native_input_counters: true
+algorithm:
+  player: balanced
+  timesteps: 512
+  checkpoint_every: 512
+  initial_policy:
+    kind: shared_weights
+    path: ${oc.env:SOKURL_RL_ROOT}/runs/teacher-shared-native-20261018/student-v1/model.zip
+    migration: ${oc.env:SOKURL_RL_ROOT}/runs/teacher-shared-native-20261018/student-v1/migration.json
+rl:
+  ppo:
+    shared_native_context: true
+  kickstarting:
+    teacher:
+      provider: continuous_shared_v1
+      package: third_party/th123_ai/package/th123ai/script
+      api_source: third_party/th123_ai/source/th123_ai/api.ai
+      script: 01_marisa_main.ai
+      seed: 20261019
+      instruction_limit: 200000
+      validation: ${oc.env:SOKURL_RL_ROOT}/runs/teacher-episode-20261019/marisa-v2/run/report.json
+    lambda_initial: 0.1
+    decay_transitions: 131072
+output: ${oc.env:SOKURL_RL_ROOT}/runs/kickstarting-continuous-${now:%Y%m%d-%H%M%S}

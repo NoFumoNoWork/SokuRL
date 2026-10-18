@@ -16,6 +16,7 @@ from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.utils import explained_variance
 
 from soku_rl.policy.god.query import QueryTeacher, validate_spec
+from soku_rl.rl.buffers import PackedRolloutBuffer
 
 
 class ExpertSamples(NamedTuple):
@@ -54,10 +55,18 @@ class ExpertRolloutBuffer(RolloutBuffer):
                              self.to_torch(self.expert_mask[batch_inds]))
 
 
+class PackedExpertRolloutBuffer(ExpertRolloutBuffer,PackedRolloutBuffer):
+    """Same expert fields/GAE;existing lossless observation storage only."""
+
+
 def validate_kickstarting(config):
     if not isinstance(config, dict) or set(config) != {'teacher', 'lambda_initial', 'decay_transitions'}:
         raise ValueError('kickstarting requires teacher, lambda_initial and decay_transitions')
-    validate_spec(config['teacher'])
+    if config['teacher'].get('provider')=='continuous_shared_v1':
+        from soku_rl.rl.continuous_expert import validate_spec as validate_continuous
+        validate_continuous(config['teacher'])
+    else:
+        validate_spec(config['teacher'])
     weight = config['lambda_initial']
     if type(weight) not in (int, float) or not math.isfinite(weight) or weight < 0:
         raise ValueError('kickstarting lambda_initial must be finite and nonnegative')
@@ -80,12 +89,14 @@ def expert_loss(policy, observations, labels, mask, zero):
 
 def attach_kickstarting(model, interface, config, continuing):
     validate_kickstarting(config)
+    continuous=config['teacher'].get('provider')=='continuous_shared_v1'
     if config['teacher'].get('mode') == 'intent':
         raise RuntimeError('BLOCKED: intent queries require a trusted decision-boundary provider '
                            'and student-prefix-grounded 90-action label adapter; neither is wired to PPO')
     if not version('stable-baselines3').startswith('2.9.'):
         raise ValueError('joint-loss adapter requires the validated SB3 2.9.x PPO contract')
-    if (not isinstance(model, KickstartingPPO) or type(model.rollout_buffer) is not ExpertRolloutBuffer
+    expected_buffer=PackedExpertRolloutBuffer if continuous else ExpertRolloutBuffer
+    if (not isinstance(model, KickstartingPPO) or type(model.rollout_buffer) is not expected_buffer
             or hasattr(model, '_expert')):
         raise ValueError('kickstarting requires its own unmodified PPO/buffer and one attachment')
     if not getattr(model.policy, 'masked_actions', ()):
@@ -93,7 +104,11 @@ def attach_kickstarting(model, interface, config, continuing):
     expected = tuple(i for i, command in enumerate(interface.commands) if command & 48)
     if tuple(model.policy.masked_actions) != expected:
         raise ValueError('student and expert card masks must agree')
-    teacher = QueryTeacher(interface, config['teacher'])
+    if continuous:
+        from soku_rl.rl.continuous_expert import ContinuousExpert,FeedbackVecEnv
+        teacher=ContinuousExpert(interface,config['teacher'],model.n_envs)
+    else:
+        teacher = QueryTeacher(interface, config['teacher'])
     identity = {'config': copy.deepcopy(config), 'teacher_fingerprint': teacher.fingerprint,
                 'commands': list(interface.commands), 'loss': 'joint_ppo_masked_expert_ce_v1',
                 'control': 'student_only', 'lambda_clock': 'collected_1F_transitions_at_rollout_start'}
@@ -108,6 +123,9 @@ def attach_kickstarting(model, interface, config, continuing):
     model._expert = teacher
     model._expert_actors = [None] * model.n_envs
     model.rollout_buffer.query = model.query_expert
+    if continuous:
+        if model.get_env() is None:raise ValueError('native vector environment required')
+        model.set_env(FeedbackVecEnv(model.get_env(),teacher))
 
 
 class KickstartingPPO(PPO):
@@ -118,6 +136,8 @@ class KickstartingPPO(PPO):
         if not hasattr(self, '_expert'):
             raise RuntimeError('kickstarting requires attachment via shared PPO factory')
         state = self.kickstarting_state
+        if self._expert.spec.get('provider')=='continuous_shared_v1':
+            return self._expert.labels(observations,starts,actions,state)
         labels, valid = np.zeros(self.n_envs, np.int64), np.zeros(self.n_envs, bool)
         for slot in range(self.n_envs):
             if starts[slot]:
