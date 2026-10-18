@@ -80,6 +80,9 @@ def expert_loss(policy, observations, labels, mask, zero):
 
 def attach_kickstarting(model, interface, config, continuing):
     validate_kickstarting(config)
+    if config['teacher'].get('mode') == 'intent':
+        raise RuntimeError('BLOCKED: intent queries require a trusted decision-boundary provider '
+                           'and student-prefix-grounded 90-action label adapter; neither is wired to PPO')
     if not version('stable-baselines3').startswith('2.9.'):
         raise ValueError('joint-loss adapter requires the validated SB3 2.9.x PPO contract')
     if (not isinstance(model, KickstartingPPO) or type(model.rollout_buffer) is not ExpertRolloutBuffer

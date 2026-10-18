@@ -15,6 +15,7 @@ algorithm:
 rl:
   kickstarting:
     teacher:
+      mode: intent
       package: third_party/th123_ai/package/th123ai/script
       api_source: third_party/th123_ai/source/th123_ai/api.ai
       script: 01_marisa_main.ai

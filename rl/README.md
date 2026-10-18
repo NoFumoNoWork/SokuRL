@@ -603,8 +603,38 @@ Many already exist in Platform, but that does not authorize exposing them to the
 student. Joint PPO supervision is offline-tested; original-teacher coverage,
 legal-decision proof and native rollout validation are still outstanding. Audit
 JSON separates these gaps from genuinely missing adapters and tools.
-When a student does not execute a teacher coroutine's proposed prefix, that
-episode's advice is invalidated until reset. A later matching button cannot prove
-the missing motion prefix happened. A verified decision-boundary/resynchronization
-adapter is required for useful continued advice on arbitrary student trajectories;
-this conservative guard is not such an adapter and can severely limit coverage.
+### Cancellable Intent Queries
+
+The kickstarting profiles now request `teacher.mode: intent`. They deliberately
+stop at PPO attachment until the decision-boundary and primitive-label adapters
+exist; do not start a native rollout expecting working expert supervision yet.
+
+`QueryTeacher.spawn(seed).query(observation, opportunity=..., boundary_id=...)`
+supports a reviewed Lua adapter exposing `teacher_decide()`. The adapter may call
+`command('236B')` or `propose_intent('236B')`. This captures a proposal, not keys:
+the decision coroutine is immediately discarded and never resumed. Lua globals,
+closure upvalues and actor-local RNG persist for that episode. The source file is
+loaded once, not every frame. Only code executed before the proposal can update
+memory; outcome-dependent code after it must be rewritten by the source adapter
+to consume actual observations, never assumed teacher execution.
+
+`advice.intent` and `advice.intent_id` identify a proposal. Reject it with
+`actor.intents.reject(advice.intent_id)`; the next trusted boundary can propose
+the same command afresh, without losing tactical memory or disabling the episode.
+Boundaries use the existing `Opportunity` catalog with
+`PROVIDED_ENGINE_LEGAL_SET`, `can_respond`, a non-forced state and a boundary ID
+equal to the current query-frame index (starting at zero). A candidate mask,
+repeated/stale boundary or matching button is not legal-opportunity proof.
+Between boundaries the query returns a masked wait, not a macro continuation.
+
+Proposals have no 90-action target, no game-control side effects and no native
+acceptance claim. Unsupported commands and masked intents are not neutral labels.
+Raw key/wait/background-thread operations in a decision adapter fail explicitly.
+The original full AI has no reviewed `teacher_decide` entry: it is reported
+`BLOCKED_INTENT_ADAPTER`, rather than restarted or automatically source-rewritten.
+Its background calculation and missing student fields remain unresolved.
+
+Legacy `mode: input` (also the old omitted-mode contract) remains for existing
+checkpoints/offline tests only. Its unexecuted-prefix guard still masks until
+reset; it is not the new intent protocol. No formal teacher-training readiness or
+native decision-boundary validation is claimed by the intent unit tests.

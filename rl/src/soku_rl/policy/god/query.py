@@ -28,6 +28,9 @@ class Advice:
     detail: str = ''
     input_legal: bool = False
     engine_acceptance: str = 'NOT_OBSERVED'
+    intent: str | None = None
+    intent_id: int | None = None
+    decision_frame: int | None = None
 
     def record(self):
         return asdict(self)
@@ -83,8 +86,10 @@ return env, execute, function(n) remaining=n; last=''; blocked_at=nil end,
 
 def validate_spec(spec):
     keys = {'package', 'api_source', 'script', 'reaction_frames', 'instruction_limit', 'seed'}
-    if not isinstance(spec, dict) or set(spec) != keys:
+    if not isinstance(spec, dict) or set(spec) not in (keys, keys | {'mode'}):
         raise ValueError('expert requires explicit package/API/script, reaction_frames, instruction_limit and seed')
+    if spec.get('mode', 'input') not in ('input', 'intent'):
+        raise ValueError('expert mode must be input or intent')
     if any(not isinstance(spec[k], str) or not spec[k] for k in ('package', 'api_source', 'script')):
         raise ValueError('expert source paths and script must be nonempty')
     if type(spec['reaction_frames']) is not int or spec['reaction_frames'] < 1:
@@ -114,7 +119,7 @@ class QueryTeacher:
         self.fingerprint = hashlib.sha256(json.dumps({
             'package': self.package.original_fingerprint, 'spec': spec,
             'implementation': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                               for name in ('query.py', 'api.py', 'runtime.py', 'package.py')},
+                               for name in ('query.py', 'intents.py', 'api.py', 'runtime.py', 'package.py')},
             'projection': 'student_animation_shared_world_v2' if getattr(episode, 'animation_world_coordinates', False) else 'student_animation_only_v1',
             'home_advantage': 'disabled',
         }, sort_keys=True).encode()).hexdigest()
@@ -146,6 +151,10 @@ class QueryEpisode:
         self.execute(SCHEDULER, b'@query/scheduler')
         self.started = False
         self.previous_command = None
+        self.intents = None
+        if teacher.spec.get('mode') == 'intent':
+            from .intents import IntentSession
+            self.intents = IntentSession(self)
 
     def require(self, name):
         package = self.teacher.package
@@ -154,7 +163,7 @@ class QueryEpisode:
         # Original bytes only, even if the old privileged adapter has a repair.
         return self.execute(package.files[relative], b'@community/' + relative.encode('utf-8'))
 
-    def query(self, observation):
+    def query(self, observation, *, opportunity=None, boundary_id=None):
         interface = self.teacher.interface
         if (observation.shape != interface.observation_space.shape
                 or observation.dtype != np.float32 or not np.isfinite(observation).all()):
@@ -196,6 +205,8 @@ class QueryEpisode:
                 self.env[name] = value
         # Explicit neutral-context intervention; no stage/BGM information is read.
         self.env[b'stage_number'], self.env[b'bgm_number'] = -1, -1
+        if self.intents is not None:
+            return self.intents.query(opportunity, boundary_id)
         # Teacher key state is an intention, not a claim it was executed. The
         # learner's own most recent submitted input is available without delay.
         # Do not supervise continuations of a prefix the student did not execute.
