@@ -96,11 +96,11 @@ class GodPolicy(RulePolicy):
 
 
 class GodActor:
-    def __init__(self, policy, seed):
+    def __init__(self, policy, seed, *, api_type=ScriptAPI):
         self.policy = policy
         self.lua = LuaRuntime(encoding=None, unpack_returned_tuples=True)
         self.random_logs = install_random_logs(self.lua)
-        self.api = ScriptAPI(self.lua, seed)
+        self.api = api_type(self.lua, seed)
         self.logs = []
         self.failures = []
         self.lua.globals()[b"_script_error"] = self.failures.append

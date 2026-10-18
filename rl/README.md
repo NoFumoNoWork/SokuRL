@@ -775,6 +775,48 @@ direct dependencies and reviewed role/trust status. Reports remain local under
 the run directory. No teacher actions are submitted, no weights are updated, and
 this command does not replace Phase 3 atomic-label or Phase 4 native validation.
 
+### Shared Current-State Contract (Offline V1)
+
+The explicitly authorized `shared_current_native_v1` expands BOTH learner and
+teacher information. It preserves the1832public prefix and appends one current
+lossless native context, using the existing decoder and encoding. Both consume
+the same tensor: exact resources, flags, skills, boxes and complete bounded object
+lists are included. Enemy private key counters and future deck order are redacted;
+their teacher APIs reject access rather than reporting padding as observed data.
+Own already-consumed key counters remain available. No extra reaction delay is
+imposed; existing Lua waits/delays remain part of its strategy implementation.
+
+`SharedNativeFeatures` retains the spatial/temporal Transformer and adds the
+existing address-invariant native feature encoder with zero initial output.
+Explicit weight transfer preserves Actor/Critic parameters and static card mask;
+the optimizer is fresh. Old models/configurations are not silently reinterpreted.
+
+```powershell
+.\.venv\python.exe -B rl/run.py migrate_shared_teacher `
+  --checkpoint rl/runs/teacher-world-20261018/student/model.zip `
+  --output rl/runs/NEW-shared-input-student
+```
+
+This is OFFLINE weight expansion, **not** a resumable training configuration.
+The output records `training_ready=false`. No capture or environment stepping
+occurs. The complete existing layout is592658float32 values (2370632bytes) per
+observation; dense rollouts are not an acceptable final storage plan. Reuse the
+existing sparse-storage/transport facilities before scaling, without truncating
+objects or hiding overflow.
+
+`SharedTeacherPerception` reads only the common tensor. A controlled diagnostic
+`SharedNativeSourceActor` reuses the original GodActor scheduler and original
+Reimu/Marisa sources. It neither sends game inputs nor produces PPO labels.
+If the previous proposal was not executed it stops the stale coroutine. This
+demonstrates the control-alignment boundary; it is NOT a completed local recovery
+teacher and must not replace the ongoing intent/replanning design.
+
+The native Worker still uses its existing observations. Combining the existing
+paused-frame privileged reader with animation capture changes a protected read
+timing and requires the separately presented approval. Native paired-frame,
+multi-instance Reset and continuous student-disagreement acceptance remain
+unverified. Do not enable expert training merely because offline tests pass.
+
 ### Scoped Original Decisions
 
 `train_combat_kickstarting_scoped.yaml` adds the opt-in `source_scoped_v1`
