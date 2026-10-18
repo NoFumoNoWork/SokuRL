@@ -642,7 +642,7 @@ Initialization runs once; the original calculation body runs once per delayed
 observation, even without a decision boundary. This perception-before-decision
 order is an intentional adaptation, NOT original scheduler equivalence.
 
-Original decision globals/table writes are rolled back after every query, keeping
+In the legacy source experiment, decision globals/table writes are rolled back after every query, keeping
 the committed perception memory and table aliases. This prevents unexecuted
 plans from committing charge/combo flags. It also drops some legitimate original
 strategic writes: those require individual review before retention. The bounded
@@ -676,3 +676,58 @@ Legacy `mode: input` (also the old omitted-mode contract) remains for existing
 checkpoints/offline tests only. Its unexecuted-prefix guard still masks until
 reset; it is not the new intent protocol. No formal teacher-training readiness or
 native decision-boundary validation is claimed by the intent unit tests.
+
+### Restricted Teacher Phase 1
+
+The active staged profile is `train_combat_kickstarting_visible.yaml`, based on
+the unchanged 1,832-float world observation, 1F decisions and 90 primitive actions.
+It is **perception-only**, not a teacher-training recipe. It returns
+`PHASE1_PERCEPTION_READY` without a target action; legacy complete-list calculation,
+main action execution and global decision rollback are not invoked. Phase 2 must
+classify/synchronize memory and replace the legacy rollback experiment, followed
+by atomic-label wiring and native side-channel rollout validation.
+
+`policy/god/perception.py` maps existing fighter frameCount, animation subphase,
+pose frame, quantized spirit fractions and screen coordinates. Frame count is not
+pose ID, and spirit fraction cannot recover current/max absolute spirit. Query
+and delayed-observation indices are explicit caller clocks, not native battle_time.
+Clear/cards-disabled context binds declared runtime config only; native enforcement
+is not proven by a config file. Default-skill/card APIs remain unavailable rather
+than filled with assumed levels or fabricated hand contents.
+
+`get_visible_obj_data(owner,index)` exposes a read-only selected-object record:
+world/screen position, facing, character, action, sequence, animation counters,
+relative owner and slot. Slot is not a stable cross-frame ID. HP, native address,
+sprite image ID, exact frameCount, native speed and collision geometry are absent;
+requesting them fails explicitly. The native `get_obj_data` and `enemy_obj_n` are
+not aliased to this interface. Selected own/enemy counts have distinct names.
+Below 16 occupied slots the visible selection is complete; at capacity truncation
+is UNKNOWN, not proven. Lua exposes boolean proof/known flags plus a status enum,
+so an "UNKNOWN" string cannot accidentally pass a truthiness test. Complete native
+list coverage is always unknown because hidden entities are filtered.
+
+The optional branch auditor uses an isolated [Lua AST parser](https://github.com/boolangery/py-lua-parser),
+not the training interpreter: its ANTLR 4.13 dependency conflicts with Hydra's
+ANTLR 4.9. Prepare only the isolated target, keeping all caches/temp inside SokuRL:
+
+```powershell
+New-Item -ItemType Directory rl/.tools/lua-parser/tmp -Force
+$env:TEMP = "$PWD/rl/.tools/lua-parser/tmp"
+$env:TMP = $env:TEMP
+$env:PIP_CACHE_DIR = "$PWD/rl/.tools/lua-parser/cache"
+.\.venv\python.exe -B -m pip install --target rl/.tools/lua-parser/site `
+  --only-binary=:all: -r rl/tools/requirements_teacher_ast.txt
+.\.venv\python.exe -B rl/run.py audit_god_teacher --world-coordinates `
+  --visible-perception --branch-parser-site rl/.tools/lua-parser/site `
+  --output rl/runs/NEW-teacher-phase1-audit
+```
+
+Use a fresh target/output, not an in-place package upgrade. The auditor launches
+a separate `-I -S` process and does not import the parser into PPO. Registry rows
+bind source hashes, CP932-to-original-byte ranges, transitive helper dependencies,
+lexical bindings, earlier/enclosing conditions and loop dependencies. Comments
+are not references. `DEPENDENCY_READY_ONLY` is not branch execution support:
+guard probes evaluate only pure conditions; branch bodies and labels stay disabled.
+Unknown earlier conditions are not treated as false to reach a later `else`.
+`branches.json`, `guard_probes.json` and `report.json` provide the lists and reasons;
+they are local audit evidence, not implicit runtime dependencies or Git assets.

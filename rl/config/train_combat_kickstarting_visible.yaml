@@ -1,0 +1,11 @@
+defaults:
+  - train_combat_kickstarting_world
+  - _self_
+
+# Data/branch-contract validation only. Teacher state and atomic labels are not
+# enabled; the existing PPO attachment guard prevents fake supervised training.
+rl:
+  kickstarting:
+    teacher:
+      perception: student_visible_v1
+output: ${oc.env:SOKURL_RL_ROOT}/runs/kickstarting-visible-${now:%Y%m%d-%H%M%S}

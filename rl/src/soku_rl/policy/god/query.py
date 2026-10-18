@@ -86,13 +86,15 @@ return env, execute, function(n) remaining=n; last=''; blocked_at=nil end,
 
 def validate_spec(spec):
     keys = {'package', 'api_source', 'script', 'reaction_frames', 'instruction_limit', 'seed'}
-    if not isinstance(spec, dict) or not keys <= set(spec) or set(spec) - keys - {'mode', 'source_adapter'}:
+    if not isinstance(spec, dict) or not keys <= set(spec) or set(spec) - keys - {'mode', 'source_adapter', 'task_context', 'perception'}:
         raise ValueError('expert requires explicit package/API/script, reaction_frames, instruction_limit and seed')
     if spec.get('mode', 'input') not in ('input', 'intent'):
         raise ValueError('expert mode must be input or intent')
     if 'source_adapter' in spec and (spec.get('mode') != 'intent' or
             spec['source_adapter'] != 'th123ai_20110925'):
         raise ValueError('source_adapter requires reviewed th123ai_20110925 intent mode')
+    if 'perception' in spec and (spec['perception'] != 'student_visible_v1' or spec.get('mode') != 'intent'):
+        raise ValueError('restricted perception requires student_visible_v1 intent mode')
     if any(not isinstance(spec[k], str) or not spec[k] for k in ('package', 'api_source', 'script')):
         raise ValueError('expert source paths and script must be nonempty')
     if type(spec['reaction_frames']) is not int or spec['reaction_frames'] < 1:
@@ -112,6 +114,16 @@ class QueryTeacher:
                 or interface.action_space.n != 90 or interface.config.action_history < 1):
             raise ValueError('restricted expert requires existing 1F/90-action animation/history contract')
         self.interface, self.spec = interface, dict(spec)
+        self.visible_perception = spec.get('perception') == 'student_visible_v1'
+        if self.visible_perception and (not getattr(episode,'animation_world_coordinates',False)
+                or episode.animation_object_slots != 16 or interface.config.action_history != 8):
+            raise ValueError('student_visible_v1 requires the unchanged 1832/16-slot/8-input world contract')
+        self.context = None
+        if 'task_context' in spec:
+            from .perception import task_context
+            if set(spec['task_context']) != {'fixed_weather','cards_disabled'}:
+                raise ValueError('teacher task context requires fixed_weather and cards_disabled')
+            self.context = task_context(spec['task_context'])
         self.package = ScriptPackage(spec['package'], spec['api_source'])
         self.package.source(spec['script'])
         self.adapter = None
@@ -126,7 +138,7 @@ class QueryTeacher:
         self.fingerprint = hashlib.sha256(json.dumps({
             'package': self.package.original_fingerprint, 'spec': spec,
             'implementation': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'api.py', 'runtime.py', 'package.py')},
+                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'perception.py', 'api.py', 'runtime.py', 'package.py')},
             'adapter': self.adapter.report if self.adapter else None,
             'projection': 'student_animation_shared_world_v2' if getattr(episode, 'animation_world_coordinates', False) else 'student_animation_only_v1',
             'home_advantage': 'disabled',
@@ -159,6 +171,7 @@ class QueryEpisode:
         self.execute(SCHEDULER, b'@query/scheduler')
         self.started = False
         self.previous_command = None
+        self.perception_history = deque(maxlen=64)
         self.intents = None
         if teacher.spec.get('mode') == 'intent':
             from .intents import IntentSession
@@ -200,6 +213,15 @@ class QueryEpisode:
                 self.env[prefix+name] = value
         # Public HP gauge, not an extra exact native HP read.
         self.env[b'my_hp'], self.env[b'enemy_hp'] = [round(float(x)*10000) for x in core[-5:-3]]
+        from .perception import project, install_visible_api
+        fields, view = project(current, slots, has_world, self.frame, self.teacher.spec['reaction_frames'])
+        for name,value in fields.items():
+            self.env[name.encode()] = value
+        if has_world:
+            install_visible_api(self, view)
+        if self.teacher.context:
+            self.env[b'task_fixed_weather'] = b'clear'
+            self.env[b'task_cards_disabled'] = True
         if has_world:
             x, y, ex, ey = map(float, current[frame_width(slots):frame_width(slots)+4])
             for name, value in ((b'x',x),(b'y',y),(b'ex',ex),(b'ey',ey),
@@ -216,6 +238,14 @@ class QueryEpisode:
                 self.env[name] = value
         # Explicit neutral-context intervention; no stage/BGM information is read.
         self.env[b'stage_number'], self.env[b'bgm_number'] = -1, -1
+        if self.teacher.visible_perception:
+            self.perception_history.append((fields['teacher_observation_index'],dict(fields),view))
+            # Phase1 does not execute native-list perception or the old global
+            # decision rollback. Legacy Lua memory is untrusted until Phase2;
+            # branch/action supervision is deliberately not enabled yet.
+            return Advice('PHASE1_PERCEPTION_READY',
+                detail='Visible view only; legacy native-list branches quarantined; Phase2 state adapter and Phase3 labels required',
+                decision_frame=self.frame)
         if self.intents is not None:
             return self.intents.query(opportunity, boundary_id)
         # Teacher key state is an intention, not a claim it was executed. The

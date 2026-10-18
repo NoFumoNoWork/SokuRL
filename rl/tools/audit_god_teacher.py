@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import sys
 
 from hydra import compose, initialize_config_dir
 from omegaconf import OmegaConf
@@ -63,6 +64,60 @@ def field_dependencies(paths, has_world):
     return result
 
 
+def inspect_guards(actor, registry):
+    """Validate current public conditions, never execute a branch body or label."""
+    from lupa.lua51 import LuaError
+    for name,digest in registry['sources'].items():
+        if hashlib.sha256(actor.teacher.package.files[name]).hexdigest()!=digest:
+            raise ValueError('branch registry/source mismatch')
+    actor.budget(actor.teacher.spec['instruction_limit'])
+    actor.require(actor.teacher.spec['script'])  # definitions only, NOT main/init/calculation
+    functions=registry['functions']
+    selected=[b for b in registry['branches'] if b['source']==actor.teacher.spec['script'] and b['enclosing_function']=='main']
+    byline={b['line']:b for b in selected if b['kind']!='Else'}
+    cache={}
+    pure={'print','tonumber','tostring','type','math.floor','math.ceil','math.sqrt',
+          'math.abs','math.sin','math.cos','math.rad','math.min','math.max'}
+    def local(branch):
+        if branch['id'] in cache:return cache[branch['id']]
+        status='UNKNOWN_DEPENDENCY';value=None
+        if branch['enclosing_bindings']:
+            status='REQUIRES_LEXICAL_CALL_OR_LOOP_CONTEXT'
+        elif not branch['missing_guard']:
+            calls=branch['guard_calls']
+            safe=all(c in pure or (c in functions and not functions[c]['writes']) for c in calls)
+            if not safe:
+                status='UNTRUSTED_CALL_OR_RNG'
+            elif branch['kind']=='Else':
+                status='CONDITION_VALUE';value=True
+            else:
+                try:
+                    data=('return function() return ('+branch['condition']+') end').encode('cp932','surrogateescape')
+                    function=actor.execute(data,('@branch/'+branch['id']).encode())
+                    raw=actor.intents.invoke(function,True)
+                    value=raw is not None and raw is not False
+                    status='CONDITION_VALUE'
+                except LuaError:
+                    status='UNAVAILABLE_DYNAMIC_DEPENDENCY'
+        cache[branch['id']]=(status,value)
+        return status,value
+    records=[]
+    for branch in selected:
+        status,value=local(branch)
+        path='SATISFIED'
+        if branch['missing_loops']:path='UNKNOWN_ENCLOSING_LOOP'
+        for line,expected in branch['path']:
+            ancestor=byline[line]
+            parent_status,parent_value=local(ancestor)
+            if parent_status!='CONDITION_VALUE':path='UNKNOWN_PRECEDING_OR_ENCLOSING_GUARD';break
+            if parent_value!=expected:path='NOT_SELECTED';break
+        records.append(dict(id=branch['id'],condition_status=status,value=value,path=path,
+            region='INITIALIZATION' if branch['line']<50 else 'DECISION',
+            execution='DISABLED_BODY_NOT_EXECUTED',atomic_label=None))
+    return dict(evidence='SYNTHETIC_LUA_GUARDS_ONLY_NO_NATIVE_OR_BEHAVIOR_VERIFICATION',
+                counts=dict(Counter(x['condition_status'] for x in records)),branches=records)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', required=True)
@@ -70,6 +125,8 @@ def main():
                         help='verify exact existing PPO weight initialization on CPU, no environment stepping')
     parser.add_argument('--world-coordinates',action='store_true')
     parser.add_argument('--student-directory',help='explicit migrated model.zip/config.yaml directory')
+    parser.add_argument('--branch-parser-site',help='explicit isolated rl/.tools Lua AST parser site; launches a separate -I -S process')
+    parser.add_argument('--visible-perception',action='store_true',help='Phase1 data-only route; requires --world-coordinates, does not enable legacy memory/labels')
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[2]
     output = Path(args.output).resolve()
@@ -89,15 +146,21 @@ def main():
                                                       training_config=str(source/'config.yaml'))
     interface = LearningInterface(EpisodeConfig.from_dict(config['episode']), LearningConfig(**config['wrappers']))
     spec = config['rl']['kickstarting']['teacher']
+    if args.visible_perception:
+        if not args.world_coordinates:
+            raise ValueError('visible perception requires --world-coordinates')
+        spec['perception']='student_visible_v1'
     teacher = QueryTeacher(interface, spec)
     package = Path(spec['package'])
     sources = [package/spec['script'], package/'00_reimu_main.ai', package/'def_clc.lua',
                package/'function_command.txt', Path(spec['api_source'])]
     probe = []
+    actors=[]
     # Explicit fixture, not recorded original states or live teacher coverage.
     for character, script in ((1,'01_marisa_main.ai'), (0,'00_reimu_main.ai')):
         variant = QueryTeacher(interface, spec | dict(script=script))
         actor = variant.spawn(spec['seed'])
+        actors.append(actor)
         core_width = frame_width(interface.episode.animation_object_slots)
         width = frame_width(interface.episode.animation_object_slots,interface.episode.animation_world_coordinates)
         row = np.zeros(width, np.float32)
@@ -113,7 +176,9 @@ def main():
             answer = actor.query(obs)
             statuses[answer.status] += 1
         probe.append(dict(script=script, statuses=dict(statuses), last=answer.record(),
-                          source_adapter=variant.adapter.report if variant.adapter else None))
+                          source_adapter=variant.adapter.report if variant.adapter else None,
+                          visible_view=actor.visible_view.report() if hasattr(actor,'visible_view') else None,
+                          perception_history_rows=len(actor.perception_history)))
     result = dict(status='BLOCKED_TEACHER_ADAPTATION' if any(
         p['last']['status'] != 'VALID_INPUT' for p in probe) else 'PASS_FIXTURE_ONLY',
         evidence_level='SYNTHETIC_CONTRACT_PROBE_NOT_GAMEPLAY_COVERAGE',
@@ -128,6 +193,40 @@ def main():
             time='one delayed perception tick per 1F observation; disposable intent coroutine only at trusted boundary',
             coverage='no real student/native rollout tested in this audit',
             next='adapt remaining source dependencies without inventing hidden state'))
+    result['training_ready']=False
+    if args.visible_perception and all(p['last']['status']=='PHASE1_PERCEPTION_READY' for p in probe):
+        result['status']='PASS_PHASE1_PERCEPTION_ONLY'
+        result['boundaries']['active_perception']='restricted public projection only; original native-list calculation quarantined'
+        result['boundaries']['next']='Phase2 state classification/local recovery, then Phase3 atomic labels; no training authorization'
+    from soku_rl.policy.god.perception import FIELD_MAP, ALIASES
+    result['perception_mapping'] = FIELD_MAP
+    result['task_context'] = teacher.context
+    if args.branch_parser_site:
+        available = ALIASES | {'my_char','enemy_char','my_act','enemy_act','my_dir','enemy_dir',
+            'my_act_block','enemy_act_block','my_hp','enemy_hp','stage_number','bgm_number',
+            'x','y','ex','ey','my_x','my_y','enemy_x','enemy_y','dis','dis_x','dis_y','dis2',
+            'front','back','d_front','d_back','u_front','u_back','is_dir_front',
+            'get_visible_obj_data','task_fixed_weather','task_cards_disabled'}
+        if not args.world_coordinates:
+            available -= {'x','y','ex','ey','my_x','my_y','enemy_x','enemy_y','dis','dis_x','dis_y','dis2',
+                          'front','back','d_front','d_back','u_front','u_back','is_dir_front',
+                          'get_visible_obj_data','visible_my_obj_n','visible_enemy_obj_n','visible_selection_complete',
+                          'visible_selection_known','visible_selection_status'}
+        allowed_path = output/'available.json'
+        allowed_path.write_text(json.dumps(sorted(available)),encoding='utf-8')
+        subprocess.run([sys.executable,'-B','-I','-S',str(Path(__file__).with_name('teacher_lua_ast.py')),
+            '--site',args.branch_parser_site,'--package',str(package),
+            '--api',spec['api_source'],'--available',str(allowed_path),
+            '--output',str(output/'branches.json')],check=True,timeout=120)
+        branch_result = json.loads((output/'branches.json').read_text('utf-8'))
+        guard_probes=[dict(script=actor.teacher.spec['script'],
+            probe=inspect_guards(actor,branch_result)) for actor in actors]
+        (output/'guard_probes.json').write_text(json.dumps(guard_probes,indent=2),encoding='utf-8')
+        result['branch_audit'] = dict(path=str(output/'branches.json'),counts=branch_result['counts'],
+            path_counts=branch_result['path_counts'],
+            guard_probes=str(output/'guard_probes.json'),
+            status='STATIC_ONLY_NO_BRANCH_EXECUTION_ENABLED',
+            priority='Unknown earlier guards are not silently treated as false')
     result['dependency_inventory'] = [
         dict(feature=name,status=status,existing_source=source,needed=needed)
         for name,status,source,needed in (
