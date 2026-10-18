@@ -811,6 +811,30 @@ eligible conditions. This is deliberate restricted-policy pruning, not original
 policy equivalence. Hand/skill/object APIs stay unavailable, rather than being
 filled with false values. Unsupported `else` branches are not rewritten.
 
+`pure_guard_order.json` additionally binds seven original Boolean conditions to
+their exact source byte spans. The isolated `teacher_guard_order.py` generator
+proves a narrow scalar type contract and moves known necessary conjuncts ahead
+of unavailable numeric reads only inside pure runs. RNG, unknown calls, table
+indexing and unproved expressions are barriers. It does not supply a skill,
+velocity or gravity value, and a potentially relevant unknown still masks the
+query. Complete-input Boolean/RNG parity, effect barriers, local shadowing,
+source binding and later source-line preservation have offline tests. This is
+not native behavior validation or general Lua expression optimization.
+
+Do not connect the current Bridge `skillLevels` to `get_skill_lv`: the existing
+community reader uses `+0x6C4` (`skillMap`), while Bridge captures `skillLevels`
+at `+0x6A4`. Both are absent from the unchanged student tensor. Disabling cards
+alone does not establish every current skill level or reset loadout. The audit
+records this distinction and the still-unavailable dependencies with source
+hashes; no native reader or observation change is introduced.
+
+The restricted special-state API can return the original `-1` only when the
+public character ID and existing Platform applicability metadata prove that a
+character-specific field does not apply. For example, the original Tenshi-only
+special10 API does not read a timer for Reimu/Marisa. Applicable, common and
+unreviewed fields still mask the query; this is not a zero-filled special-state
+array and does not expose privileged native values or enemy inputs.
+
 ```powershell
 .\.venv\python.exe -B rl/run.py audit_god_teacher --world-coordinates `
   --visible-perception --observed-memory --scoped-decisions `

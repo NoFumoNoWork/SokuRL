@@ -13,6 +13,7 @@ from lupa.lua51 import LuaError, LuaMemoryError
 from .intents import BRIDGE
 from .observed_memory import SUPPORTED, READONLY, PARAMETERS, SCRATCH, SOURCE_CONSTANTS
 from .source_adapter import SOURCES, digest, split_loop
+from .guard_order import load_registry, replacements
 
 
 API_SHA256='61cb6a24af1d60d86305481fd8bf4a6b12cc801a57c4a23f91be0e8355489d58'
@@ -121,6 +122,14 @@ class ScopedDecisions:
         self.generated={}
         self.task_gates=[]
         self.flag_guard_adaptations=[]
+        self.pure_guards,self.pure_guards_sha256=load_registry()
+        if self.pure_guards.get('api_sha256')!=API_SHA256:
+            raise ValueError('Unreviewed pure-guard API source')
+        self.pure_guard_adaptations=[]
+        # Reuse the existing public layout's applicability metadata ONLY, never
+        # its addresses/readers or any native value. Original Character.cpp's
+        # mismatching-character branches return -1 without a memory read.
+        self.special_applicability=dict(episode.teacher.special_applicability)
         registry_bytes=Path(__file__).with_name('card_only_gates.json').read_bytes()
         self.registry_sha256=digest(registry_bytes)
         self.registry=json.loads(registry_bytes)
@@ -138,6 +147,14 @@ class ScopedDecisions:
         self.episode.budget(self.episode.teacher.spec['instruction_limit'])
         return self.episode.intents.invoke(function,True)
 
+    def inapplicable_special(self, player, index):
+        if type(player) is int and player in (0,1) and type(index) is int:
+            required=self.special_applicability.get(index)
+            character=self.episode.env[b'my_char' if player==0 else b'enemy_char']
+            if required is not None and character!=required:
+                return -1  # known API inapplicability, NOT an invented timer
+        raise ValueError('UNTRUSTED_TEACHER_STATE:get_special_data:applicable_or_unreviewed_field')
+
     def require(self, name):
         if isinstance(name,bytes):name=name.decode('ascii')
         if name not in SOURCES:
@@ -145,8 +162,10 @@ class ScopedDecisions:
         data=self.episode.teacher.package.files[name]
         if digest(data)!=SOURCES[name]:raise ValueError('Scoped teacher source hash mismatch')
         code=self.episode.teacher.adapter.sources.get(name,data)
-        if name==self.episode.teacher.spec['script'] and self.episode.teacher.context is not None:
-            gates=[g for g in self.registry['gates'] if g['source']==name]
+        if name==self.episode.teacher.spec['script']:
+            edits={(first,last):value for first,last,value in replacements(data,name,self.pure_guards)}
+            gates=([g for g in self.registry['gates'] if g['source']==name]
+                   if self.episode.teacher.context is not None else [])
             previous=len(data)
             for gate in sorted(gates,key=lambda g:g['condition_start'],reverse=True):
                 first,last=gate['condition_start'],gate['condition_end']
@@ -155,10 +174,17 @@ class ScopedDecisions:
                         or not set(gate['guard_effects'])<={'CARD'}
                         or digest(data[first:last])!=gate['condition_sha256']):
                     raise ValueError('Invalid card-only source condition binding')
-                data=data[:first]+b'(not task_cards_disabled) and ('+data[first:last]+b')'+data[last:]
+                original=edits.get((first,last),data[first:last])
+                edits[first,last]=b'(not task_cards_disabled) and ('+original+b')'
+                previous=first
+            previous=len(data)
+            for (first,last),value in sorted(edits.items(),reverse=True):
+                if last>previous:raise ValueError('Overlapping reviewed guard edits')
+                data=data[:first]+value+data[last:]
                 previous=first
             code,_=split_loop(data,b'main',b'teacher_decide')
             self.task_gates=gates
+            self.pure_guard_adaptations=[r for r in self.pure_guards['guards'] if r['source']==name]
         if name=='def_clc.lua':
             # Do not execute thousands of untrusted object/history initializer
             # writes merely to load functions. These pinned complete helper
@@ -193,6 +219,9 @@ class ScopedDecisions:
             raise ValueError('Scoped script/player character mismatch')
         if not self.loaded:
             self.env[b'require']=self.require
+            self.env[b'get_special_data']=self.episode.lua.eval(b'''function(callback)
+              return function(player,index) return callback(player,index) end
+            end''')(self.inapplicable_special)
             self.require(self.episode.teacher.spec['script'])
             install,_,_=self.episode.lua.eval(BRIDGE)(self.env)
             install()
@@ -297,6 +326,13 @@ class ScopedDecisions:
             card_only_task_gates=list(self.task_gates),
             card_gate_registry_sha256=self.registry_sha256,
             pure_flag_guard_adaptations=list(self.flag_guard_adaptations),
+            pure_guard_order=dict(registry_sha256=self.pure_guards_sha256,
+                guards=self.pure_guard_adaptations,
+                semantics='known false necessary conjuncts avoid irrelevant missing skill reads; no unavailable getter supplied'),
+            special_applicability=dict(required_characters=self.special_applicability,
+                source='existing sokurl_platform.native_layout.SPECIAL_FIELDS; th123_ai Character::GetSpecialData mismatch branches',
+                semantics='-1 only when public character proves API inapplicable; applicable/common/unreviewed fields remain unavailable',
+                native_values_exposed=False),
             definition_regions=dict(source='def_clc.lua',lines=[[163,403],[418,639]],
                 omitted='original history/object initialization and complete-list calculation; not restored as trusted zeros'),
             rules=[dict(name=name,source='00_reimu_main.ai',lines=[row[2],row[3]],sha256=row[4])

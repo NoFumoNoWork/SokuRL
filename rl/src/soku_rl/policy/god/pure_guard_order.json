@@ -1,0 +1,589 @@
+{
+  "schema": "teacher_pure_guard_order_v1",
+  "sources": {
+    "01_marisa_main.ai": "10f53fa1d1c53fc731d4d4862117617d0162c15d6986442dc7f13bea8bad27ae",
+    "00_reimu_main.ai": "32c11da92f29135672a8b660d8a6f977622dc4347ebe4caff74ae40f478a6423",
+    "def_clc.lua": "732029a309f5b348ef04228f3f19f48c8dac4b47e2f4b5a6c7cbfd9b2ad3fc76",
+    "function_command.txt": "e4f0ed14af9a3b49c78a02a2a1b65852590503336835f9c6d20afee18a87dd8b"
+  },
+  "api_sha256": "61cb6a24af1d60d86305481fd8bf4a6b12cc801a57c4a23f91be0e8355489d58",
+  "numeric": [
+    "dis",
+    "dis2",
+    "dis_x",
+    "dis_y",
+    "enemy_act",
+    "enemy_act_block",
+    "enemy_allframe",
+    "enemy_char",
+    "enemy_dir",
+    "enemy_frame",
+    "ex",
+    "ey",
+    "my_act",
+    "my_act_block",
+    "my_allframe",
+    "my_char",
+    "my_dir",
+    "my_frame",
+    "weather",
+    "weather2",
+    "weather_time",
+    "x",
+    "y"
+  ],
+  "boolean": [
+    "is_dir_front"
+  ],
+  "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING",
+  "guards": [
+    {
+      "source": "01_marisa_main.ai",
+      "line": 518,
+      "start": 20291,
+      "end": 20601,
+      "sha256": "9155f4e842bd685ed9e99f74e7ba547c50ddc7b531225653064729c1b422e98e",
+      "clauses": [
+        {
+          "start": 20291,
+          "end": 20354,
+          "sha256": "6719ba81f2ae410ecdf80ef55a18262baba008d35c886f573180bd0a22236937",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 20359,
+          "end": 20366,
+          "sha256": "941c79594151b05f44c8ad6452b883ecec55bdcb1b8663b026ae822e002eed79",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 20371,
+          "end": 20375,
+          "sha256": "3267aa36a4b0f2facc59216afc2d3bfb34a999a6c2a386d35b8bc6dd007dced3",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 20380,
+          "end": 20486,
+          "sha256": "9f4f6da286e3368319caaee84d337b4a41747087c8999685a2f5cc3e7d092e70",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 20494,
+          "end": 20503,
+          "sha256": "3aa26559424507ea22bc2eff85c5d2c54eac455c7d6da896510cfcd3f776df8e",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 20508,
+          "end": 20525,
+          "sha256": "2972311c28447fc564969a4eac27838f10a43c8403e7766eafdc7d16d27dfd3b",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 20530,
+          "end": 20544,
+          "sha256": "2af8095a69b9bd542d8362ca400b57ff5b0bc1537581cef1edc0bb324a0b7da5",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 20549,
+          "end": 20562,
+          "sha256": "dec45061eb993f68cdfe0e854c7049b329d1a7f9e171bfbf670073318a12cc52",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 20567,
+          "end": 20579,
+          "sha256": "191f99b7554e2cb98fe6a8de5eaf782c19b8ae5ae6cce2ae55ce38dbbd2c0f58",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 20584,
+          "end": 20601,
+          "sha256": "f7abb143e76e397f665e2be31395430c7280f456a74dd36e80b95d8c68f3fb47",
+          "kind": "BARRIER"
+        }
+      ],
+      "order": [
+        1,
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        0,
+        3,
+        9
+      ],
+      "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 576,
+      "start": 22669,
+      "end": 22995,
+      "sha256": "38bd2924fa6de5c8a452d74ee4a883a7df96fafc1af410ed5bf04782488fd242",
+      "clauses": [
+        {
+          "start": 22669,
+          "end": 22705,
+          "sha256": "72d48b18d400e62918000ca353df3204f48f533d2e2fe9e4a565cbee6009555b",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 22710,
+          "end": 22730,
+          "sha256": "073ff21585677929c907c6b07fa9d0f988d891409c87b6707ef14e7b3ea9fca0",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 22735,
+          "end": 22742,
+          "sha256": "941c79594151b05f44c8ad6452b883ecec55bdcb1b8663b026ae822e002eed79",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 22747,
+          "end": 22751,
+          "sha256": "3267aa36a4b0f2facc59216afc2d3bfb34a999a6c2a386d35b8bc6dd007dced3",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 22759,
+          "end": 22862,
+          "sha256": "232cd817e5c58ed8727c8d3f18e3d5b55d2d8acdcef720f4e4f7ee5d783bdd00",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 22871,
+          "end": 22880,
+          "sha256": "3aa26559424507ea22bc2eff85c5d2c54eac455c7d6da896510cfcd3f776df8e",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 22885,
+          "end": 22902,
+          "sha256": "2972311c28447fc564969a4eac27838f10a43c8403e7766eafdc7d16d27dfd3b",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 22907,
+          "end": 22921,
+          "sha256": "2af8095a69b9bd542d8362ca400b57ff5b0bc1537581cef1edc0bb324a0b7da5",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 22926,
+          "end": 22939,
+          "sha256": "dec45061eb993f68cdfe0e854c7049b329d1a7f9e171bfbf670073318a12cc52",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 22944,
+          "end": 22956,
+          "sha256": "191f99b7554e2cb98fe6a8de5eaf782c19b8ae5ae6cce2ae55ce38dbbd2c0f58",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 22961,
+          "end": 22973,
+          "sha256": "47c5e2325a5536d634c453f461e79d7d3d0ae2ecfc220ff95a9c1e0c3d18332f",
+          "kind": "BARRIER"
+        },
+        {
+          "start": 22978,
+          "end": 22995,
+          "sha256": "f7abb143e76e397f665e2be31395430c7280f456a74dd36e80b95d8c68f3fb47",
+          "kind": "BARRIER"
+        }
+      ],
+      "order": [
+        2,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        0,
+        1,
+        4,
+        10,
+        11
+      ],
+      "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 583,
+      "start": 23096,
+      "end": 23405,
+      "sha256": "37098366f5ffdaed3f8a2ce535947c11749557225ee6f804581667ad3a9896d7",
+      "clauses": [
+        {
+          "start": 23096,
+          "end": 23132,
+          "sha256": "110046c0677e11ad0cbaab41801b0fdac946e5502c16ad0314087f3ef0646703",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23137,
+          "end": 23157,
+          "sha256": "073ff21585677929c907c6b07fa9d0f988d891409c87b6707ef14e7b3ea9fca0",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23162,
+          "end": 23169,
+          "sha256": "941c79594151b05f44c8ad6452b883ecec55bdcb1b8663b026ae822e002eed79",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23174,
+          "end": 23178,
+          "sha256": "3267aa36a4b0f2facc59216afc2d3bfb34a999a6c2a386d35b8bc6dd007dced3",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23186,
+          "end": 23289,
+          "sha256": "232cd817e5c58ed8727c8d3f18e3d5b55d2d8acdcef720f4e4f7ee5d783bdd00",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23297,
+          "end": 23306,
+          "sha256": "3aa26559424507ea22bc2eff85c5d2c54eac455c7d6da896510cfcd3f776df8e",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23311,
+          "end": 23328,
+          "sha256": "2972311c28447fc564969a4eac27838f10a43c8403e7766eafdc7d16d27dfd3b",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23333,
+          "end": 23347,
+          "sha256": "2af8095a69b9bd542d8362ca400b57ff5b0bc1537581cef1edc0bb324a0b7da5",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23352,
+          "end": 23365,
+          "sha256": "dec45061eb993f68cdfe0e854c7049b329d1a7f9e171bfbf670073318a12cc52",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23370,
+          "end": 23382,
+          "sha256": "191f99b7554e2cb98fe6a8de5eaf782c19b8ae5ae6cce2ae55ce38dbbd2c0f58",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23387,
+          "end": 23405,
+          "sha256": "4eaa44c00a56b8d518c4a0a131e5cb979a468effc2fe2e07317a4eac660063e0",
+          "kind": "BARRIER"
+        }
+      ],
+      "order": [
+        2,
+        3,
+        5,
+        6,
+        7,
+        8,
+        9,
+        0,
+        1,
+        4,
+        10
+      ],
+      "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 591,
+      "start": 23502,
+      "end": 23819,
+      "sha256": "6e652b23c51f09581e42d20b3ac1f1e1f6dfe69fd51709250e9e67e1ad529867",
+      "clauses": [
+        {
+          "start": 23502,
+          "end": 23538,
+          "sha256": "05cf73787c3e08c1850b141ddc36b6fc62eb9a63b38f8612eedbfed217de342a",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23543,
+          "end": 23563,
+          "sha256": "073ff21585677929c907c6b07fa9d0f988d891409c87b6707ef14e7b3ea9fca0",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23568,
+          "end": 23575,
+          "sha256": "941c79594151b05f44c8ad6452b883ecec55bdcb1b8663b026ae822e002eed79",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23580,
+          "end": 23584,
+          "sha256": "3267aa36a4b0f2facc59216afc2d3bfb34a999a6c2a386d35b8bc6dd007dced3",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23599,
+          "end": 23638,
+          "sha256": "90192f6cefb4e268f547fad777fbb9d43e6ce50c3d4a3c9880d7929bb7a2ce76",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23643,
+          "end": 23683,
+          "sha256": "fdac3da1e1347c497be9ad0537f31e3df017e23ad17732a6f04450fad3d780fd",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23695,
+          "end": 23704,
+          "sha256": "3aa26559424507ea22bc2eff85c5d2c54eac455c7d6da896510cfcd3f776df8e",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23709,
+          "end": 23726,
+          "sha256": "2972311c28447fc564969a4eac27838f10a43c8403e7766eafdc7d16d27dfd3b",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23731,
+          "end": 23745,
+          "sha256": "2af8095a69b9bd542d8362ca400b57ff5b0bc1537581cef1edc0bb324a0b7da5",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23750,
+          "end": 23763,
+          "sha256": "dec45061eb993f68cdfe0e854c7049b329d1a7f9e171bfbf670073318a12cc52",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23768,
+          "end": 23780,
+          "sha256": "191f99b7554e2cb98fe6a8de5eaf782c19b8ae5ae6cce2ae55ce38dbbd2c0f58",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23785,
+          "end": 23797,
+          "sha256": "47c5e2325a5536d634c453f461e79d7d3d0ae2ecfc220ff95a9c1e0c3d18332f",
+          "kind": "BARRIER"
+        },
+        {
+          "start": 23802,
+          "end": 23819,
+          "sha256": "f7abb143e76e397f665e2be31395430c7280f456a74dd36e80b95d8c68f3fb47",
+          "kind": "BARRIER"
+        }
+      ],
+      "order": [
+        2,
+        3,
+        6,
+        7,
+        8,
+        9,
+        10,
+        0,
+        1,
+        4,
+        5,
+        11,
+        12
+      ],
+      "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 598,
+      "start": 23920,
+      "end": 24220,
+      "sha256": "cad549f6852c0c1381852ae7a95832dd151bcd8f6853b40b908c109fa224980a",
+      "clauses": [
+        {
+          "start": 23920,
+          "end": 23956,
+          "sha256": "0db0a286d7b0eff33ad8600fdf28e3b41645ec7e833212fb418173aedb8176cb",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23961,
+          "end": 23981,
+          "sha256": "073ff21585677929c907c6b07fa9d0f988d891409c87b6707ef14e7b3ea9fca0",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 23986,
+          "end": 23993,
+          "sha256": "941c79594151b05f44c8ad6452b883ecec55bdcb1b8663b026ae822e002eed79",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 23998,
+          "end": 24002,
+          "sha256": "3267aa36a4b0f2facc59216afc2d3bfb34a999a6c2a386d35b8bc6dd007dced3",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 24017,
+          "end": 24056,
+          "sha256": "90192f6cefb4e268f547fad777fbb9d43e6ce50c3d4a3c9880d7929bb7a2ce76",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 24061,
+          "end": 24101,
+          "sha256": "fdac3da1e1347c497be9ad0537f31e3df017e23ad17732a6f04450fad3d780fd",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 24112,
+          "end": 24121,
+          "sha256": "3aa26559424507ea22bc2eff85c5d2c54eac455c7d6da896510cfcd3f776df8e",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 24126,
+          "end": 24143,
+          "sha256": "2972311c28447fc564969a4eac27838f10a43c8403e7766eafdc7d16d27dfd3b",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 24148,
+          "end": 24162,
+          "sha256": "2af8095a69b9bd542d8362ca400b57ff5b0bc1537581cef1edc0bb324a0b7da5",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 24167,
+          "end": 24180,
+          "sha256": "dec45061eb993f68cdfe0e854c7049b329d1a7f9e171bfbf670073318a12cc52",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 24185,
+          "end": 24197,
+          "sha256": "191f99b7554e2cb98fe6a8de5eaf782c19b8ae5ae6cce2ae55ce38dbbd2c0f58",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 24202,
+          "end": 24220,
+          "sha256": "4eaa44c00a56b8d518c4a0a131e5cb979a468effc2fe2e07317a4eac660063e0",
+          "kind": "BARRIER"
+        }
+      ],
+      "order": [
+        2,
+        3,
+        6,
+        7,
+        8,
+        9,
+        10,
+        0,
+        1,
+        4,
+        5,
+        11
+      ],
+      "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2341,
+      "start": 104993,
+      "end": 105079,
+      "sha256": "ed6204ae3ffbfa632c17425787cadee45915018aee168e8a66709605f3291a1a",
+      "clauses": [
+        {
+          "start": 104993,
+          "end": 105000,
+          "sha256": "09bfff07a34d0d8a1f188d3dc89c7b3470abd4c04e1dfcb877671a1f85caa0fa",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 105005,
+          "end": 105025,
+          "sha256": "f2fd6b071a13902d796ccf3de0aba3cf9779985e077d54bc0ee4b91ed521b599",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 105030,
+          "end": 105079,
+          "sha256": "ee4b3ee341d124e6d6d3c3e9e9c03736150bb094a5c2ffbffa75986cb33fa490",
+          "kind": "PUBLIC_SCALAR"
+        }
+      ],
+      "order": [
+        0,
+        2,
+        1
+      ],
+      "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING"
+    },
+    {
+      "source": "00_reimu_main.ai",
+      "line": 2392,
+      "start": 106763,
+      "end": 106849,
+      "sha256": "ed6204ae3ffbfa632c17425787cadee45915018aee168e8a66709605f3291a1a",
+      "clauses": [
+        {
+          "start": 106763,
+          "end": 106770,
+          "sha256": "09bfff07a34d0d8a1f188d3dc89c7b3470abd4c04e1dfcb877671a1f85caa0fa",
+          "kind": "PUBLIC_SCALAR"
+        },
+        {
+          "start": 106775,
+          "end": 106795,
+          "sha256": "f2fd6b071a13902d796ccf3de0aba3cf9779985e077d54bc0ee4b91ed521b599",
+          "kind": "DEFERRED_NUMERIC"
+        },
+        {
+          "start": 106800,
+          "end": 106849,
+          "sha256": "ee4b3ee341d124e6d6d3c3e9e9c03736150bb094a5c2ffbffa75986cb33fa490",
+          "kind": "PUBLIC_SCALAR"
+        }
+      ],
+      "order": [
+        0,
+        2,
+        1
+      ],
+      "policy": "PURE_BOOLEAN_REQUIRED_CONJUNCTS_ONLY_NO_EFFECT_BARRIER_CROSSING"
+    }
+  ],
+  "unavailable_numeric": [
+    "e_gs",
+    "enemy_xspeed",
+    "enemy_yspeed",
+    "m_gs",
+    "my_xspeed",
+    "my_yspeed"
+  ],
+  "generator_sha256": "d88b38c28e0dc022f11a7697535cf536bdad69b286d17b51736852d9a23125fa",
+  "evidence": [
+    "th123_ai main.cpp:925-932 read-only numeric GetSkillLv",
+    "scriptLua.cpp:212-222 numeric argument conversion/return",
+    "def_clc.lua:915-923 gravity estimates are scalar velocity differences; values remain unavailable",
+    "document.txt:139-143 default0/unavailable-1/learned1..4; NOT current task values"
+  ],
+  "limits": "Boolean condition equivalence under declared numeric types; NOT hidden-data access or complete policy support"
+}

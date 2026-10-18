@@ -321,6 +321,34 @@ def main():
             ('joint loss/masks/decay/save','OFFLINE_VERIFIED','existing PPO + opt-in KickstartingPPO','native rollout/coverage verification still required'),
             ('native teacher rollout/training','NOT_TESTED','existing Worker/Bridge infrastructure','unblock teacher labels first; no new deployment system needed'),
         )]
+    if args.scoped_decisions:
+        # This is an audit of existing sources, not a new native reader. The
+        # similarly named arrays MUST NOT become an undocumented shared API.
+        evidence_paths={
+            'ai_reader':root/'third_party/th123_ai/source/th123_ai/character.cpp',
+            'ai_api':root/'third_party/th123_ai/source/th123_ai/main.cpp',
+            'ai_addresses':root/'third_party/th123_ai/package/th123ai/SWRSAddr-110A.ini',
+            'ai_document':root/'third_party/th123_ai/package/th123ai/document.txt',
+            'sokulib_layout':root/'third_party/SokuMods/SokuLib/src/CharacterManager.hpp',
+            'bridge_capture':root/'platform/native/SokuRLBridge/SokuRLBridge.cpp',
+            'fresh_reset':root/'platform/native/SokuRLBridge/FreshReset.cpp',
+            'existing_privileged_reader':root/'platform/src/sokurl_platform/native_reader.py',
+            'special_applicability':root/'platform/src/sokurl_platform/native_layout.py',
+            'community_special':root/'third_party/th123_ai/source/th123_ai/character.cpp',
+        }
+        result['skill_contract']=dict(status='BLOCKED_CURRENT_SHARED_OBSERVATION',
+            ai='get_skill_lv: character.cpp327 reads +0x6C4; main.cpp925 returns char',
+            documented='document.txt139-143: unavailable -1, default 0, learned 1..4',
+            bridge='capturePlayer: skillLevels +0x6A4 widened to uint32; NOT the +0x6C4 skillMap',
+            existing_reader='Platform PrivilegedReader already decodes +0x6C4 as16b for privileged GodPolicy, NOT for the current student',
+            source_only='SokuLib Skill/skillMap layout corroborates different fields; no new runtime interpretation',
+            student='unchanged1832 excludes both arrays; no privileged API exposed',
+            default_task='cards-disabled does not alone prove current/default loadout; fresh-reset sampled skillLevels parity is not skillMap proof',
+            adaptation='pure necessary conjunct ordering only; a relevant missing skill still masks the query',
+            evidence={k:dict(path=str(p),sha256=hashlib.sha256(p.read_bytes()).hexdigest())
+                      if p.is_file() else dict(path=str(p),status='UNAVAILABLE')
+                      for k,p in evidence_paths.items()},
+            native_reads=0,native_changes=0,observation_changes=0)
     if args.check_student:
         from stable_baselines3 import PPO
         import gymnasium as gym

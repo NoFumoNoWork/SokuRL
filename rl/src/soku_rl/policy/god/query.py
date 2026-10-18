@@ -141,13 +141,19 @@ class QueryTeacher:
             self.repairs = tuple(sorted(self.package.repairs))
         else:
             self.repairs = ()
+        self.special_applicability={}
+        if spec.get('decisions')=='source_scoped_v1':
+            from sokurl_platform.native_layout import SPECIAL_FIELDS
+            self.special_applicability={index:character for index,(character,_,_) in SPECIAL_FIELDS.items()
+                                        if character>=0}
         self.fingerprint = hashlib.sha256(json.dumps({
             'package': self.package.original_fingerprint, 'spec': spec,
             'implementation': {name: hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest()
-                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'perception.py', 'observed_memory.py', 'scoped_state.py', 'card_only_gates.json', 'api.py', 'runtime.py', 'package.py')},
+                               for name in ('query.py', 'intents.py', 'source_adapter.py', 'perception.py', 'observed_memory.py', 'scoped_state.py', 'card_only_gates.json', 'guard_order.py', 'pure_guard_order.json', 'api.py', 'runtime.py', 'package.py')},
             'adapter': self.adapter.report if self.adapter else None,
             'projection': 'student_animation_shared_world_v2' if getattr(episode, 'animation_world_coordinates', False) else 'student_animation_only_v1',
             'home_advantage': 'disabled',
+            'special_inapplicability': self.special_applicability,
         }, sort_keys=True).encode()).hexdigest()
 
     def spawn(self, seed):
