@@ -59,7 +59,8 @@ def train_response(env, config, opponents, probabilities, device, seed, director
         from soku_rl.env.reward import CombatRewardConfig
         reward_config=getattr(env.interface.episode,'combat_reward',None)
         records=EpisodeRecords(directory,config['checkpoint_every'],curriculum,
-            CombatRewardConfig(**reward_config).scale if reward_config is not None else None)
+            CombatRewardConfig(**reward_config).scale if reward_config is not None else None,
+            max_episodes=config.get('episodes'))
         callbacks = [
             records,
             ResponseCheckpointCallback(directory, config["checkpoint_every"] // env.num_envs, curriculum),
@@ -98,7 +99,10 @@ def train_response(env, config, opponents, probabilities, device, seed, director
         path = directory / "final.zip"
         save_checkpoint(model, path)
         curriculum.save(path, model.num_timesteps)
+        if config.get('episodes') is not None and len(records.records) < config['episodes']:
+            raise RuntimeError('frame safety budget ended before requested episode count; final checkpoint preserved')
         return {"steps": model.num_timesteps, "start_steps": start_steps,
+            "completed_episodes": len(records.records), "requested_episodes": config.get('episodes'),
             "additional_steps": model.num_timesteps - start_steps, "initial_policy": source,
             "initial_policy_hash": initial, "final_policy_hash": final,
             "checkpoint": str(path), "player": config["player"],

@@ -947,6 +947,14 @@ JSON: the worker requires difficulty 3 and an exact `during_sha256` match for
 `config123.dat`. Missing/mismatched evidence fails closed, not Normal fallback.
 Use the existing backed-up Bridge session and restore the configuration after
 training. Models, configuration audits and training artifacts stay in `runs/`.
+BR training optionally accepts `algorithm.episodes` as a count of completed
+KO/time-limit episodes across all slots. The frame budget remains a safety cap.
+It stops at the first vector step reaching the count; simultaneous endings can
+overshoot by up to `num_envs - 1`, reported without hiding completed episodes.
+Upstream SB3 callback stopping does not optimize the final incomplete rollout.
+Its observed rewards and final episode records are still saved; a saved expert
+query clock may trail the final environment step because that step never entered
+the rollout buffer. Continuation retains the saved optimizer and teacher clock.
 
 `shared_weights` means policy-weight initialization with a fresh optimizer,
 not resuming the offline migration tool's dummy PPO training state. Native

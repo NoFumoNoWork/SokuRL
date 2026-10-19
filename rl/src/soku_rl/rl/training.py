@@ -25,8 +25,11 @@ class ResponseCheckpointCallback(CheckpointCallback):
 
 
 class EpisodeRecords(BaseCallback):
-    def __init__(self, directory, checkpoint_every, curriculum, reward_scale=None):
+    def __init__(self, directory, checkpoint_every, curriculum, reward_scale=None, max_episodes=None):
         super().__init__()
+        if max_episodes is not None and (type(max_episodes) is not int or max_episodes < 1):
+            raise ValueError('episode budget must be a positive integer')
+        self.max_episodes = max_episodes
         self.directory = directory
         self.records = []
         self.checkpoint_every = checkpoint_every
@@ -76,7 +79,7 @@ class EpisodeRecords(BaseCallback):
                     self.records[-1]["input_metrics"] = info["input_metrics"]
                 if "curriculum_event" in info:
                     self.records[-1]["curriculum_event"] = info["curriculum_event"]
-        return True
+        return self.max_episodes is None or len(self.records) < self.max_episodes
 
     def _on_rollout_end(self):
         self.rollout_finished = time.perf_counter()
@@ -84,7 +87,6 @@ class EpisodeRecords(BaseCallback):
         self.timings.append({"steps": self.num_timesteps,
             "rollout_seconds": self.rollout_finished - self.rollout_started})
         self.pending_update = True
-        metrics = grouped_episode_metrics(self.records)
         rollout_metrics = summarize_episodes(self.records[self.rollout_record_start:])
         # Off-policy learners may collect several rollouts between logger dumps.
         # Missing means in this rollout must not inherit a previous rollout's data.
@@ -108,6 +110,12 @@ class EpisodeRecords(BaseCallback):
         self.logger.record("inputs/measured_episodes", rollout_metrics["inputs"]["measured_episodes"])
         for key, value in rollout_metrics["inputs"].get("pooled", {}).items():
             self.logger.record(f"inputs/{key}", value)
+        self._write_progress()
+        self._write_timings("updating")
+
+    def _write_progress(self):
+        metrics = grouped_episode_metrics(self.records)
+        rollout_metrics = summarize_episodes(self.records[self.rollout_record_start:])
         (self.directory / "progress.json").write_text(json.dumps({
             "steps": self.num_timesteps, "episodes": self.records,
             "episode_summary": metrics, "rollout_episode_summary": rollout_metrics,
@@ -115,7 +123,6 @@ class EpisodeRecords(BaseCallback):
             "input_summary": metrics["overall"]["inputs"],
             "combat_summary": summarize_combat([record["combat_metrics"] for record in self.records
                 if "combat_metrics" in record])}, indent=2), encoding="utf-8")
-        self._write_timings("updating")
 
     def _finish_update(self):
         from soku_rl.rl.dqn import DoubleDQN
@@ -155,6 +162,7 @@ class EpisodeRecords(BaseCallback):
         if self.pending_update:
             self._finish_update()
         self.finish_reward_logging()
+        self._write_progress()
         self._write_timings("finished")
 
     def flush_reward_batch(self,complete=False):
