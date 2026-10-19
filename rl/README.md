@@ -930,10 +930,11 @@ The profile has two balanced seats,Clear,no cards,1F/90 primitive inputs,and a
 For original CPU practice, `train_combat_kickstarting_lunatic` uses two
 Marisa-left students against the original Reimu CPU-right. It starts from the
 original shared-weight artifact, not the pressure-trained continuation.
-**Currently BLOCKED before training:** the existing observation adapter accepts
-VSPLAYER mode 3 only and rejects VSCOM mode 2 at the initial state. Native-state
-interpretation approval is required before enabling VSCOM explicitly. Offline
-configuration tests do not mean this training profile has passed native use.
+The observation adapter defaults to VSPLAYER mode 3. Only the dedicated CPU
+worker explicitly selects VSCOM mode 2; wrong modes/scenes and dropped frames
+remain errors. This profile passed a bounded 8,192-transition/two-instance
+training run and a separate frozen-weight, same-PID scene Reset check. Neither
+test establishes improved strength, full teacher skill coverage or CPU-left support.
 The teacher remains `01_marisa_main.ai`; students sample every executed action.
 `native_cpu_worker.py` only selects Platform's existing `native_cpu=True` launch
 option. The named CPU opponent is a neutral transport placeholder, **not** a

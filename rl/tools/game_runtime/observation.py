@@ -9,8 +9,10 @@ from soku_rl.pomg import Outcome, TimeStep
 from game_runtime.offline_snapshot import OfflineSnapshotReader, offline_snapshot_requested
 
 
-def time_step(raw, dropped_frames, observations, pid):
-    if raw.sceneId != 5 or raw.battleMode != 3:
+def time_step(raw, dropped_frames, observations, pid, *, expected_battle_mode=3):
+    if type(expected_battle_mode) is not int or expected_battle_mode not in (2, 3):
+        raise ValueError('only explicit VSCOM or VSPLAYER modes are supported')
+    if raw.sceneId != 5 or raw.battleMode != expected_battle_mode:
         raise RuntimeError("game left VS battle")
     if dropped_frames:
         raise RuntimeError("frame recording was incomplete")
@@ -34,6 +36,7 @@ def time_step(raw, dropped_frames, observations, pid):
 
 class ObservationReader:
     shared_teacher_context = False
+    expected_battle_mode = 3
 
     def __init__(self, pid, mode, visibility, animation_slots=16, horizon=7200, passive_policy=None,
                  shared_teacher_context=False):
@@ -103,7 +106,8 @@ class ObservationReader:
         else:
             observations = self.diagnostic.observe(raw, bridge)
         dropped = bridge.snapshot().dropped_frames if known_dropped is None else known_dropped
-        result = time_step(raw, dropped, observations, self.pid)
+        result = time_step(raw, dropped, observations, self.pid,
+                           expected_battle_mode=self.expected_battle_mode)
         if self.shared_teacher_context:
             from soku_rl.env.observation.shared_native import sanitize_native
             native = self.shared_reader.observe(raw, bridge)

@@ -20,6 +20,11 @@ def cpu_launcher(original):
 
 
 class NativeCPUTrainingBatch(SokuGameBatch):
+    def _create_reader(self, pid):
+        reader = super()._create_reader(pid)
+        reader.expected_battle_mode = 2
+        return reader
+
     def _launch_slots(self, seeds):
         if self.fresh_reset or self.recording_enabled or self.fixed_weather != 'clear':
             raise ValueError('CPU fast reset/recording not verified; use Clear scene reset')
