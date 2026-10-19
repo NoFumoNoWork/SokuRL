@@ -84,6 +84,8 @@ class PrivilegedReader:
         # GameStartParams -> PlayerInfo -> Dequeue<unsigned short>.
         address = 0x899D10 + seat * 0x20 + 8
         _, table, chunks, counter, count = self.value(address, "5I")
+        if count == 0 and self.value(0x898690, 'B') == 2:
+            return ()
         if count != 20 or chunks == 0:
             raise RuntimeError("the selected effective deck must contain twenty cards")
         pointers, cards = {}, []
@@ -125,8 +127,7 @@ class PrivilegedReader:
         entity["cards"] = tuple(cards)
         entity["skills"] = struct.unpack_from("<16b", data, 0x6C4 - 0x400)
         entity["special"] = special_values(entity["char"], read, () if previous is None else previous["objects"])
-        key_manager = self.value(read(0x750, "I"), "I")
-        horizontal, vertical, *buttons = self.value(key_manager + 0x38, "8i")
+        horizontal, vertical, *buttons = self.player_keys(address, read(0x750, 'I'))
         entity["keys"] = (max(0, -vertical), max(0, vertical), max(0, -horizontal), max(0, horizontal), *buttons)
         entity["objects"] = self.objects(seat)
         entity["obj_n"] = len(entity["objects"])
@@ -140,6 +141,17 @@ class PrivilegedReader:
             cost -= int(weather == 2 and cost > 1)
             entity["is_card_use"] = int(1 <= cost <= entity["spell"] // 500)
         return entity
+
+    def player_keys(self, address, manager_pointer):
+        if manager_pointer:
+            key_manager = self.value(manager_pointer, "I")
+            return self.value(key_manager + 0x38, "8i")
+        else:
+            # SokuAI's VSCOM CPU deliberately has no input manager. SokuLib's
+            # CharacterManager+0x754 is the native player's current KeyInput.
+            if self.value(0x898690, 'B') != 2:
+                raise RuntimeError('null player input manager outside native VSCOM')
+            return self.value(address + 0x754, '8i')
 
     def observe(self, raw, client):
         before = client.snapshot()

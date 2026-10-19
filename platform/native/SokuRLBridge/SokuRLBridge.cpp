@@ -105,6 +105,7 @@ bool g_activeInputEnabled = false;
 bool g_neutralPending = false;
 bool g_vsBootstrapArmed = false;
 bool g_vsBootstrapComplete = false;
+bool g_nativeCpu = false;
 bool g_episodeResetRequested = false;
 bool g_headlessRender = false;
 bool g_unlimitedPacing = false;
@@ -256,7 +257,9 @@ bool isLocalVersusGameplay()
 
 bool isSupportedGameplay()
 {
-    return isPracticeGameplay() || isLocalVersusGameplay() || isReplayGameplay();
+    return isPracticeGameplay() || isLocalVersusGameplay() || isReplayGameplay() ||
+        (g_nativeCpu && *reinterpret_cast<const int *>(SokuLib::ADDR_SCENE_ID) == LOCAL_BATTLE_SCENE &&
+         SokuLib::mainMode == SokuLib::BATTLE_MODE_VSCOM);
 }
 
 SokuRLBridge::LogicalInput toLogicalInput(const SokuLib::KeyInput &input)
@@ -362,7 +365,8 @@ DWORD WINAPI framePacingWait(HANDLE object, DWORD timeout)
 {
     if (g_unlimitedPacing &&
         *reinterpret_cast<const int *>(SokuLib::ADDR_SCENE_ID) == LOCAL_BATTLE_SCENE &&
-        SokuLib::mainMode == SokuLib::BATTLE_MODE_VSPLAYER)
+        (SokuLib::mainMode == SokuLib::BATTLE_MODE_VSPLAYER ||
+         (g_nativeCpu && SokuLib::mainMode == SokuLib::BATTLE_MODE_VSCOM)))
     {
         timeout = 0;
         if (g_idleWait && g_control && g_paused && !g_stepsRemaining &&
@@ -944,7 +948,8 @@ void consumeCommand(bool gameplay)
                 SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
         }
     } else if (type == SokuRLBridge::CommandType::ResetEpisode &&
-        g_vsBootstrapArmed && isLocalVersusGameplay() && argument < 0xFFFFFFFFULL) {
+        g_vsBootstrapArmed && (isLocalVersusGameplay() || (g_nativeCpu && isSupportedGameplay())) &&
+        argument < 0xFFFFFFFFULL) {
         if (SokuRLBridge::freshResetEnabled() &&
             !SokuRLBridge::canStartFreshWorld(&SokuLib::getBattleMgr())) {
             publishResult(SokuRLBridge::ResultCode::CheckpointRestoreUnsupported);
@@ -988,7 +993,8 @@ void consumeCommand(bool gameplay)
         isValidInput(input, 1) && isValidInput(inputP2, 1)) {
         g_activeInputs[0] = toKeyInput(input);
         g_activeInputs[1] = toKeyInput(inputP2);
-        g_activeInputMask = 3;
+        // Native VSCOM owns the right player. Neutral is not a CPU input policy.
+        g_activeInputMask = g_nativeCpu ? 1U : 3U;
         g_activeInputFrames = 1;
         g_activeInputEnabled = true;
         g_neutralPending = false;
@@ -1094,6 +1100,8 @@ void __fastcall keymapManagerSetInputs(SokuLib::KeymapManager *self)
     }
     const auto player = playerIndexFor(self);
     if (player < 0)
+        return;
+    if (g_nativeCpu && player == 1)
         return;
     if (!controlledRecordingInputReady()) {
         self->input = {};
@@ -1407,12 +1415,22 @@ int __fastcall titleOnProcess(SokuLib::Title *title)
 
     *reinterpret_cast<signed char *>(INPUT_MANAGER_CLUSTER_DEVICE) = -1;
     // Native replay saving (0x43EBE0) requires submode 1, the normal offline VS path.
-    SokuLib::setBattleMode(SokuLib::BATTLE_MODE_VSPLAYER,
-        SokuLib::BATTLE_SUBMODE_PLAYING2);
+    SokuLib::setBattleMode(g_nativeCpu ? SokuLib::BATTLE_MODE_VSCOM : SokuLib::BATTLE_MODE_VSPLAYER,
+        g_nativeCpu ? SokuLib::BATTLE_SUBMODE_PLAYING1 : SokuLib::BATTLE_SUBMODE_PLAYING2);
     configureVsPlayer(SokuLib::leftPlayerInfo, false, g_vsP1Character,
         g_vsP1Palette, g_vsP1Deck);
     configureVsPlayer(SokuLib::rightPlayerInfo, true, g_vsP2Character,
         g_vsP2Palette, g_vsP2Deck);
+    if (g_nativeCpu) {
+        // SokuAI TrainingMod startGame: null manager selects original CPU.
+        SokuLib::rightPlayerInfo.keyManager = nullptr;
+        if (g_cardsDisabled) {
+            // The CPU bypasses physical-key suppression. No cards are supplied
+            // at arena creation; reject the experiment if native hands refill.
+            SokuLib::leftPlayerInfo.effectiveDeck.clear();
+            SokuLib::rightPlayerInfo.effectiveDeck.clear();
+        }
+    }
     SokuLib::gameParams.stageId = static_cast<unsigned char>(g_vsStage);
     SokuLib::gameParams.musicId = static_cast<unsigned char>(g_vsMusic);
     if (g_vsSeedRequested)
@@ -1696,6 +1714,17 @@ extern "C" __declspec(dllexport) bool Initialize(HMODULE, HMODULE)
     }
     g_cardsDisabled = environmentValue(L"SOKURL_CARDS_DISABLED", 0) == 1;
     g_vsBootstrapArmed = environmentValue(L"SOKURL_VS_BOOTSTRAP", 0) == 1;
+    g_nativeCpu = environmentValue(L"SOKURL_NATIVE_CPU", 0) == 1;
+    const bool scopedCpuFreshReset = environmentValue(L"SOKURL_NATIVE_CPU_FRESH_RESET", 0) == 1 &&
+        g_vsBootstrapArmed && g_cardsDisabled &&
+        environmentValue(L"SOKURL_VS_P1_CHARACTER", 0xFFFFFFFFU) == 1 &&
+        environmentValue(L"SOKURL_VS_P2_CHARACTER", 0xFFFFFFFFU) == 0;
+    if (g_nativeCpu && (g_originalReplayRecording ||
+        (environmentValue(L"SOKURL_FRESH_RESET", 0) == 1 && !scopedCpuFreshReset))) {
+        // CPU reuse requires explicit scoped parity validation; recording stays disabled.
+        closeMapping();
+        return false;
+    }
     if (g_vsBootstrapArmed) {
         g_vsP1Character = environmentValue(L"SOKURL_VS_P1_CHARACTER", 1);
         g_vsP2Character = environmentValue(L"SOKURL_VS_P2_CHARACTER", 0);

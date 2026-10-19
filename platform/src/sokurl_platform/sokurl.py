@@ -39,6 +39,7 @@ RIGHT_SELECTION_STAGE_OFFSET = 0x22C1
 SCENE_SELECT = 3
 SCENE_BATTLE = 5
 BATTLE_MODE_VSPLAYER = 3
+BATTLE_MODE_VSCOM = 2
 BATTLE_MODE_PRACTICE = 8
 BATTLE_SUBMODE_REPLAY = 2
 
@@ -364,11 +365,18 @@ def _launch_vs_group_from_title(
     characters: tuple[int, int] | None = None,
     cards_disabled: bool = False,
     original_replay_recording: bool = False,
+    native_cpu: bool = False,
     stage: int = 0,
     music: int = 0,
 ) -> list[psutil.Process]:
     if worker_count < 1:
         raise ValueError("worker_count must be positive")
+    if type(native_cpu) is not bool or (native_cpu and original_replay_recording):
+        raise ValueError("native CPU requires an explicit boolean and no replay recording")
+    scoped_cpu_fresh = (os.environ.get('SOKURL_NATIVE_CPU_FRESH_RESET') == '1'
+        and characters == (1, 0) and cards_disabled and headless and not capture_images)
+    if native_cpu and os.environ.get('SOKURL_FRESH_RESET') == '1' and not scoped_cpu_fresh:
+        raise ValueError('native CPU fresh-reset reuse is not validated; disable SOKURL_FRESH_RESET')
     if unlimited and not headless:
         raise ValueError("--unlimited requires --headless")
     if characters is not None and (
@@ -393,6 +401,7 @@ def _launch_vs_group_from_title(
         "SOKURL_VS_PAUSE_AT_START": "1" if pause_at_start else "0",
         "SOKURL_CARDS_DISABLED": "1" if cards_disabled else "0",
         "SOKURL_ORIGINAL_REPLAY_RECORDING": "1" if original_replay_recording else "0",
+        "SOKURL_NATIVE_CPU": "1" if native_cpu else "0",
     })
     if seed is not None:
         if not 0 <= seed <= 0xFFFFFFFF:
@@ -443,7 +452,7 @@ def _launch_vs_group_from_title(
                 raise_if_startup_error(process.pid)
                 try:
                     _, mode, _, _, _, _ = _read_process_values(process.pid)
-                    if mode == BATTLE_MODE_VSPLAYER:
+                    if mode == (BATTLE_MODE_VSCOM if native_cpu else BATTLE_MODE_VSPLAYER):
                         pending.remove(process)
                 except OSError:
                     pass

@@ -79,6 +79,25 @@ approximate rewritten engine.
 
 ## Verification And Limits
 
+An opt-in original CPU launch is available through Platform's existing
+`sokurl._launch_vs_group_from_title(..., native_cpu=True)`. It selects native
+VS COM with the externally controlled player on the left and original CPU on
+the right. Controlled steps never overwrite the CPU player's inputs. The
+default remains VS Player. Original REP recording remains disabled for CPU.
+Snapshot-free CPU resource-reuse reset has a separate opt-in:
+`SOKURL_NATIVE_CPU_FRESH_RESET=1` together with `SOKURL_FRESH_RESET=1`,
+headless non-image observations, cards disabled, Marisa-left/Reimu-right.
+The Bridge and launcher reject unsupported combinations; rebuild the Win32
+Bridge before using this capability. It reuses the existing native arena
+exit/start path, not a frame-zero snapshot. Two-instance tests cover alternating
+seeds, RNG and 1024-frame new-process parity, neighbor isolation, and KO reset.
+These are bounded validation results, not all-character or unbounded-run proof.
+With cards disabled, this mode supplies empty decks for both players, rather
+than assuming physical key suppression constrains the CPU. CPU difficulty is
+inherited from the game configuration; no highest-difficulty claim is made.
+RL's dedicated native CPU worker exposes the scoped reset. See `rl/README.md`
+for the takeover configuration; ordinary VS Player defaults are unchanged.
+
 Native REP recording is an explicit, separate mode. EngineBatch recording adapters
 launch with `SOKURL_ORIGINAL_REPLAY_RECORDING=1`; ABI12 capability mask `0x2` confirms
 the protection is active. Until the original input record deque becomes nonempty,
