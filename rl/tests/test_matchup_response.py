@@ -40,6 +40,26 @@ class SeatGame:
         return observations, rewards, terms, truncs, infos
 
 
+def test_auxiliary_terminal_does_not_start_discarded_episode():
+    game=SeatGame()
+    setup={"character":1,"palette":0,"deck":0}
+    view=MatchupMixtureVecEnv(game,0,[UniformPolicy('test',4)],[1.],123,setup,[setup])
+    view.auto_reset=False
+    view.reset()
+    original=game.reset_matchups
+    resets=[]
+    def reset(seeds,matches):
+        resets.append(seeds)
+        return original(seeds,matches)
+    game.reset_matchups=reset
+    observations,_,dones,infos=view.step(np.zeros(8,dtype=int))
+    assert dones.all() and not resets
+    assert observations[0,0]==infos[0]['terminal_observation'][0]==-1
+    with pytest.raises(RuntimeError,match='explicit reset'):view.step(np.zeros(8,dtype=int))
+    view.reset()
+    assert len(resets)==1 and not view.terminal_pending
+
+
 @pytest.mark.parametrize("seat_mode", ["random", "balanced"])
 def test_sampled_seats_keep_learner_character_and_route_terminal_records(seat_mode):
     game = SeatGame()

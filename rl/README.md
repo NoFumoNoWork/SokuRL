@@ -82,8 +82,9 @@ at its saved horizon. Timeouts are separate outcomes, not HP-based wins.
 Results and compressed raw-frame evidence stay under the
 new output directory. Games are single-KO episodes, not best-of-three matches.
 CPU difficulty is inherited from the original game configuration; this command
-does not change it. CPU-left and fast-reset reuse
-are unverified. This entry does not enable native CPU in ordinary PPO configs.
+does not change it. CPU-left is unverified; this benchmark retains its original
+reset mode. Scoped fast reset is separately verified for the takeover worker,
+not automatically enabled by this entry or in ordinary PPO configurations.
 Use `-Games 1 -MaxFrames 1200 -Smoke` for a neutral-left autonomy check, not a
 god-policy strength evaluation. Saved frame evidence is not a native REP file.
 
@@ -526,6 +527,74 @@ outside verified scope. Old checkpoints may still contain absolute historical
 paths; handle those explicitly rather than making a legacy junction a silent
 dependency. Private Agent instructions, progress/history, reports, models, traces
 and run outputs are local-only, not part of the RL Git payload.
+## Episode takeover with separate PPO and BC streams
+
+`config/train_takeover.yaml` and `tools/train_takeover.py` provide a separate,
+bounded takeover experiment. They do not change the older Kickstarting entry.
+The source model and its resolved training configuration are external artifacts,
+not bundled in Git. Set their explicit paths before using the template; the
+configuration has no fallback to a developer's private run directory. The source
+configuration must also identify the prepared original AI package and its
+validated teacher evidence. Loading does not recreate those external resources.
+
+```powershell
+$env:SOKURL_TAKEOVER_TRAINING_CONFIG='D:/path/to/source/config.yaml'
+$env:SOKURL_TAKEOVER_STUDENT_CHECKPOINT='D:/path/to/source/final.zip'
+.\.venv\python.exe -B rl/run.py train_takeover `
+  --config rl/config/train_takeover.yaml --output rl/runs/NEW-takeover
+```
+
+One persistent student game collects pure student PPO rollouts. A second game
+runs teacher demonstrations and teacher-free evaluations sequentially. Both
+updates target the same student Actor. Teacher transitions never enter PPO;
+Actor-only SGD follows completed PPO updates and excludes Critic-only parameters.
+Shared feature updates can still change Critic predictions. The BC coefficient
+is independent of takeover probability.
+
+With no independent evaluations, alpha is 1. Otherwise use the latest
+`n=min(10,t)` evaluations and `alpha=clip(1-W/(2*n)-0.1*min(S,5),0,1)`, where S
+is the longest winning streak in that window. Only teacher-free evaluations
+update this history. Alpha selects a whole auxiliary episode, not a frame-level
+teacher fraction; mandatory student rollouts and evaluations continue at alpha 1.
+Untrusted or unmappable teacher suggestions use explicitly recorded student
+fallbacks and receive no BC label. Labels require actual native input receipts.
+`student_proposal_interval: 0` skips diagnostic student inference on trusted
+teacher frames; fallback and student evaluation still execute the student.
+A positive interval samples diagnostic proposals at that interval. Unsampled
+proposals are null, with `student_proposal_recorded: false`, never invented.
+Skipping stochastic diagnostics changes the sampling RNG stream, so compare
+paired seeds as experiments, not as guaranteed identical trajectories.
+Auxiliary episodes disable automatic terminal reset: terminal observations and
+feedback are retained, then the game closes without starting a discarded match.
+Ordinary PPO environments keep automatic reset enabled by default.
+
+The supplied short configuration starts from the verified Lunatic 8192-step
+checkpoint, retains its 592658-value shared-current observation and 90 actions,
+and uses ordinary PPO without its former Kickstarting loss. It does not activate
+Human-BC 60F history or migrate network weights. Two cycles collect 1024 new
+student PPO frames and perform eight BC updates. `cpu_reset_method: fresh`
+uses the existing snapshot-free native arena exit/start path with explicit
+`SOKURL_NATIVE_CPU_FRESH_RESET=1`; the trainer sets both worker switches.
+This requires the updated Win32 Bridge and Clear/cards-disabled,
+Marisa-left/Reimu-right, non-image observations, and recording off. Two-slot
+worker resets measured 36-40 ms after initial startup, with unchanged PIDs and
+repeat-seed history parity; raw native validation also covers RNG, 1024-frame
+new-process parity and reset after KO. Initial process startup is still needed.
+`cpu_reset_method: process_restart` retains the prior conservative mode.
+Fresh reset and process restart cannot be enabled together. Checkpoints bind
+the actual reset mode/configuration; do not silently resume an older contract.
+
+Immutable checkpoint directories contain a student ZIP, state, and hashed
+manifest. Resume with the same configuration and `--resume <manifest.json>`.
+Completed phases, evaluation history, demonstration cursor, optimizers and RNG
+are restored. An unfinished native episode restarts from a genuine new episode;
+this is not mid-frame or live-Lua resume. Changing the budget or implementation
+is not silently accepted as the same checkpoint contract. Demonstrations retain
+a bounded 1024-row FIFO; full pre-state traces remain external run artifacts.
+
+The two-cycle native acceptance proves execution/data separation and reproducible
+updates, not improved fighting strength or complete God-AI branch coverage.
+
 ## Restricted God-AI Kickstarting
 
 This is an opt-in auxiliary objective on the existing 1F, 90-action PPO, not a
@@ -939,8 +1008,9 @@ The teacher remains `01_marisa_main.ai`; students sample every executed action.
 `native_cpu_worker.py` only selects Platform's existing `native_cpu=True` launch
 option. The named CPU opponent is a neutral transport placeholder, **not** a
 scripted implementation; the existing Bridge leaves CPU-right keys autonomous.
-The training entry rejects other seats, ordinary workers, recording and fast
-reset. Scene reload is used instead. CPU-left/fast-reset parity is not verified.
+That older Kickstarting profile retains its original reset configuration.
+The separate dual-stream takeover entry now supports explicitly scoped native
+CPU fresh reset as described above; CPU-left and recording remain unsupported.
 Before deployment, set Lunatic using the existing audited/reversible original
 configuration procedure. Set `SOKURL_NATIVE_CPU_CONFIG_AUDIT` to its generated
 JSON: the worker requires difficulty 3 and an exact `during_sha256` match for

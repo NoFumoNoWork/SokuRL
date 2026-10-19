@@ -1,0 +1,22 @@
+# Independent, short acceptance entry: rl/run.py train_takeover --config ... --output ...
+training_config: ${oc.env:SOKURL_TAKEOVER_TRAINING_CONFIG}
+student_checkpoint: ${oc.env:SOKURL_TAKEOVER_STUDENT_CHECKPOINT}
+takeover:
+  enabled: true
+  schedule: independent_recent_win_streak_v2
+  segment_boundary: episode
+  # Zero disables diagnostic-only inference; fallback still runs the student.
+  student_proposal_interval: 0
+  cpu_reset_method: fresh
+  teacher_identity: 01_marisa_main.ai
+  teacher_bc_coef: 1.0
+  teacher_bc_updates_per_cycle: 4
+  bc_learning_rate: 0.00003
+  bc_batch_size: 32
+  student_rollout_quota: 2
+  evaluation_interval: 1
+  cycles: 2
+  seed: 20261019
+  native_frame_cap: 30000
+  demo_capacity: 1024
+  demo_max_bytes: 268435456

@@ -20,14 +20,22 @@ def cpu_launcher(original):
 
 
 class NativeCPUTrainingBatch(SokuGameBatch):
+    def reset_slots(self, seeds):
+        if os.environ.get('SOKURL_CPU_RESET_PROCESS_RESTART')=='1':
+            self._close_slots(set(seeds)&set(self.processes))
+        return super().reset_slots(seeds)
+
     def _create_reader(self, pid):
         reader = super()._create_reader(pid)
         reader.expected_battle_mode = 2
         return reader
 
     def _launch_slots(self, seeds):
-        if self.fresh_reset or self.recording_enabled or self.fixed_weather != 'clear':
-            raise ValueError('CPU fast reset/recording not verified; use Clear scene reset')
+        if (self.recording_enabled or self.fixed_weather != 'clear' or
+                (self.fresh_reset and os.environ.get('SOKURL_NATIVE_CPU_FRESH_RESET')!='1')):
+            raise ValueError('CPU reset requires Clear/no recording and explicit verified fresh-reset opt-in')
+        if self.fresh_reset and os.environ.get('SOKURL_CPU_RESET_PROCESS_RESTART')=='1':
+            raise ValueError('fresh reset and process restart are mutually exclusive')
         audit = json.loads(Path(os.environ['SOKURL_NATIVE_CPU_CONFIG_AUDIT']).read_text('utf-8'))
         digest = hashlib.sha256((sokurl.GAME_DIR / 'config123.dat').read_bytes()).hexdigest()
         if (audit['status'] != 'STATIC_VERIFIED_CONFIG_SERIALIZATION'

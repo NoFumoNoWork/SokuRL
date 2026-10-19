@@ -16,6 +16,15 @@ from soku_rl.rl.storage import PackedObservation
 from soku_rl.rl.teacher_replay import load_teacher_replay, validate_teacher_replay
 
 
+def actor_parameters(policy):
+    """Actor plus its feature encoder, never Critic-exclusive heads/encoder."""
+    modules=(policy.pi_features_extractor,policy.mlp_extractor.policy_net,policy.action_net)
+    wanted={id(p) for module in modules for p in module.parameters()}
+    parameters=[p for p in policy.parameters() if id(p) in wanted and p.requires_grad]
+    if not parameters:raise ValueError('no trainable actor parameters')
+    return parameters
+
+
 def validate_teacher(config):
     keys = {'teacher', 'updates_per_rollout', 'sequences', 'sequence_length', 'learning_rate', 'seed'}
     if not isinstance(config, dict) or set(config) not in (keys, keys | {'demonstration_replay'}):

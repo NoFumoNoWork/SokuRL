@@ -33,6 +33,8 @@ class OpponentMixtureVecEnv(VecEnv):
         self.observations = {}
         self.pending = None
         self.closed = False
+        self.auto_reset = True
+        self.terminal_pending = False
         self.curriculum = FixedOpponentSchedule()
         self.returns = np.zeros(env.num_envs)
         self.base_returns = np.zeros(env.num_envs)
@@ -73,6 +75,7 @@ class OpponentMixtureVecEnv(VecEnv):
         seeds = {i: int(self._seeds[i]) if self._seeds[i] is not None else
                  int(self.rng.integers(0, 0xFFFFFFFF)) for i in range(self.num_envs)}
         self._reset_slots(seeds)
+        self.terminal_pending = False
         self._reset_seeds()
         self._reset_options()
         return self._stack()
@@ -84,6 +87,8 @@ class OpponentMixtureVecEnv(VecEnv):
         return np.stack(values)
 
     def step_async(self, actions):
+        if self.terminal_pending:
+            raise RuntimeError("terminal episode requires explicit reset")
         if self.closed or self.pending is not None or not self.observations:
             raise RuntimeError("PPO view is not ready for step_async")
         if np.asarray(actions).shape != (self.num_envs,):
@@ -127,8 +132,10 @@ class OpponentMixtureVecEnv(VecEnv):
                 seeds[i] = int(self.rng.integers(0, 0xFFFFFFFF))
             output_infos.append(info)
         self.observations = obs
-        if seeds:
+        if seeds and self.auto_reset:
             self._reset_slots(seeds)
+        elif seeds:
+            self.terminal_pending = True
         return self._stack(), values, dones, output_infos
 
     def close(self):
