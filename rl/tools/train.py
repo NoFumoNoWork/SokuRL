@@ -24,6 +24,8 @@ def main(cfg: DictConfig):
     from soku_rl.rl import configure_runtime, ppo_settings, validate_payoff
 
     config = OmegaConf.to_container(cfg, resolve=True, throw_on_missing=True)
+    from soku_rl.rl.native_cpu import validate_configuration
+    validate_configuration(config)
     learner = ppo_settings(config)
     configure_runtime(config["rl"])
     algorithm = config["algorithm"]["name"]

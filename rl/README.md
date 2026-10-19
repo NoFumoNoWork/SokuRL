@@ -927,6 +927,26 @@ are not silently upgraded.
 
 The profile has two balanced seats,Clear,no cards,1F/90 primitive inputs,and a
 512-transition correctness budget. It is not a long-training recommendation.
+For original CPU practice, `train_combat_kickstarting_lunatic` uses two
+Marisa-left students against the original Reimu CPU-right. It starts from the
+original shared-weight artifact, not the pressure-trained continuation.
+**Currently BLOCKED before training:** the existing observation adapter accepts
+VSPLAYER mode 3 only and rejects VSCOM mode 2 at the initial state. Native-state
+interpretation approval is required before enabling VSCOM explicitly. Offline
+configuration tests do not mean this training profile has passed native use.
+The teacher remains `01_marisa_main.ai`; students sample every executed action.
+`native_cpu_worker.py` only selects Platform's existing `native_cpu=True` launch
+option. The named CPU opponent is a neutral transport placeholder, **not** a
+scripted implementation; the existing Bridge leaves CPU-right keys autonomous.
+The training entry rejects other seats, ordinary workers, recording and fast
+reset. Scene reload is used instead. CPU-left/fast-reset parity is not verified.
+Before deployment, set Lunatic using the existing audited/reversible original
+configuration procedure. Set `SOKURL_NATIVE_CPU_CONFIG_AUDIT` to its generated
+JSON: the worker requires difficulty 3 and an exact `during_sha256` match for
+`config123.dat`. Missing/mismatched evidence fails closed, not Normal fallback.
+Use the existing backed-up Bridge session and restore the configuration after
+training. Models, configuration audits and training artifacts stay in `runs/`.
+
 `shared_weights` means policy-weight initialization with a fresh optimizer,
 not resuming the offline migration tool's dummy PPO training state. Native
 continuation uses the normal `checkpoint` source and its actual saved config.

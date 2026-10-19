@@ -1,0 +1,18 @@
+defaults:
+  - train_combat_kickstarting_continuous
+  - _self_
+
+# Original CPU-right only; CPU-left and CPU fast-reset remain unverified.
+runtime:
+  command: ["${oc.env:SOKURL_PYTHON}", "-B", "${oc.env:SOKURL_RL_ROOT}/tools/native_cpu_worker.py"]
+  fresh_reset: false
+algorithm:
+  player: 0
+  timesteps: 8192
+  checkpoint_every: 2048
+  opponents:
+    - name: native-lunatic-reimu
+      probability: 1.0
+      setup: ${episode.match.player_1}
+      policy: {kind: native_cpu, difficulty: 3}
+output: ${oc.env:SOKURL_RL_ROOT}/runs/kickstarting-lunatic-${now:%Y%m%d-%H%M%S}

@@ -1,6 +1,11 @@
 """Load every policy type through the same observation and action contract."""
 def load_policy(name, spec, interface, device):
     kind = spec["kind"]
+    if kind == 'native_cpu':
+        from soku_rl.rl.native_cpu import NativeCPUPlaceholder
+        if spec != {'kind': 'native_cpu', 'difficulty': 3}:
+            raise ValueError('only explicit original Lunatic CPU supported')
+        return NativeCPUPlaceholder(name, interface)
     if kind == "human_multiscale":
         from soku_rl.policy.multiscale_bc import MultiscaleBCPolicy
         if set(spec) != {"kind", "path"}:
